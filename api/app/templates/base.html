@@ -179,68 +179,102 @@
    in, it is also the photo editor: rotating or cropping from here returns to this
    same photo still open, so a run of corrections does not mean a round trip through
    the item page for each one. The crop maths works in fractions of the image, which
-   is why it can live at whatever size the overlay happens to be showing. #}
-<div class="lb" id="lightbox">
-  <button class="lb-close" title="Close (Esc)" aria-label="Close">×</button>
-  <button class="lb-nav lb-prev" title="Previous (←)" aria-label="Previous">‹</button>
+   is why it can live at whatever size the overlay happens to be showing.
+
+   A <dialog>, opened modal: it takes the focus as it opens, holds Tab among its own
+   buttons while it is open with the page behind it inert, and gives the focus back
+   to the thumbnail it closes into (MANUAL §2). It is named for what it shows, the
+   photograph's own name, which the script writes into its title. #}
+<dialog class="lb" id="lightbox" aria-labelledby="lb-title">
+  <h2 class="sr-only" id="lb-title">{{ 'Photograph' }}</h2>
+  <button class="lb-close" type="button" title="Close (Esc)" aria-label="{{ 'Close' | ui }}">×</button>
+  <button class="lb-nav lb-prev" type="button" title="Previous (←)" aria-label="{{ 'Previous' | ui }}">‹</button>
   <div class="lb-stage" id="lb-stage">
     <div class="lb-fit" id="lb-fit">
       <img alt="">
-      <div id="lb-crop" hidden><div class="handle"></div></div>
+      {#- Over the photograph while cropping: the box and a handle at each corner. It
+          takes the focus when Crop is pressed, so the arrow keys can move it, and says
+          how through the line on the toolbar. -#}
+      <div class="cropbox" id="lb-crop" hidden tabindex="0" role="group" aria-label="Crop box"
+           aria-describedby="lb-crop-how"><span class="h nw"></span><span class="h ne"></span><span class="h sw"></span><span class="h se"></span></div>
     </div>
   </div>
-  <button class="lb-nav lb-next" title="Next (→)" aria-label="Next">›</button>
-  {% if request.state.authed %}
-  <div class="lb-tools" id="lb-tools">
-    <form method="post" class="lb-act" data-act="photo-rotate">
-      <input type="hidden" name="image"><input type="hidden" name="next">
-      <input type="hidden" name="dir" value="ccw">
-      <button class="btn sm" type="submit" title="Rotate anticlockwise" aria-label="Rotate anticlockwise">⟲</button>
-    </form>
-    <form method="post" class="lb-act" data-act="photo-rotate">
-      <input type="hidden" name="image"><input type="hidden" name="next">
-      <input type="hidden" name="dir" value="cw">
-      <button class="btn sm" type="submit" title="Rotate clockwise" aria-label="Rotate clockwise">⟳</button>
-    </form>
-    {# One press, and the levels-and-colour fix a phone does. Beside the rotates
-       because it belongs with the corrections rather than with cropping, and it
-       is the one edit here that offers to be taken back: "revert" stands in its
-       place once there is a kept original to go back to, and goes again as soon
-       as another edit has made that original no longer the truth. #}
-    <form method="post" class="lb-act" data-act="photo-tuneup" id="lb-tune">
-      <input type="hidden" name="image"><input type="hidden" name="next">
-      <button class="btn sm" type="submit" title="Auto-fix levels and colour">tuneup</button>
-    </form>
-    <form method="post" class="lb-act" data-act="photo-revert" id="lb-untune" hidden>
-      <input type="hidden" name="image"><input type="hidden" name="next">
-      <button class="btn sm" type="submit" title="Put this photo back as it was">revert</button>
-    </form>
-    <button class="btn sm" type="button" id="lb-crop-on">crop</button>
-    <form method="post" class="lb-act" data-act="photo-crop" id="lb-crop-form" hidden>
-      <input type="hidden" name="image"><input type="hidden" name="next">
-      <input type="hidden" name="x"><input type="hidden" name="y">
-      <input type="hidden" name="w"><input type="hidden" name="h">
-      <button class="btn sm primary" type="submit" id="lb-crop-apply" disabled>apply crop</button>
-      <button class="btn sm" type="button" id="lb-crop-off">cancel</button>
-    </form>
-    {# Last in the row, and the only one here that cannot be undone -- so it is put
-       at the far end from the rotates, coloured differently, and asks before it
-       goes. It steps out of the row while cropping rather than standing beside
-       "apply crop" waiting to be hit instead of it.
-
-       No `next` on this one, unlike its neighbours. They come back to the same
-       photograph still open, which is what makes a run of corrections bearable;
-       there is no coming back to a photograph that has been deleted, so the server
-       returns to the item page and the big view closes behind it. #}
-    <form method="post" class="lb-act" data-act="photo-delete" id="lb-delete"
-          data-confirm="Delete this photo? This cannot be undone.">
-      <input type="hidden" name="image">
-      <button class="btn sm danger" type="submit" title="Delete this photograph">delete</button>
-    </form>
-    <span class="lb-hint" id="lb-hint"></span>
+  <button class="lb-nav lb-next" type="button" title="Next (→)" aria-label="{{ 'Next' | ui }}">›</button>
+  {#- Under the photograph: where it is among the others, for everybody, and the
+      owner's tools joining it. -#}
+  <div class="lb-bar">
+    <span class="lb-count" id="lb-count"></span>
+    {% if request.state.authed %}
+    <div class="lb-tools" id="lb-tools">
+      {#- The corrections. Tune-up is one press, the levels-and-colour fix a phone
+          does, and the one edit here that offers to be taken back: once there is a
+          kept original, "Tuned up" stands where the button was with the undo beside
+          it, until another edit makes that original no longer the truth. -#}
+      <div class="lb-group">
+        <form method="post" class="lb-act" data-act="photo-rotate">
+          <input type="hidden" name="image"><input type="hidden" name="next">
+          <input type="hidden" name="dir" value="ccw">
+          <button class="btn sm" type="submit" title="Rotate anticlockwise" aria-label="{{ 'Rotate anticlockwise' | ui }}">⟲</button>
+        </form>
+        <form method="post" class="lb-act" data-act="photo-rotate">
+          <input type="hidden" name="image"><input type="hidden" name="next">
+          <input type="hidden" name="dir" value="cw">
+          <button class="btn sm" type="submit" title="Rotate clockwise" aria-label="{{ 'Rotate clockwise' | ui }}">⟳</button>
+        </form>
+        <form method="post" class="lb-act" data-act="photo-tuneup" id="lb-tune">
+          <input type="hidden" name="image"><input type="hidden" name="next">
+          <button class="btn sm" type="submit" title="Levels and colour, as a phone fixes them">{{ 'Tune up' | ui }}</button>
+        </form>
+        <span class="tuned" id="lb-tuned" hidden>{{ 'Tuned up' | ui }}</span>
+        <form method="post" class="lb-act" data-act="photo-revert" id="lb-untune" hidden>
+          <input type="hidden" name="image"><input type="hidden" name="next">
+          <button class="btn sm" type="submit" title="Put this photograph back as it was">{{ 'Undo tune-up' | ui }}</button>
+        </form>
+      </div>
+      <span class="lb-sep" aria-hidden="true"></span>
+      {#- The choices: what to keep of it, which one stands for the item, and whether
+          it is of this unit at all. Reference image is a toggle, and says which
+          way it stands; a location's photographs are of the place and are not
+          offered it. -#}
+      <div class="lb-group">
+        <button class="btn sm" type="button" id="lb-crop-on">{{ 'Crop' | ui }}</button>
+        <form method="post" class="lb-act" data-act="primary-photo" id="lb-primary">
+          <input type="hidden" name="image"><input type="hidden" name="next">
+          <button class="btn sm" type="submit" title="The one that stands for the item in lists and previews">{{ 'Default photo' | ui }}</button>
+        </form>
+        <form method="post" class="lb-act" data-act="photo-reference" id="lb-ref">
+          <input type="hidden" name="image"><input type="hidden" name="next">
+          <input type="hidden" name="set" value="1">
+          <button class="btn sm" type="submit" aria-pressed="false" title="A picture of the model, not of this unit">{{ 'Reference image' | ui }}</button>
+        </form>
+      </div>
+      <span class="lb-sep" aria-hidden="true"></span>
+      {#- The one that cannot be undone: at the far end on its own, drawn as the
+          destructive one, and it asks first. No `next`, unlike its neighbours: there
+          is no coming back to a photograph that has been deleted, so the server
+          returns to the item page and the big view closes behind it. -#}
+      <div class="lb-group">
+        <form method="post" class="lb-act" data-act="photo-delete" id="lb-delete"
+              data-confirm="Delete this photo? This cannot be undone.">
+          <input type="hidden" name="image">
+          <button class="btn sm danger" type="submit" title="Delete this photograph">{{ 'Delete' | ui }}</button>
+        </form>
+      </div>
+      {#- While cropping, the toolbar says how and holds only these two, so Delete is
+          never beside Apply crop. -#}
+      <form method="post" class="lb-act lb-cropacts" data-act="photo-crop" id="lb-crop-form" hidden>
+        <input type="hidden" name="image"><input type="hidden" name="next">
+        <input type="hidden" name="x"><input type="hidden" name="y">
+        <input type="hidden" name="w"><input type="hidden" name="h">
+        <p class="lb-hint" id="lb-crop-how">Drag the box or its corners. Arrow keys move it; Shift and an arrow resizes.</p>
+        <button class="btn sm primary" type="submit" id="lb-crop-apply" disabled>{{ 'Apply crop' | ui }}</button>
+        <button class="btn sm" type="button" id="lb-crop-off">{{ 'Cancel' | ui }}</button>
+      </form>
+    </div>
+    {% endif %}
+    <p class="sr-only" id="lb-said" aria-live="polite"></p>
   </div>
-  {% endif %}
-</div>
+</dialog>
 <script defer src="/static/app.js?v={{ js_ver['app.js'] }}"></script>
 
 {# Reading a label's code without leaving the page. A QR code holds a full URL to

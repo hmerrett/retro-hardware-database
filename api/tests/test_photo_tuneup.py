@@ -209,6 +209,22 @@ def test_a_later_edit_withdraws_the_offer_to_revert(client, computer):
     assert r.status_code == 404
 
 
+def test_making_it_the_default_withdraws_undo_tune_up(client, computer):
+    """Made the default, the photograph moves to the name the item's default has, and
+    the original kept for the undo is no longer the truth about it."""
+    aid = computer()["asset_id"]
+    upload(client, "computers", aid, name="first.png")
+    upload(client, "computers", aid, name="second.png")
+    rel = main.detect_images("computers", aid)[1]
+    client.post(f"/computers/{aid}/photo-tuneup", data={"image": rel}, follow_redirects=False)
+    assert rel in main.tuned_photos("computers", aid)
+
+    client.post(f"/computers/{aid}/primary-photo", data={"image": rel}, follow_redirects=False)
+
+    assert not main.tuned_photos("computers", aid)
+    assert not main.has_original(main.detect_images("computers", aid)[0])
+
+
 def test_deleting_the_photograph_takes_the_kept_original_with_it(client, computer):
     aid = computer()["asset_id"]
     rel = upload(client, "computers", aid)

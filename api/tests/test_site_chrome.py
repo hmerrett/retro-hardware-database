@@ -147,6 +147,12 @@ def could_be_the_banners_scan(selector: str) -> bool:
     return tag in ("", "*", "button") and bool(classes) and classes <= SCAN
 
 
+def selectors(head: str) -> list[str]:
+    """A rule's selectors, split on the commas between them and not on those inside a
+    `:not()` or `:is()` list -- `.btn:not(main.v2 *, .lb *)` is one selector."""
+    return [s.strip() for s in re.split(r",(?![^()]*\))", head) if s.strip()]
+
+
 def specificity(selector: str) -> tuple[int, int, int]:
     """Selectors level 4: ids, then classes, attributes and pseudo-classes, then
     elements. `:not()`, `:is()` and `:has()` count as their most specific argument
@@ -371,7 +377,7 @@ class TestHowItFoldsWithTheWidth:
             display = re.search(r"(?:^|;)\s*display\s*:\s*([^;!]+)", body)
             if not display:
                 continue
-            for sel in (s.strip() for s in head.split(",")):
+            for sel in selectors(head):
                 if could_be_the_banners_scan(sel):
                     side = hiding if display[1].strip() == "none" else showing
                     side.append((specificity(sel), sel))
@@ -398,7 +404,7 @@ class TestHowItFoldsWithTheWidth:
             for head, body in re.findall(r"([^{}@;]+)\{([^{}]*)\}", sheet):
                 display = re.search(r"(?:^|;)\s*display\s*:\s*([^;!]+)", body)
                 if display:
-                    for sel in (s.strip() for s in head.split(",")):
+                    for sel in selectors(head):
                         if could_be_the_banners_scan(sel):
                             yield display[1].strip(), specificity(sel), sel
 

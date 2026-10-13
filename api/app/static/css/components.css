@@ -783,21 +783,28 @@
   /* ---- 14d. Lightbox chrome ----------------------------------------------- */
   /* touch-action: none across the whole overlay, not only the photo: a flick that
      starts on the dark above or below the photo is still a flick, and left to itself
-     the phone would scroll the page underneath with it. Shown by app.js with .open. */
-  .lb { position: fixed; inset: 0; z-index: 1000; display: none; align-items: center; justify-content: center;
-    background: var(--scrim); color: var(--on-scrim); touch-action: none; }
-  .lb.open { display: flex; }
+     the phone would scroll the page underneath with it. A <dialog> opened modal, so
+     the browser's own box for one -- its margin, padding, edge and size limits -- is
+     put away: the view is the whole window, the photograph centred in it and the bar
+     under it. Its backdrop is clear, because the dialog draws the scrim itself and
+     fades it on the trip home into the thumbnail. */
+  .lb { position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0;
+    padding: 0; border: 0; background: var(--scrim); color: var(--on-scrim); touch-action: none;
+    --lb-h: 82vh; --lb-w: 92vw; }
+  .lb:has(.lb-tools) { --lb-h: 76vh; }
+  .lb[open] { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-3); }
+  .lb::backdrop { background: transparent; }
   /* The stage is the whole of the window the photo may use, not the photo's own box,
      so the zoom is free to spend the bands either side of a tall photo. The overlay
      does its own pinch: left to itself the browser would zoom the whole page. */
-  .lb .lb-stage { position: relative; width: 92vw; height: 84vh; touch-action: none; }
+  .lb .lb-stage { position: relative; width: var(--lb-w); height: var(--lb-h); touch-action: none; }
   /* Zoom and pan ride on this wrapper's transform from the stage's top-left corner,
      so the pan bounds and the crop maths measure against one untransformed box. Its
      background is the thumbnail's own copy, stretched to the size the photo is about
      to be, so the photo grows out of the thumbnail on the way in. */
   .lb .lb-fit { position: absolute; left: 0; top: 0; line-height: 0; transform-origin: 0 0; will-change: transform;
     border-radius: var(--radius-md); background-size: 100% 100%; background-repeat: no-repeat; }
-  .lb img { display: block; width: auto; height: auto; max-width: 92vw; max-height: 84vh;
+  .lb img { display: block; width: auto; height: auto; max-width: var(--lb-w); max-height: var(--lb-h);
     border-radius: var(--radius-md); cursor: zoom-in; user-select: none; -webkit-user-drag: none; }
   .lb .lb-stage.zoomed { overflow: hidden; cursor: grab; }
   .lb .lb-stage.zoomed img { cursor: grab; }
@@ -816,7 +823,18 @@
   .lb .lb-prev { left: 3vw; } .lb .lb-next { right: 3vw; }
   .lb .lb-hint { font-size: 12px; color: var(--on-scrim-muted); }
   .lb .lb-count { font-family: var(--font-data); font-size: 12px; color: var(--on-scrim-muted); }
-  .lb .lb-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-4); }
+  /* Under the photograph: the count, for everybody, and the owner's tools joining it.
+     The tools wrap onto a second row rather than shrink, Delete last. They fade with
+     the scrim, as the controls over the photograph do. */
+  .lb .lb-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--space-3);
+    max-width: 94vw; opacity: var(--chrome, 1); }
+  .lb .lb-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--space-3); }
+  .lb .lb-group, .lb .lb-tools form { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0; }
+  .lb .lb-hint { margin: 0; }
+  /* Apply crop is the one primary on the scrim: a heavier edge and weight rather than
+     a fill, since an accent fill reads differently in every preset and the scrim is
+     the same dark in all of them. */
+  .lb .btn.primary { background: none; color: var(--on-scrim); border: 2px solid var(--on-scrim); font-weight: 600; }
   /* On the scrim a button is drawn in the scrim's own colours, whatever the page's
      mode: the lightbox is dark in both. Fill and text in one rule. */
   .lb .btn { background: none; color: var(--on-scrim); border-color: var(--on-scrim-muted); }
@@ -970,8 +988,10 @@
      Crop: a box dragged over the photograph, everything outside it under the scrim, a
      handle at each corner with a 24px target, and a third-lines grid to square things up.
      Tuned: the one-press fix is marked, and undoing it is offered in its place. */
-  .lb .ph { position: relative; overflow: hidden; }
-  .cropbox { position: absolute; border: 2px solid var(--on-scrim); box-shadow: 0 0 0 100vmax var(--scrim);
+  /* The scrim outside the box is a shadow as wide as the window; the photograph's box
+     cuts it off at the photograph's edge, which is where what is dimmed ends. */
+  .lb .lb-stage.cropping .lb-fit { overflow: hidden; }
+  .cropbox { position: absolute; box-sizing: border-box; cursor: move; border: 2px solid var(--on-scrim); box-shadow: 0 0 0 100vmax var(--scrim);
     background-image: linear-gradient(90deg, transparent calc(33.333% - 0.5px), var(--on-scrim-muted) calc(33.333% - 0.5px) calc(33.333% + 0.5px), transparent calc(33.333% + 0.5px) calc(66.666% - 0.5px), var(--on-scrim-muted) calc(66.666% - 0.5px) calc(66.666% + 0.5px), transparent calc(66.666% + 0.5px)),
       linear-gradient(180deg, transparent calc(33.333% - 0.5px), var(--on-scrim-muted) calc(33.333% - 0.5px) calc(33.333% + 0.5px), transparent calc(33.333% + 0.5px) calc(66.666% - 0.5px), var(--on-scrim-muted) calc(66.666% - 0.5px) calc(66.666% + 0.5px), transparent calc(66.666% + 0.5px)); }
   .cropbox .h { position: absolute; width: 24px; height: 24px; display: grid; place-items: center; transform: translate(-50%, -50%); cursor: nwse-resize; }
@@ -982,6 +1002,17 @@
   .lb .tuned { display: inline-flex; align-items: center; gap: var(--space-2); font-size: 12px; color: var(--on-scrim);
     padding: var(--space-1) var(--space-3); border: 1px solid var(--on-scrim-muted); border-radius: var(--radius-pill); }
   .lb .lb-sep { width: 1px; align-self: stretch; background: var(--on-scrim-muted); opacity: .5; }
+  /* On a phone Apply crop and Cancel are two wide buttons at the foot, with how to
+     crop above them; the photograph runs edge to edge; and the toolbar's groups are
+     parted by the rows they wrap onto, so the rules between them, which would hang
+     at the ends of lines, go. */
+  @media (max-width: 560px) {
+    .lb .lb-cropacts .btn { flex: 1 1 0; }
+    .lb .lb-cropacts { width: 100%; }
+    .lb .lb-cropacts .lb-hint { flex-basis: 100%; text-align: center; }
+    .lb { --lb-w: 100vw; }
+    .lb .lb-sep { display: none; }
+  }
 
   /* ---- 14k. First run ------------------------------------------------------ */
   .firstrun { max-width: 640px; }

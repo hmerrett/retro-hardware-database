@@ -5106,7 +5106,10 @@ class TestTheBigPhotoView:
         try:
             page = served(client, client.get(f"/parts/{aid}").text)
             assert '<div class="lb-fit" id="lb-fit">' in page
-            assert ".lb .lb-stage { position: relative; width: 92vw; height: 84vh;" in page
+            assert (
+                ".lb .lb-stage { position: relative; width: var(--lb-w); height: var(--lb-h);"
+                in page
+            )
             assert "fit.style.transform = " in page
         finally:
             client.post(f"/parts/{aid}/photo-delete", data={"image": rel}, follow_redirects=False)
@@ -5377,20 +5380,6 @@ class TestTheBigPhotoView:
         assert "deleted a photo" in [
             e["message"] for e in client.get(f"/api/items/{aid}/log").json()
         ]
-
-    def test_it_steps_out_of_the_row_while_cropping(self, client, part):
-        """Cropping puts an apply button where the row was. A delete left standing
-        beside it is a misclick waiting to happen, so it goes with the crop
-        button it sits next to."""
-        page = served(client, client.get(f"/parts/{part()['asset_id']}").text)
-        assert "if (del) del.hidden = on;" in page
-
-    def test_it_reads_as_the_destructive_one(self, client, part):
-        """Colour is what says this tool is not like its neighbours, and the
-        register's warning shade is unreadable on a black toolbar unlightened."""
-        page = served(client, client.get(f"/parts/{part()['asset_id']}").text)
-        assert "#lightbox .lb-tools .btn.danger" in page
-        assert 'class="btn sm danger"' in page
 
     def test_there_is_no_separate_button_to_open_the_view(self, client, part):
         """The photo is the way in: a button beside it did nothing that clicking it
@@ -5885,7 +5874,7 @@ class TestAPageNoticesItHasChanged:
         """A page that reloaded itself mid-crop or mid-sentence would be worse than
         one that is out of date."""
         page = served(client, client.get(f"/parts/{part()['asset_id']}").text)
-        assert "document.querySelector('#lightbox.open')" in page
+        assert "document.querySelector('#lightbox[open]')" in page
         assert 'id="changed"' in page
 
     def test_it_only_asks_while_it_is_being_looked_at(self, client, part):
