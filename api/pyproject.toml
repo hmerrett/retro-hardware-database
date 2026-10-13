@@ -6,6 +6,10 @@
 # To change a dependency: edit the list here, run `uv lock`, and let the tests and
 # pip-audit vouch for the result. To install one: `uv sync --all-groups`, which
 # builds .venv from the lock and nothing else.
+#
+# Each is named as PyPI normalises it, in lower case, because that is the name
+# Dependabot looks for: written SQLAlchemy, it found the line nowhere and the pin
+# never moved (test_dependency_names.py).
 [project]
 name = "retro-hardware-database"
 version = "0.1.0"
@@ -14,17 +18,17 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi==0.143.0",
     "uvicorn[standard]==0.54.0",
-    "SQLAlchemy==2.0.52",
-    "PyMySQL==1.2.0",
+    "sqlalchemy==2.0.52",
+    "pymysql==1.2.0",
     "pydantic==2.14.0",
     "jinja2==3.1.6",
-    "PyYAML==6.0.3",
+    "pyyaml==6.0.3",
     "python-multipart==0.0.32",
     "reportlab==5.0.1",
     "segno==1.6.6",
     "alembic==1.20.0",
     "httpx==0.28.1",
-    "Pillow==12.3.0",
+    "pillow==12.3.0",
     "argon2-cffi==25.1.0",
     "markdown-it-py==4.2.0",
 ]
@@ -39,7 +43,7 @@ dev = [
     "ruff==0.17.0",
     "pip-audit",
     "mypy==2.4.0",
-    "types-PyYAML==6.0.12.20260906",
+    "types-pyyaml==6.0.12.20260906",
     "types-reportlab==5.0.0.20261008",
 ]
 

@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3017 behaviours, from 91 files.*
+*3018 behaviours, from 92 files.*
 
 
 ## A barcode takes the room the words leave
@@ -1680,6 +1680,14 @@ Regenerate with:
   Every directive is `'self'`, which is a description and not a wish: the photographs are served from the images volume, reference pictures are fetched into it server-side rather than hot-linked, and the QR decoder is vendored.
 - no page carries a style attribute  
   The policy allows none (ADR-0022), so one written into a template would not be applied -- silent in the browser and easy to miss in review, because the markup looks right and the page merely comes out wrong.
+
+
+## Dependency names
+
+*test_dependency_names.py — 1 behaviours*
+
+- every dependency is named as pypi normalises it  
+  That is the name Dependabot looks for, and a line it cannot find is a pin it never moves.
 
 
 ## Deployment
