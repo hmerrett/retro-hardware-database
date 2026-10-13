@@ -6,6 +6,7 @@ search, photos) and main can all import them downward without a circular import.
 
 import hashlib
 import os
+import re
 from collections.abc import Container, Mapping
 from pathlib import Path
 from typing import TypeVar
@@ -208,6 +209,22 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 PUBLIC_BASE_URL = os.getenv("RHDB_BASE_URL", "").rstrip("/")
 
 BRANDING_DIR = Path(os.getenv("RHDB_BRANDING_DIR", "/app/branding"))
+
+
+def short_commit(raw: str) -> str:
+    """A commit hash as git shows it, or '' for anything that is not one.
+
+    Seven characters, because that is what git prints and what a reader compares by
+    eye against the repository. A branch name or a typo is dropped rather than shown
+    in the place a hash goes, where it would read as one."""
+    raw = raw.strip().lower()
+    return raw[:7] if re.fullmatch(r"[0-9a-f]{7,40}", raw) else ""
+
+
+# The commit this image was built from (MANUAL §19, "The version that is running").
+# Handed to the build as an argument, because an image has no repository in it to
+# ask; a build that was not told it leaves this empty, and the release is shown alone.
+BUILD_COMMIT = short_commit(os.getenv("RHDB_COMMIT", ""))
 
 
 def branded(name: str) -> Path:

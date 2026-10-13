@@ -3436,7 +3436,7 @@ label whatever the site says.
 **Server** — what this installation shows the outside world: whether visitors must log in to read anything, whether it
 asks to be kept out of search engines,
 whether a visitor is shown where things are kept, and whether a new file starts
-out public.
+out public. At its foot is [the version that is running](#the-version-that-is-running).
 
 Press **Save** and the page says so. There is no history on a setting — the
 change log is about the collection, and these are not.
@@ -3550,6 +3550,24 @@ starts ticked instead: a driver or a manual goes up published unless you untick
 it before choosing the file. It only moves where the tick starts. Nothing already
 uploaded changes, and a private project's uploads start unticked either way. See
 [Who can see a file](#who-can-see-a-file).
+
+### The version that is running
+
+At the foot of **Server**, a line says which version of the register this is: the
+release, and the commit it was built from, such as **Version 0.1.0 · 42dc15a**.
+The release number changes only when a release is made, and an installation that
+follows the code as it is written runs many builds under one number. The commit is
+what tells two of them apart, and what to compare with the newest commit in the
+project's repository to see whether this one is behind.
+
+The build is told the commit when the image is made. `./deploy.sh` tells it, and so
+does `RHDB_COMMIT=$(git rev-parse --short HEAD) docker compose up -d --build` by
+hand. A build that was not told, such as a plain `docker compose up -d --build`,
+shows the release alone, because it has no way to find out.
+
+The line is on Settings, so only an administrator sees it. A visitor has no use for
+it, and telling strangers exactly which build is running would tell them which
+fixes it does not have yet.
 
 ### Photographs
 

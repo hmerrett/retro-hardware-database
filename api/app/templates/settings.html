@@ -181,6 +181,12 @@
 {% if pinned_any %}
 <p class="hint">Greyed options are set in <code>.env</code> and cannot be changed here.</p>
 {% endif %}
+{# Which build is running: the release, and the commit that tells two builds of one
+   release apart when the code is followed as it is written. Read only, so it is a
+   line and not a field. #}
+{% if version %}
+<p class="hint" id="version">Version {{ version }}{% if commit %} · {{ commit }}{% endif %}</p>
+{% endif %}
 {% if device_box %}{{ LS.script() }}
 {% if preview_data %}<script type="application/json" id="label-preview-data">{{ preview_data | tojson }}</script>{% endif %}
 <script defer src="/static/settings.js?v={{ js_ver['settings.js'] }}"></script>{% endif %}

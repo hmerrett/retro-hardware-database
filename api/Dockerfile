@@ -43,6 +43,12 @@ RUN chmod +x entrypoint.sh fix-volumes.sh \
     && mkdir -p /app/images /app/files /app/stats \
     && chown appuser:appuser /app/images /app/files
 
+# The commit this was built from, which the Settings page shows beside the release
+# (MANUAL §19). Last, because it changes on every build and everything after an
+# argument that changes is rebuilt: here, nothing is.
+ARG RHDB_COMMIT=""
+ENV RHDB_COMMIT=${RHDB_COMMIT}
+
 USER appuser
 EXPOSE 8000
 CMD ["./entrypoint.sh"]

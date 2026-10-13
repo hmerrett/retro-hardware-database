@@ -39,7 +39,13 @@ services:
   # root's -- and it changes nothing when nothing is wrong. `docker compose ps -a`
   # shows it as exited, which is what finished looks like for this one.
   api-init:
-    build: ./api
+    build: &api-build
+      context: ./api
+      # The commit, so Settings can say which build is running (MANUAL §19).
+      # deploy.sh sets it; a plain `up --build` leaves it empty and the page shows
+      # the release alone.
+      args:
+        RHDB_COMMIT: ${RHDB_COMMIT:-}
     user: root
     command: ["./fix-volumes.sh"]
     volumes:
@@ -47,7 +53,7 @@ services:
       - files:/app/files
 
   api:
-    build: ./api
+    build: *api-build
     restart: unless-stopped
     environment:
       DATABASE_URL: mysql+pymysql://${DB_USER:-retro}:${DB_PASSWORD:?set DB_PASSWORD in .env}@db:3306/${DB_NAME:-retro}

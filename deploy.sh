@@ -13,6 +13,9 @@ echo "==> Pulling latest from origin"
 git pull --ff-only
 
 echo "==> Rebuilding and restarting containers"
+# The image has no repository inside it, so it is told which commit it is, and the
+# Settings page says so (MANUAL §19, "The version that is running").
+export RHDB_COMMIT="$(git rev-parse --short HEAD)"
 docker compose up -d --build
 
 echo "==> Pruning dangling images"
