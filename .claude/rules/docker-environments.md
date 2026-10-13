@@ -17,8 +17,13 @@ Compose V2, Docker Engine. British English.
 - **Required secrets fail fast.** Use `${VAR:?message}` in compose so a missing
   value stops the stack with a clear message rather than falling back to a default
   — the database passwords already do this. Never ship a default password.
-- Keep the build context small with `.dockerignore` (exclude `.env`, `.venv`,
-  `.git`).
+- Keep the build context small with a `.dockerignore` **in each build context**
+  (`api/`, `mcp/`, `backup/`): Docker reads the one at the root of the context and
+  no other, and no build here starts at the repository's root, so a root one would
+  do nothing. A context that holds only a script or two names what it sends (`*`,
+  then `!` the files the Dockerfile copies) rather than what it leaves out --
+  `backup/` is where the off-site copy runs, beside its `.env`, its key and the
+  restic repository. The suite checks both.
 
 ## Environments
 

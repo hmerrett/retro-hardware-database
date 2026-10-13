@@ -1,0 +1,6 @@
+# Everything but what the image copies. This directory is where the backup runs,
+# so it holds the .env, the key that reaches the server, the repository password
+# and, by default, the restic repository and a mirror of every photograph -- and a
+# build sends its whole context before it reads the Dockerfile.
+*
+!pull-backup.sh
