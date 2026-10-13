@@ -32,12 +32,17 @@
    towards the ones whose status says stalled, because the point of a nudge is the
    thing you had forgotten rather than the one you were doing yesterday.
 
-   Drawn on every visit, so looking again gets another. The photographs are the
-   items', a project having none of its own: it is a piece of work, and what can be
-   photographed is the hardware it is about.
+   Drawn on every visit, and Shuffle says so: it asks for another, never the one on
+   screen while there is something else (today.js swaps it in place). The
+   photographs are the items', a project having none of its own: it is a piece of
+   work, and what can be photographed is the hardware it is about.
 
    A visitor sees the same suggestion, drawn from the public ones only -- which is
    the same rule the list below follows. #}
+{# Said out loud when Shuffle swaps the panel, which a screen reader would otherwise
+   pass over: outside the panel, because a live region has to be on the page before
+   the words it announces arrive in it. #}
+<p class="sr-only" id="today-said" aria-live="polite"></p>
 {% call PN.panel('Something to do today', cls='today') %}
   {% if suggestion.photos %}
   <div class="shots">
@@ -86,8 +91,11 @@
     {% else %}
     <p class="hint">No jobs yet.</p>
     {% endif %}
+    <p title="Another project, never the one shown while there is anything else in hand. Reloading the page draws again too.">
+      <a class="btn sm" href="/projects?instead_of={{ suggestion.p.asset_id | urlencode }}" data-shuffle>{{ 'Shuffle' | ui }}</a></p>
   </div>
 {% endcall %}
+<script defer src="/static/today.js?v={{ js_ver['today.js'] }}"></script>
 {% endif %}
 
 {% if request.state.authed %}

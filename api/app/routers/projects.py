@@ -88,7 +88,12 @@ def _task_or_404(db: Session, p: Project, tid: int) -> ProjectTask:
 
 
 def _projects_page(
-    request: Request, db: Session, q: str = "", error: str = "", status: int = 200
+    request: Request,
+    db: Session,
+    q: str = "",
+    error: str = "",
+    status: int = 200,
+    instead_of: str = "",
 ) -> HTMLResponse:
     """The page, drawn.
 
@@ -118,7 +123,7 @@ def _projects_page(
     suggestion = (
         None
         if (q.strip() or error)
-        else _today_panel(db, _project_of_the_day(db, request.state.sees_private))
+        else _today_panel(db, _project_of_the_day(db, request.state.sees_private, instead_of))
     )
     return templates.TemplateResponse(
         request,
@@ -421,7 +426,7 @@ def _let_go(db: Session, p: Project, asset_id: str) -> None:
         _member_log(db, p, asset_id, joining=False)
 
 
-def _project_of_the_day(db: Session, authed: bool) -> Project | None:
+def _project_of_the_day(db: Session, authed: bool, instead_of: str = "") -> Project | None:
     """One project to suggest, drawn now, or None if there is nothing in hand.
 
     Weighted towards the neglected, because the point of a nudge is the thing you
@@ -437,9 +442,17 @@ def _project_of_the_day(db: Session, authed: bool) -> Project | None:
     impossible.
 
     A visitor is offered only the public ones, for the reason the list below them
-    is filtered (see _visible)."""
+    is filtered (see _visible).
+
+    `instead_of` is the one Shuffle is replacing, left out of the draw so that
+    pressing it changes something -- unless it is the only one there is. It is
+    matched against the pool the reader may see, so a tag that is not in it, private
+    or made up, leaves the draw as it was and says nothing about why."""
     q = _visible(db.query(Project).filter(Project.status.notin_(projects.CLOSED)), authed)
     pool = q.all()
+    others = [p for p in pool if p.asset_id != instead_of]
+    if others:
+        pool = others
     if not pool:
         return None
     # The last thing written about each of them, in one query: a project's history
@@ -486,11 +499,14 @@ TODAY_STALLED_WEIGHT = 2
 
 
 @router.get("/projects", response_class=HTMLResponse, include_in_schema=False)
-def gui_projects(request: Request, q: str = "", db: Session = Depends(get_db)) -> HTMLResponse:
+def gui_projects(
+    request: Request, q: str = "", instead_of: str = "", db: Session = Depends(get_db)
+) -> HTMLResponse:
     """Everything planned, in hand or finished. `q` narrows it, and is a box of its
     own rather than the banner's: the banner searches the register and lands on the
-    gallery, and a page of projects wants to be siftable without leaving it."""
-    return _projects_page(request, db, q)
+    gallery, and a page of projects wants to be siftable without leaving it.
+    `instead_of` is what Shuffle sends: the suggestion it is asking to replace."""
+    return _projects_page(request, db, q, instead_of=instead_of)
 
 
 @router.post("/projects/quick", include_in_schema=False)
