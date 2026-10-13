@@ -14,4 +14,4 @@ If you modify this program and make it available to users over a network, the
 licence requires that those users be offered its source -- see section 13.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
