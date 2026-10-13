@@ -551,6 +551,21 @@
      draws each tab as a flex row (above), which drops the space between the two. */
   nav.itemtabs a { display: inline-flex; align-items: baseline; gap: var(--space-2); }
   nav.itemtabs .meta { color: var(--muted); font-weight: 400; }
+  /* The photograph in a 4:3 frame the width of the panel -- the gallery card's shape --
+     on a shaded ground. A photograph of another shape is shown whole inside it rather
+     than cropped, because the large one is for seeing all of the thing. The frame and
+     not the photograph sets the height, so the panels under it stay where they are
+     from one item to the next (MANUAL §10, "In the panel"). */
+  .photo-main { display: block; width: 100%; height: auto; aspect-ratio: var(--thumb-ratio); object-fit: contain;
+    background: var(--surface-sunken); border: var(--border-w) solid var(--line); border-radius: var(--radius-md); }
+  /* Nobody has photographed it: the same frame, so a page does not change shape
+     according to whether anyone has been round with a camera, holding the drawing the
+     item's gallery card wears at the card's size. */
+  .nophoto { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-3);
+    aspect-ratio: var(--thumb-ratio);
+    background: var(--surface-sunken); border: var(--border-w) solid var(--line); border-radius: var(--radius-md); }
+  .nophoto img.ph { width: 46%; height: auto; object-fit: contain; opacity: .55; }
+  .nophoto .hint { margin: 0; }
   /* The paragraph at the top runs as wide as the Details under it, rather than the
      seventy-character measure, so the head and the body share an edge: the details
      column's share of the two, less the gap between them. One column, the panels'

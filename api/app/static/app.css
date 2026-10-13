@@ -290,18 +290,9 @@
   .qr-card .qr-code svg { display: block; width: 132px; height: 132px; }
   .qr-card p { margin: 0; }
   .qr-card .qr-url { overflow-wrap: anywhere; margin-top: 6px; }
-  /* An item nobody has photographed. The drawing is the card's, drawn at the
-     size the photograph would have been so the column keeps its shape either
-     way -- a page that changed width according to whether anyone had been round
-     with a camera would be a different page for the same kind of thing. */
-  .nophoto { display: flex; flex-direction: column; align-items: center;
-    justify-content: center; gap: 8px; padding: 30px 12px 34px; }
-  .nophoto img.ph { width: 76px; height: 76px; object-fit: contain; opacity: .5; }
-  .nophoto .hint { margin: 0; }
 
 
 
-  .photo-main { width: 100%; max-height: 340px; object-fit: contain; border-radius: 10px; border: 1px solid var(--line); }
   img.zoomable { cursor: zoom-in; }
   img.zoomable:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
   #lb-crop { position: absolute; border: 2px solid #fff; box-sizing: border-box;
