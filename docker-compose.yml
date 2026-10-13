@@ -44,7 +44,7 @@ services:
     # from this checkout, under the same name, for an installation that builds
     # instead, as deploy.sh does. The tag is the release this checkout is, which the
     # suite holds to api/app/__init__.py, unless .env sets RHDB_VERSION to another.
-    image: &api-image ghcr.io/hmerrett/retro-hardware-database/api:${RHDB_VERSION:-0.1.0}
+    image: &api-image ghcr.io/hmerrett/retro-hardware-database/api:${RHDB_VERSION:-0.2.0}
     build: &api-build
       context: ./api
       # The commit, so Settings can say which build is running (MANUAL §19).
@@ -98,7 +98,7 @@ services:
 
   mcp:
     # Published beside the app's, under the same release (see api-init).
-    image: ghcr.io/hmerrett/retro-hardware-database/mcp:${RHDB_VERSION:-0.1.0}
+    image: ghcr.io/hmerrett/retro-hardware-database/mcp:${RHDB_VERSION:-0.2.0}
     build: ./mcp
     restart: unless-stopped
     environment:
