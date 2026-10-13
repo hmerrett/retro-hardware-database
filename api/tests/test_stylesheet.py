@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 STYLESHEET = Path(__file__).parents[1] / "app" / "static" / "app.css"
+COMPONENTS = STYLESHEET.parent / "css" / "components.css"
 # Where the colours now live: generated from the design data (ADR-0031). app.css
 # keeps the 0.1 names as aliases onto these while the templates move over.
 TOKENS = Path(__file__).parents[1] / "app" / "static" / "css" / "tokens.css"
@@ -21,9 +22,9 @@ TOKENS = Path(__file__).parents[1] / "app" / "static" / "css" / "tokens.css"
 NOT_TYPED_INTO = re.compile(r"input\[type=file\]")
 
 
-def css() -> str:
-    """The stylesheet with its comments removed, which otherwise match as rules."""
-    return re.sub(r"/\*.*?\*/", "", STYLESHEET.read_text(encoding="utf-8"), flags=re.S)
+def css(path: Path = STYLESHEET) -> str:
+    """A stylesheet with its comments removed, which otherwise match as rules."""
+    return re.sub(r"/\*.*?\*/", "", path.read_text(encoding="utf-8"), flags=re.S)
 
 
 def rules(text: str) -> list[tuple[str, str]]:
@@ -35,11 +36,14 @@ def selectors(head: str) -> list[str]:
     return [s.strip() for s in head.replace("\n", " ").split(",") if s.strip()]
 
 
-def touch_block() -> str:
-    """The `@media (pointer: coarse)` block that hands touch devices 16px."""
-    found = re.search(r"@media\s*\(pointer:\s*coarse\)\s*\{(.*?)\n  \}", css(), re.S)
-    assert found, "the coarse-pointer block has gone; touch devices zoom without it"
-    return found.group(1)
+def touch_rules() -> list[tuple[str, str]]:
+    """Every rule in components.css's `@media (pointer: coarse)` blocks: one for the
+    controls, and a line or two beside the components that size their own."""
+    blocks = re.findall(
+        r"@media\s*\(pointer:\s*coarse\)\s*\{((?:[^{}]|\{[^{}]*\})*)\}", css(COMPONENTS)
+    )
+    assert blocks, "the coarse-pointer blocks have gone; touch devices zoom without them"
+    return rules("\n".join(blocks))
 
 
 def test_every_control_given_its_own_size_is_listed_for_touch():
@@ -50,17 +54,35 @@ def test_every_control_given_its_own_size_is_listed_for_touch():
     added since were not. Anything that sizes a control belongs in that list."""
     sized = {
         selector
-        for head, body in rules(css())
+        for head, body in rules(css(COMPONENTS))
         if re.search(r"(?:^|[;\s])font(?:-size)?\s*:", body)
         for selector in selectors(head)
         if re.search(r"\b(?:input|select|textarea)\b", selector)
         and not NOT_TYPED_INTO.search(selector)
     }
-    listed = set(selectors(re.match(r"([^{}]+)\{", touch_block().strip()).group(1)))
+    listed = {
+        selector
+        for head, body in touch_rules()
+        if re.search(r"font-size\s*:\s*16px", body)
+        for selector in selectors(head)
+    }
     assert sized - listed == set(), (
         "these rules size a control but are not in the coarse-pointer block, so a "
         "phone will zoom the page when one is tapped"
     )
+
+
+def test_a_bare_box_is_16px_on_a_phone_too():
+    """Every box the templates write today carries `.input` or `.select`, which the
+    list above covers. A box without one -- written by a script, or by the next
+    template -- would zoom the page all the same, so the element itself is listed."""
+    listed = {
+        selector
+        for head, body in touch_rules()
+        if re.search(r"font-size\s*:\s*16px", body)
+        for selector in selectors(head)
+    }
+    assert {"input", "select", "textarea"} <= listed
 
 
 def declarations(text: str, head: str) -> dict[str, str]:

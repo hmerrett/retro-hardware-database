@@ -129,59 +129,6 @@ def stylesheet() -> str:
     return re.sub(r"/\*.*?\*/", "", COMPONENTS.read_text(encoding="utf-8"), flags=re.S)
 
 
-# The banner's Scan as base.html draws it: a <button> with these classes, in the
-# banner and outside <main>.
-SCAN = {"btn", "hdr-scan", "scan-open"}
-
-
-def could_be_the_banners_scan(selector: str) -> bool:
-    """Whether a selector's subject could be the banner's Scan: no class, id or
-    attribute it does not carry, and a tag that is a button or none. What stands to
-    the left of the subject is not read, so this errs towards yes."""
-    subject = re.split(r"\s*[ >+~]\s*(?![^(]*\))", selector.strip())[-1]
-    bare = re.sub(r":[\w-]+(\((?:[^()]|\([^()]*\))*\))?", "", subject)
-    if "#" in bare or "[" in bare:
-        return False
-    tag = re.match(r"[\w*-]*", bare)[0]
-    classes = set(re.findall(r"\.([\w-]+)", bare))
-    return tag in ("", "*", "button") and bool(classes) and classes <= SCAN
-
-
-def selectors(head: str) -> list[str]:
-    """A rule's selectors, split on the commas between them and not on those inside a
-    `:not()` or `:is()` list -- `.btn:not(main.v2 *, .lb *)` is one selector."""
-    return [s.strip() for s in re.split(r",(?![^()]*\))", head) if s.strip()]
-
-
-def specificity(selector: str) -> tuple[int, int, int]:
-    """Selectors level 4: ids, then classes, attributes and pseudo-classes, then
-    elements. `:not()`, `:is()` and `:has()` count as their most specific argument
-    and `:where()` as nothing."""
-    total = [0, 0, 0]
-
-    def add(part):
-        total[0] += part[0]
-        total[1] += part[1]
-        total[2] += part[2]
-
-    def strip(m: re.Match[str]) -> str:
-        name, args = m[1], m[2]
-        if name in ("not", "is", "has", "matches"):
-            add(max(specificity(a) for a in args.split(",")))
-        elif name != "where":
-            total[1] += 1
-        return " "
-
-    rest = re.sub(r":([\w-]+)\(((?:[^()]|\([^()]*\))*)\)", strip, selector)
-    total[2] += len(re.findall(r"::[\w-]+", rest))
-    rest = re.sub(r"::[\w-]+", " ", rest)
-    total[0] += rest.count("#")
-    total[1] += len(re.findall(r"\.[\w-]+|\[[^\]]*\]|:[\w-]+", rest))
-    rest = re.sub(r"#[\w-]+|\.[\w-]+|\[[^\]]*\]|:[\w-]+", " ", rest)
-    total[2] += len(re.findall(r"(?:^|[\s>+~])([a-zA-Z][\w-]*)", rest))
-    return (total[0], total[1], total[2])
-
-
 @pytest.fixture
 def owner(monkeypatch):
     """A site with a login, seen by its owner: every row the menus can hold."""
@@ -362,61 +309,11 @@ class TestHowItFoldsWithTheWidth:
             assert "display: none" in rule(gone, phone), gone
         assert "position: fixed" in rule(".tabbar", phone)
 
-    def test_and_nothing_older_puts_the_banners_scan_back(self):
-        """components.css says so in a layer, and app.css is unlayered, so any rule
-        there that gives a `.btn` a display outranks it whatever its specificity: app.css
-        has to hide Scan again itself, and more specifically than everything it says
-        that could show it. It said it at 0,2,0 against `.btn:not(main.v2 *)` at 0,2,1,
-        and the button stayed in a banner that cannot wrap, holding a 390px phone's
-        page 86px wider than the screen."""
-        if not LEGACY.exists():
-            return
-        css = re.sub(r"/\*.*?\*/", "", LEGACY.read_text(encoding="utf-8"), flags=re.S)
-        hiding, showing = [], []
-        for head, body in re.findall(r"([^{}@;]+)\{([^{}]*)\}", css):
-            display = re.search(r"(?:^|;)\s*display\s*:\s*([^;!]+)", body)
-            if not display:
-                continue
-            for sel in selectors(head):
-                if could_be_the_banners_scan(sel):
-                    side = hiding if display[1].strip() == "none" else showing
-                    side.append((specificity(sel), sel))
-        assert hiding, "app.css no longer hides the banner's Scan on a phone"
-        assert showing, "nothing in app.css shows a .btn: the hiding rule can go"
-        assert max(hiding)[0] > max(showing)[0], (max(hiding), max(showing))
-
     def test_beside_the_rail_the_banner_puts_its_scan_away(self):
         """Scan is in the rail there, under the sections (MANUAL, "Where the sections
         sit"), and nothing is in both."""
         wide = media("(min-width: 1100px)", stylesheet())
         assert "display: none" in rule(".shell.side .site-header .hdr-scan", wide)
-
-    def test_and_nothing_older_puts_it_back_beside_the_rail_either(self):
-        """The phone's fault again, at the other end: app.css's `.btn` outranks the
-        layer whatever the specificity, so beside the rail app.css has to put Scan
-        away itself, and more specifically than everything it says that could show
-        it -- or the rail and the banner would both offer it."""
-        if not LEGACY.exists():
-            return
-        css = re.sub(r"/\*.*?\*/", "", LEGACY.read_text(encoding="utf-8"), flags=re.S)
-
-        def displays(sheet):
-            for head, body in re.findall(r"([^{}@;]+)\{([^{}]*)\}", sheet):
-                display = re.search(r"(?:^|;)\s*display\s*:\s*([^;!]+)", body)
-                if display:
-                    for sel in selectors(head):
-                        if could_be_the_banners_scan(sel):
-                            yield display[1].strip(), specificity(sel), sel
-
-        hiding = [
-            (spec, sel)
-            for shown, spec, sel in displays(media("(min-width: 1100px)", css))
-            if shown == "none" and ".shell.side" in sel
-        ]
-        showing = [(spec, sel) for shown, spec, sel in displays(css) if shown != "none"]
-        assert hiding, "app.css does not put the banner's Scan away beside the rail"
-        assert showing, "nothing in app.css shows a .btn: the hiding rule can go"
-        assert max(hiding)[0] > max(showing)[0], (max(hiding), max(showing))
 
     def test_the_bars_scan_is_drawn_as_the_others_are(self, client):
         """No puck behind its icon and no rule of its own: the accent on the bar says
@@ -488,3 +385,20 @@ class TestTheBannerStaysOneRow:
             "nowrap",
         )
         assert declared(".site-header .brand img")["flex"] == "none"
+
+
+class TestTheScanner:
+    def test_it_is_drawn_on_the_scrim_as_the_full_size_view_is(self):
+        css = stylesheet()
+        assert "background: var(--scrim)" in rule(".scanner", css)
+        assert "color: var(--on-scrim)" in rule(".scanner .scan-note", css)
+        button = re.search(r":is\(\.lb, \.scanner\) \.btn\s*\{([^}]*)\}", css)
+        assert button and "color: var(--on-scrim)" in button[1]
+
+    def test_its_close_follows_the_button_text_setting(self, client):
+        page = client.get("/").text
+        assert re.search(r'id="scan-close">Close</button>', page)
+        from test_settings import save  # it imports from this file
+
+        save(client, button_case="lower")
+        assert re.search(r'id="scan-close">close</button>', client.get("/").text)

@@ -9,7 +9,7 @@
   {%- if line.undoable %}
   <form method="post" action="/audit/undo" class="inline-form" data-undo>
     <input type="hidden" name="scan" value="{{ line.id }}">
-    <button class="btn sm" type="submit" aria-label="Undo this move">undo</button>
+    <button class="btn sm" type="submit" aria-label="Undo this move">{{ 'Undo' | ui }}</button>
   </form>
   {%- endif %}
 </li>

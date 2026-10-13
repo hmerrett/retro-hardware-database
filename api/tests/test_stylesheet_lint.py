@@ -230,3 +230,16 @@ def test_app_css_draws_no_class_that_nothing_writes():
         c for c in drawn if not re.search(rf"(?<![\w-]){re.escape(c)}(?![\w-])", source)
     )
     assert unwritten == [], "app.css draws these, and nothing writes them"
+
+
+def test_app_css_draws_nothing():
+    """Everything it drew is in the design system now: the buttons outside <main>,
+    the photo column, the history line, the scanner, the page-wide rules. What is left
+    is the 0.1 colour names the contrast tests are still written on, and no rule
+    that styles anything."""
+    if not LEGACY.exists():
+        pytest.skip("app.css has gone")
+    heads = [" ".join(h.split()) for h in re.findall(r"([^{}]+)\{", text(LEGACY))]
+    assert heads == [":root"]
+    names = [p for _, p, _ in declarations(LEGACY)]
+    assert names and all(p.startswith("--") for p in names), names
