@@ -17,8 +17,27 @@
   [hidden] { display: none !important; }
   body { margin: 0; background: var(--surface); color: var(--text);
     font-family: var(--font-ui); font-size: 14px; line-height: 1.5; }
+  /* The browser draws a select's list, a checkbox, a date picker and the scrollbars
+     itself, in the scheme it is told: the system's, or the one the reader chose. */
+  :root { color-scheme: light dark; }
+  :root[data-theme="light"] { color-scheme: light; }
+  :root[data-theme="dark"] { color-scheme: dark; }
+  /* A control lays out in the browser's own face and at its own line-height, about
+     1.15, unless told otherwise; side by side, a submit button stood shorter than a
+     link drawn as one. */
   button, input, select, textarea { font-family: inherit; line-height: inherit; }
+  ::file-selector-button { font-family: inherit; line-height: inherit; }
+  /* A picker is as wide as its widest option, and the options can be whole item
+     names, wider than a phone. The chosen line still fits. */
+  select { max-width: 100%; }
+  /* Some browsers carry the page's text colour into a select's popup and leave its
+     ground the system's light, which in the dark is pale on white. */
+  option, optgroup { background: var(--surface-raised); color: var(--text); }
   a { color: var(--accent); }
+  /* A link found in what somebody wrote -- a note, a summary, a spec value; anything
+     the `linked` filter has been through -- is one unbreakable word to a browser, and
+     a long one would push a column or a card wider than the phone it is read on. */
+  a.url { overflow-wrap: anywhere; }
   h1, h2, h3, h4 { overflow-wrap: anywhere; margin: 0; }
   .muted { color: var(--text-muted); }
   /* The three type roles, by family token so a preset's pairing reaches them. */
@@ -55,6 +74,18 @@
      useful. The skip link itself is what the eye should follow. The one suppression
      the suite allows (test_keyboard_and_motion). */
   main:focus { outline: none; }
+  /* Anything that moves stops when asked to, including what is added next. The one
+     scroll that asks for motion in a script reads the preference itself: a behavior
+     passed to scrollTo outranks scroll-behavior. */
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 
   /* ---- 3. Button ---------------------------------------------------------- */
   .btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
@@ -111,6 +142,7 @@
   .input:disabled, .select:disabled, .is-pinned .input, .is-pinned .select {
     background: var(--surface-sunken); color: var(--text-muted); border-style: dashed; cursor: not-allowed; }
   @media (pointer: coarse) {
+    input, select, textarea { font-size: 16px; }
     .btn, .input, .select { font-size: 16px; min-height: var(--tap); }
     .formsections a { display: inline-flex; align-items: center; min-height: var(--tap); }
     nav.tabs a { display: inline-flex; align-items: center; min-height: var(--tap); }
@@ -175,6 +207,16 @@
      It is what somebody wrote rather than something recorded, so it is in the
      summary's face and not the data face of the values above it. */
   .kv dd.lines { white-space: pre-line; font-family: var(--font-display); }
+  /* What happened takes the slack, so an entry's camera and delete stand together at
+     the right of its line. */
+  .logline { display: flex; align-items: center; gap: var(--space-3); }
+  .logmsg { flex: 1; min-width: 0; white-space: pre-line; }
+  .logadd { flex: none; }
+  /* An entry's own photographs, smaller than the gallery's: a picture the size of the
+     sentence beside it would have the log read by its pictures. */
+  .logshots { display: flex; flex-wrap: wrap; gap: var(--space-3); margin: var(--space-3) 0 var(--space-1); }
+  .logshots img { width: 120px; height: 88px; object-fit: cover;
+    border: var(--border-w) solid var(--line); border-radius: var(--radius-sm); }
   /* On a phone the stamp beside each entry left the words two to a line. Above it,
      the entry has the width of the screen; its line is still a row, so the buttons
      keep their column at its right-hand end. */
@@ -550,7 +592,7 @@
   /* The count stands apart from its word by a gap rather than a space: a touchscreen
      draws each tab as a flex row (above), which drops the space between the two. */
   nav.itemtabs a { display: inline-flex; align-items: baseline; gap: var(--space-2); }
-  nav.itemtabs .meta { color: var(--muted); font-weight: 400; }
+  nav.itemtabs .meta { color: var(--text-muted); font-weight: 400; }
   /* The photograph in a 4:3 frame the width of the panel -- the gallery card's shape --
      on a shaded ground. A photograph of another shape is shown whole inside it rather
      than cropped, because the large one is for seeing all of the thing. The frame and
@@ -566,6 +608,47 @@
     background: var(--surface-sunken); border: var(--border-w) solid var(--line); border-radius: var(--radius-md); }
   .nophoto img.ph { width: 46%; height: auto; object-fit: contain; opacity: .55; }
   .nophoto .hint { margin: 0; }
+  .photo-primary { position: relative; }
+  /* The rest of the photographs under the first, two across down to the narrowest
+     column and more where the panel has the page's width. */
+  .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(110px, 100%), 1fr));
+    gap: var(--space-4); margin: var(--space-3) 0; }
+  .thumb-item { position: relative; }
+  .thumbs img { display: block; width: 100%; height: auto; aspect-ratio: var(--thumb-ratio); object-fit: cover;
+    border: var(--border-w) solid var(--line); border-radius: var(--radius-md); }
+  img.zoomable { cursor: zoom-in; }
+  /* "Not this exact unit": a reference photograph is marked where it sits, over the
+     picture, so it is drawn on the scrim as the lightbox's controls are. */
+  .ref-badge { position: absolute; top: 6px; left: 6px; pointer-events: none; padding: var(--space-1) var(--space-3);
+    font-size: 11px; line-height: 1; color: var(--on-scrim); background: var(--scrim); border-radius: var(--radius-pill); }
+  .ref-badge.icon { display: inline-flex; padding: var(--space-1); border-radius: var(--radius-sm); }
+  .ref-badge.icon img { display: block; width: 18px; height: 18px; object-fit: contain; border-radius: var(--radius-xs); }
+  /* The ways a photograph arrives, and the disposal box: a column, where a note box
+     stands over its button; across, for Add photos beside Fetch from reference, with
+     a message about either on a line of its own. */
+  .photo-actions { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3);
+    margin-top: var(--space-4); max-width: 320px; }
+  .photo-actions form { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin: 0; }
+  .photo-actions .hint { margin: 0; }
+  .photo-actions.across { flex-direction: row; flex-wrap: wrap; align-items: center; }
+  .photo-actions.across > .hint { flex-basis: 100%; }
+  /* A file input sits invisible over its own label, so the button says what it does
+     in the site's words rather than the browser's, and is still a real input: it
+     takes the keyboard, opens the picker and works with no script. The ring it would
+     draw round itself is drawn round the button. */
+  .filebtn { position: relative; overflow: hidden; }
+  .filebtn input[type=file] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 0; }
+  .filebtn:has(input:focus-visible) { outline: var(--focus-w) solid var(--focus); outline-offset: var(--focus-w); }
+  form.sending .filebtn { pointer-events: none; opacity: .55; }
+  .newphotos { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+  .newphotos .hint { margin: 0; }
+  /* The code a phone adds a photograph by. The SVG paints its own light quiet zone, so
+     the edge is clipped to the panel's corners rather than given a ground of its own. */
+  .qr-code { display: inline-block; line-height: 0; overflow: hidden;
+    border: var(--border-w) solid var(--line); border-radius: var(--radius-md); }
+  .qr-code svg { display: block; width: 132px; height: 132px; }
+  /* One column, it would open every item with a code of the page already open. */
+  @media (max-width: 860px) { .photo-qr { display: none; } }
   /* The paragraph at the top runs as wide as the Details under it, rather than the
      seventy-character measure, so the head and the body share an edge: the details
      column's share of the two, less the gap between them. One column, the panels'
@@ -635,6 +718,11 @@
   .cardthumb { position: relative; overflow: hidden; flex: none; width: 92px; aspect-ratio: var(--thumb-ratio); display: flex; align-items: center; justify-content: center;
     background: var(--surface-sunken); border: 1px solid var(--line); border-radius: var(--radius-md); }
   .cardthumb svg { width: 50%; fill: none; stroke: var(--text-muted); stroke-width: 2; }
+  .cardthumb > img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .cardthumb > img.ph { width: 46%; height: 46%; object-fit: contain; opacity: .55; }
+  .cardthumb .ref-badge { top: 3px; left: 3px; padding: var(--space-1) var(--space-2); font-size: 9px; }
+  .cardthumb .ref-badge.icon { padding: var(--space-1); }
+  .cardthumb .ref-badge.icon img { width: 12px; height: 12px; }
   dl.specs { display: grid; gap: var(--space-1) var(--space-5); margin: var(--space-3) 0 0;
     grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); }
   dl.specs > div { display: flex; align-items: baseline; gap: var(--space-3); min-width: 0; }
@@ -667,6 +755,19 @@
     display: flex; align-items: flex-end; justify-content: center; padding: var(--space-5); border-radius: var(--radius-lg); overflow: hidden; }
   .scanbox .reticle { position: absolute; inset: 18%; border: 2px solid var(--on-scrim); border-radius: var(--radius-md); }
   .scanbox .lb-hint { position: relative; color: var(--on-scrim-muted); font-size: 13px; }
+  /* Scanning a label, from the banner's Scan: the whole screen, as the full-size view
+     takes it, because aiming a camera on a phone wants all of it; above that view, so
+     the two never argue about which is in front. The frame is an aiming guide, not the
+     edge of what is read, and has a dark line either side of the light one, because a
+     label is mostly white and a white frame over one is a frame nobody can see. */
+  .scanner { position: fixed; inset: 0; z-index: 1100; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: var(--space-5); padding: var(--space-5); color: var(--on-scrim); background: var(--scrim); }
+  .scanner .scan-stage { position: relative; width: min(92vw, 420px); aspect-ratio: 1; overflow: hidden;
+    background: var(--scrim); border-radius: var(--radius-lg); }
+  .scanner video { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .scanner .scan-frame { position: absolute; inset: 12%; pointer-events: none; border: 2px solid var(--on-scrim);
+    border-radius: var(--radius-md); box-shadow: 0 0 0 1px var(--scrim), inset 0 0 0 1px var(--scrim); }
+  .scanner .scan-note { max-width: 34em; margin: 0; text-align: center; font-size: 14px; line-height: 1.45; color: var(--on-scrim); }
   /* A page that asks one question: the delete confirmation and the board detach.
      Narrow, because the decision is the whole page and a long measure invites
      skimming what has to be read; the banner carries the tone, and the two buttons
@@ -743,7 +844,7 @@
   /* ---- 14. Empty state, toolbar, pager ------------------------------------ */
   .empty { padding: var(--space-7) var(--space-4); text-align: center; color: var(--text-muted); }
   .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin: var(--space-4) 0; }
-  .toolbar > * { min-width: 0; max-width: 100%; }
+  .toolbar > *, .toolbar form { min-width: 0; max-width: 100%; }
   .toolbar .select { width: auto; }
   /* Two menus, one row, on a phone: which category and in what order are one
      sentence, and a row each spent two lines of the screen saying it. */
@@ -837,11 +938,11 @@
   .lb .btn.primary { background: none; color: var(--on-scrim); border: 2px solid var(--on-scrim); font-weight: 600; }
   /* On the scrim a button is drawn in the scrim's own colours, whatever the page's
      mode: the lightbox is dark in both. Fill and text in one rule. */
-  .lb .btn { background: none; color: var(--on-scrim); border-color: var(--on-scrim-muted); }
-  .lb .btn:hover { background: none; box-shadow: inset 0 0 0 1px var(--on-scrim); }
+  :is(.lb, .scanner) .btn { background: none; color: var(--on-scrim); border-color: var(--on-scrim-muted); }
+  :is(.lb, .scanner) .btn:hover { background: none; box-shadow: inset 0 0 0 1px var(--on-scrim); }
   .lb .btn.danger { background: none; color: var(--on-scrim-danger); border-color: var(--on-scrim-danger); }
   .lb .btn.on { color: var(--on-scrim); border-color: var(--on-scrim); box-shadow: inset 0 0 0 1px var(--on-scrim); }
-  .lb :focus-visible { outline-color: var(--on-scrim); }
+  :is(.lb, .scanner) :focus-visible { outline-color: var(--on-scrim); }
 
   /* ---- 14e. Bezel swatch and the yellowing ladder -------------------------
      The colours are data, not theme: real plastic. In the product each is a class
@@ -858,6 +959,9 @@
   .loginbox { max-width: 360px; margin: var(--space-7) auto; }
   .pagehead { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-4); margin-bottom: var(--space-4); }
   .pagehead .count { font-size: 13px; color: var(--text-muted); }
+  /* A heading inside a panel, over the list it names: closer to what follows than to
+     what went before. */
+  .subhead { margin: var(--space-4) 0 var(--space-1); }
   .figure { font-size: 54px; line-height: 1.1; font-weight: 600; }
   .statgrid { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); }
   .twocol { display: grid; gap: var(--space-6); grid-template-columns: repeat(auto-fill, minmax(min(400px, 100%), 1fr)); }

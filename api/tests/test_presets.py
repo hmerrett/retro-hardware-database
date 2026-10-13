@@ -289,3 +289,14 @@ def test_the_banner_s_flash_and_a_panel_s_are_slanted_alike():
         if selector in flashes and prop == "transform"
     }
     assert slants == dict.fromkeys(flashes, "skewX(-25deg)")
+
+
+def test_native_controls_are_drawn_for_the_theme():
+    """A select's list, a checkbox and the scrollbars are the browser's to draw, in the
+    scheme it is told: both, for the system to choose, and the one a reader picked."""
+    said = {sel: value for sel, prop, value in declarations(COMPONENTS) if prop == "color-scheme"}
+    assert said == {
+        ":root": "light dark",
+        ':root[data-theme="light"]': "light",
+        ':root[data-theme="dark"]': "dark",
+    }

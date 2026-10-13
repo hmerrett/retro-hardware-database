@@ -215,3 +215,12 @@ def test_a_long_filename_cannot_hold_the_list_open():
     rule = re.search(r"\.fname\s*\{[^}]*\}", css)
     assert rule, "nothing lets a filename break, so the widest one sets the list's width"
     assert "overflow-wrap: anywhere" in rule.group(0)
+
+
+def test_a_link_in_what_somebody_wrote_breaks_anywhere(client, computer):
+    """A URL in a note is one unbreakable word to a browser, and would set the width of
+    whatever it sits in."""
+    aid = computer(manufacturer="Acme", notes="https://example.com/" + "a" * 120)["asset_id"]
+    assert '<a class="url"' in client.get(f"/computers/{aid}").text
+    css = re.sub(r"/\*.*?\*/", "", COMPONENTS.read_text(encoding="utf-8"), flags=re.S)
+    assert re.search(r"(?:^|[}\s])a\.url\s*\{[^}]*overflow-wrap:\s*anywhere", css)

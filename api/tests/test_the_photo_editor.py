@@ -267,11 +267,8 @@ class TestTheStylesheet:
     def test_no_0_1_button_rule_reaches_the_big_view(self):
         """The view is outside `<main>`, so 0.1's buttons -- kept off v0.2 pages by
         `:not(main.v2 *)` -- reached it, and being unlayered they outranked the scrim's
-        own: a pale fill under pale words. Every one of them leaves the view alone."""
-        rules = re.findall(r"([^{}]*\.btn[^{}]*)\{", css(LEGACY))
-        reaching = [r.strip() for r in rules if ":not(main.v2 *)" in r]
-        assert reaching == []
-        assert any(":not(main.v2 *, .lb *)" in r for r in rules)
+        own: a pale fill under pale words. None of them is left."""
+        assert re.findall(r"([^{}]*\.btn[^{}]*)\{", css(LEGACY)) == []
 
     def test_apply_and_cancel_are_wide_on_a_phone(self):
         assert re.search(

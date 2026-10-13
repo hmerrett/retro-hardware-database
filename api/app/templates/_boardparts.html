@@ -55,7 +55,7 @@
      anyway, so a row of them was the same menu said twice. #}
   {% if request.state.authed %}
   <div class="pbody">
-  <div class="toolbar flush-top">
+  <div class="toolbar mt-0">
     {{ U.button('Add part', href='/parts/new?computer_id=' ~ c.asset_id) }}
   </div>
   {% if link_candidates %}

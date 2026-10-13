@@ -616,12 +616,8 @@ class TestTheThumbnailsSitTwoToARow:
     # two-column width, 861px, it is about 246px.
     BODY_AT_1440, BODY_AT_861 = 294, 246
 
-    @staticmethod
-    def legacy():
-        return re.sub(r"/\*.*?\*/", "", (ITEM_CSS.parents[1] / "app.css").read_text(), flags=re.S)
-
     def rule(self, selector):
-        found = re.search(rf"(?<![\w.-]){re.escape(selector)}\s*\{{([^}}]*)\}}", self.legacy())
+        found = re.search(rf"(?<![\w.-]){re.escape(selector)}\s*\{{([^}}]*)\}}", item_css())
         assert found, selector
         return found[1]
 
@@ -638,7 +634,9 @@ class TestTheThumbnailsSitTwoToARow:
     def test_two_fit_across_beside_the_details(self):
         rule = self.rule(".thumbs")
         cell = int(re.search(r"minmax\(min\((\d+)px", rule)[1])
-        gap = int(re.search(r"(?<![-\w])gap:\s*(\d+)px", rule)[1])
+        space = re.search(r"(?<![-\w])gap:\s*var\((--space-\d)\)", rule)[1]
+        tokens = (ITEM_CSS.parent / "tokens.css").read_text(encoding="utf-8")
+        gap = int(re.search(re.escape(space) + r":\s*(\d+)px", tokens)[1])
         assert 2 * cell + gap <= self.BODY_AT_861 <= self.BODY_AT_1440
 
 
@@ -677,8 +675,7 @@ class TestTheHistoryLinesUpItsButtons:
         assert rule and re.search(r"flex:\s*1\b", rule[1])
 
     def test_the_buttons_sit_beside_the_middle_of_a_wrapped_entry(self):
-        legacy = re.sub(r"/\*.*?\*/", "", (ITEM_CSS.parents[1] / "app.css").read_text(), flags=re.S)
-        rule = re.search(r"\.logline\s*\{([^}]*)\}", legacy)
+        rule = re.search(r"\.logline\s*\{([^}]*)\}", item_css())
         assert rule and "align-items: center" in rule[1]
 
     def test_the_words_come_first_and_the_buttons_last(self, client, computer):

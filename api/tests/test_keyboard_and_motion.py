@@ -91,7 +91,7 @@ def test_the_stylesheet_answers_a_request_to_reduce_motion():
     """Nothing in the stylesheet animates today, which is exactly when the block
     is cheap to add: it covers the transition somebody writes next, rather than
     being remembered at the moment it is needed."""
-    css = STYLESHEET.read_text(encoding="utf-8")
+    css = COMPONENTS.read_text(encoding="utf-8")
     block = re.search(r"@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{(.*?)\n  \}", css, re.S)
     assert block, "the stylesheet does not answer prefers-reduced-motion"
     for declaration in ("animation-duration", "transition-duration", "scroll-behavior"):
@@ -384,3 +384,11 @@ def test_nothing_hides_where_the_keyboard_is():
     assert re.search(r"main:focus\s*\{[^}]*outline:\s*none", css), (
         "the one allowed suppression has moved; this test is now guarding nothing"
     )
+
+
+def test_a_file_button_shows_where_the_keyboard_is():
+    """The picker is an invisible input over its label, so its own ring would be drawn
+    round nothing anybody can see. The button draws it instead."""
+    css = re.sub(r"/\*.*?\*/", "", COMPONENTS.read_text(encoding="utf-8"), flags=re.S)
+    ring = re.search(r"\.filebtn:has\(input:focus-visible\)\s*\{([^}]*)\}", css)
+    assert ring and re.search(r"outline:\s*var\(--focus-w\) solid var\(--focus\)", ring.group(1))

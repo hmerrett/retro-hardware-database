@@ -176,7 +176,7 @@
       {{ U.field('serial', 'Serial number', value=(p.serial if p else '') or '',
                  hint='as marked on this one') }}
     </div>
-    <p class="hint is-hidden" id="samemake"></p>
+    <p class="hint" id="samemake" hidden></p>
   </fieldset>
 
   <!-- Storage: kind first; floppy/optical/SD-CF route to the computer's drives -->

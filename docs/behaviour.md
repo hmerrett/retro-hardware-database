@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2905 behaviours, from 87 files.*
+*2910 behaviours, from 87 files.*
 
 
 ## A barcode takes the room the words leave
@@ -2661,7 +2661,7 @@ Regenerate with:
 
 ## Keyboard and motion
 
-*test_keyboard_and_motion.py — 16 behaviours*
+*test_keyboard_and_motion.py — 17 behaviours*
 
 - the first thing tab reaches skips to the content  
   A keyboard user tabs the whole header -- brand, the sections, search box, menus -- before reaching the page, on every page, unless the first stop is a link past it.
@@ -2695,6 +2695,8 @@ Regenerate with:
   `alt=""` is an answer -- it tells a screen reader to pass over a swatch or a rule.
 - nothing hides where the keyboard is  
   The browser's own focus ring is what most of this site relies on, and one line of CSS anywhere would take it away everywhere it applies.
+- a file button shows where the keyboard is  
+  The picker is an invisible input over its label, so its own ring would be drawn round nothing anybody can see.
 
 
 ## Level controls
@@ -3507,7 +3509,7 @@ Regenerate with:
 
 ## Presets
 
-*test_presets.py — 10 behaviours*
+*test_presets.py — 11 behaviours*
 
 - the filter you are on is written in a pair every look holds  
   Above the files list, the filter you are on was told by the band a panel's title sits on, with `text` on it -- a pair no look is held to, and 1.06:1 in Rubber Key's light mode.
@@ -3529,6 +3531,8 @@ Regenerate with:
   The flash is slanted, and the line between two of its bands is not the edge of a shape but a change of colour inside one gradient.
 - the banner s flash and a panel s are slanted alike  
   The design draws one flash -- four bands slanted 25 degrees, at the end of the banner's rule and of every panel's title band, all on one vertical line.
+- native controls are drawn for the theme  
+  A select's list, a checkbox and the scrollbars are the browser's to draw, in the scheme it is told: both, for the system to choose, and the one a reader picked.
 
 
 ## Project form items
@@ -3924,7 +3928,7 @@ Regenerate with:
 
 ## Reflow
 
-*test_reflow.py — 4 behaviours*
+*test_reflow.py — 5 behaviours*
 
 - no list is wider than the phone it is read on  
   The invariant, stated once over every page that has a table on it: more columns than fit means the table has been given one of the two answers.
@@ -3934,6 +3938,8 @@ Regenerate with:
   A `min-width` on a control is a floor the row around it cannot go below: 200px of it on the old re-file box held the files list open.
 - a long filename cannot hold the list open  
   `overflow-wrap: break-word` on a cell breaks a word that has already been given its column, but leaves the column's minimum width at the whole word -- so the longest filename on the page decided how narrow the table could be.
+- a link in what somebody wrote breaks anywhere  
+  A URL in a note is one unbreakable word to a browser, and would set the width of whatever it sits in.
 
 
 ## Refused saves
@@ -4457,12 +4463,8 @@ Regenerate with:
 - on a phone the banner keeps the name  
   With no footer, the banner is the only place on a phone's page that says whose collection a scanned label has opened.
 - on a phone the bar takes over and scan goes with it
-- and nothing older puts the banners scan back  
-  components.css says so in a layer, and app.css is unlayered, so any rule there that gives a `.btn` a display outranks it whatever its specificity: app.css has to hide Scan again itself, and more specifically than everything it says that could show it.
 - beside the rail the banner puts its scan away  
   Scan is in the rail there, under the sections (MANUAL, "Where the sections sit"), and nothing is in both.
-- and nothing older puts it back beside the rail either  
-  The phone's fault again, at the other end: app.css's `.btn` outranks the layer whatever the specificity, so beside the rail app.css has to put Scan away itself, and more specifically than everything it says that could show it -- or the rail and the banner would both offer it.
 - the bars scan is drawn as the others are  
   No puck behind its icon and no rule of its own: the accent on the bar says where you are, and a second button in it said Scan was where you were.
 - the bar is nowhere but a phone
@@ -4473,6 +4475,11 @@ Regenerate with:
 - the banner never wraps
 - the search box gives way first down to a floor
 - then a long name is cut short and the logo stays
+
+**The scanner**
+
+- it is drawn on the scrim as the full size view is
+- its close follows the button text setting
 
 
 ## Specstruct
@@ -4853,10 +4860,12 @@ Regenerate with:
 
 ## Stylesheet
 
-*test_stylesheet.py — 8 behaviours*
+*test_stylesheet.py — 9 behaviours*
 
 - every control given its own size is listed for touch  
   iOS zooms the page when it focuses a control whose text is under 16px, and does not zoom back out.
+- a bare box is 16px on a phone too  
+  Every box the templates write today carries `.input` or `.select`, which the list above covers.
 - a primary button reads against its own fill  
   The dark theme's accent is a light blue, chosen to carry on a dark page.
 - a danger control reads against the page  
@@ -4875,7 +4884,7 @@ Regenerate with:
 
 ## Stylesheet lint
 
-*test_stylesheet_lint.py — 10 behaviours*
+*test_stylesheet_lint.py — 11 behaviours*
 
 - no colour is stated outside the token files  
   A colour written into a component is one no preset can change and no contrast test reads.
@@ -4896,6 +4905,8 @@ Regenerate with:
 - app css keeps no rule for a page on 0 1
 - app css draws no class that nothing writes  
   A rule for a class no template, script or module names is a rule nobody can see, and one more thing to read past on the way to deleting the file.
+- app css draws nothing  
+  Everything it drew is in the design system now: the buttons outside <main>, the photo column, the history line, the scanner, the page-wide rules.
 
 
 ## The agent on the other machine

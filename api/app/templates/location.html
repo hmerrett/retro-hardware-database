@@ -74,7 +74,7 @@
   {% endif %}
   {% if authed %}
   {% call PN.panel('Tidy') %}
-    <div class="photo-actions flush-top">
+    <div class="photo-actions mt-0">
       {% if things or inside %}
       <form method="post" action="/locations/{{ loc.asset_id }}/empty"
             title="Puts everything in it where it is itself{% if steps %}: in {{ steps[-1][1] }}{% else %}, at the top{% endif %}.">

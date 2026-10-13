@@ -282,13 +282,13 @@
    finding a thing you are holding does not mean leaving the page to do it, and so
    that a label carrying only a barcode can be read with a camera at all. The
    barcode reader is fetched only by a browser that cannot read one itself. #}
-<div id="scanner" hidden data-code128="/static/code128.js?v={{ js_ver['code128.js'] }}">
+<div id="scanner" class="scanner" hidden data-code128="/static/code128.js?v={{ js_ver['code128.js'] }}">
   <div class="scan-stage">
     <video id="scan-video" playsinline muted></video>
     <div class="scan-frame"></div>
   </div>
   <p class="scan-note" id="scan-note"></p>
-  <button type="button" class="btn" id="scan-close">close</button>
+  <button type="button" class="btn" id="scan-close">{{ 'Close' | ui }}</button>
 </div>
 
 

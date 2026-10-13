@@ -15,7 +15,7 @@
 {% if request.state.authed %}
 {% set here = og.url ~ '#photo-upload' %}
 {% call PN.panel('From your phone', cls='photo-qr') %}
-  <div class="qr-card" title="Scan to open this page on a phone, then choose files to photograph {{ obj.asset_id }}. It uploads as soon as it is chosen.">
+  <div title="Scan to open this page on a phone, then choose files to photograph {{ obj.asset_id }}. It uploads as soon as it is chosen.">
     {#- A picture, named for what it is for: read out, a drawing of squares is
         nothing, and its tooltip is not reached by a screen reader at all. -#}
     <div class="qr-code" role="img" aria-label="Code for this page, to add photographs from a phone">{{ qr_svg(here) }}</div>
