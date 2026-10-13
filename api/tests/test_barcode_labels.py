@@ -66,7 +66,12 @@ def runs_of(row):
 
 def read_barcode(image):
     """The text of the first Code 128 barcode found along any row, and the widths in
-    dots of its bars and spaces -- or (None, None)."""
+    dots of its bars and spaces -- or (None, None).
+
+    Held to what the scanner in code128.js holds a symbol to: light before the start
+    wide enough to be a quiet zone, and characters up to the stop pattern. A run that
+    simply stops being symbols is not a barcode, however its check character adds
+    up -- that is how a row of a QR code once read as "i"."""
     shapes = {p: n for n, p in enumerate(barcode.PATTERNS)}
     pixels = image.load()
     for y in range(image.height):
@@ -74,12 +79,13 @@ def read_barcode(image):
         for at in range(1, len(runs) - 6, 2):
             unit = sum(runs[at : at + 6]) / 11
             key = "".join(str(round(r / unit)) for r in runs[at : at + 6])
-            if shapes.get(key) != barcode.START_B:
+            if shapes.get(key) != barcode.START_B or runs[at - 1] < unit * 5:
                 continue
-            values, k = [barcode.START_B], at + 6
+            values, k, stopped = [barcode.START_B], at + 6, False
             while k + 7 <= len(runs):
                 seven = runs[k : k + 7]
                 if "".join(str(round(r / (sum(seven) / 13))) for r in seven) == "2331112":
+                    stopped = True
                     break
                 six = runs[k : k + 6]
                 code = "".join(str(round(r / (sum(six) / 11))) for r in six)
@@ -87,7 +93,7 @@ def read_barcode(image):
                     break
                 values.append(shapes[code])
                 k += 6
-            if len(values) < 3:
+            if not stopped or len(values) < 3:
                 continue
             data, check = values[1:-1], values[-1]
             if (barcode.START_B + sum(i * v for i, v in enumerate(data, 1))) % 103 != check:
@@ -134,6 +140,44 @@ class TestTheTable:
         assert got[0] == barcode.START_B and got[-1] == barcode.STOP
         assert [chr(v + 32) for v in got[1:-2]] == list(TAG)
         assert got[-2] == (104 + sum(i * (ord(c) - 32) for i, c in enumerate(TAG, 1))) % 103
+
+
+def row_of(symbols, then=(), unit=3, quiet=10):
+    """A one-bit image of a single line of bars: a quiet zone, the Code 128 symbols
+    given, then any runs given after them, in modules, dark first."""
+    widths = [int(w) for v in symbols for w in barcode.PATTERNS[v]] + list(then)
+    line = [255] * (quiet * unit)
+    for n, w in enumerate(widths):
+        line += [0 if n % 2 == 0 else 255] * (w * unit)
+    line += [255] * (quiet * unit)
+    image = Image.new("1", (len(line), 4), 1)
+    for y in range(4):
+        for x, v in enumerate(line):
+            image.putpixel((x, y), v)
+    return image
+
+
+class TestTheReaderReadsWhatAScannerWould:
+    """The reader is the test's scanner, so it holds to what makes a Code 128 symbol
+    one: a quiet zone, the start, the characters, the check character and the stop.
+    A QR code's modules can line up along one row as a start, a character and a check
+    character that adds up -- about one label in five thousand -- and without the stop
+    that read as a barcode holding "i" on a label that has none."""
+
+    LETTER, CHECK = ord("i") - 32, (barcode.START_B + ord("i") - 32) % 103
+
+    def test_a_start_a_character_and_its_check_with_no_stop_is_not_a_barcode(self):
+        # What follows the check character is a bar too wide to be any symbol.
+        image = row_of([barcode.START_B, self.LETTER, self.CHECK], then=[9, 1, 1, 1, 1, 1])
+        assert read_barcode(image) == (None, None)
+
+    def test_the_same_with_its_stop_is_read(self):
+        image = row_of([barcode.START_B, self.LETTER, self.CHECK, barcode.STOP])
+        assert read_barcode(image)[0] == "i"
+
+    def test_nor_is_one_with_no_quiet_zone_before_it(self):
+        image = row_of([barcode.START_B, self.LETTER, self.CHECK, barcode.STOP], quiet=2)
+        assert read_barcode(image) == (None, None)
 
 
 class TestTheCodesSetting:
