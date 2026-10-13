@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2864 behaviours, from 86 files.*
+*2902 behaviours, from 87 files.*
 
 
 ## A barcode takes the room the words leave
@@ -386,7 +386,7 @@ Regenerate with:
 
 ## Api
 
-*test_api.py — 556 behaviours*
+*test_api.py — 554 behaviours*
 
 
 **Typed columns**
@@ -1218,10 +1218,6 @@ Regenerate with:
   Its neighbours come back to the same photograph still open.
 - deleting from the view lands back on the item  
   Not on the photograph, which is the whole difference from a rotate.
-- it steps out of the row while cropping  
-  Cropping puts an apply button where the row was.
-- it reads as the destructive one  
-  Colour is what says this tool is not like its neighbours, and the register's warning shade is unreadable on a black toolbar unlightened.
 - there is no separate button to open the view  
   The photo is the way in: a button beside it did nothing that clicking it does not.
 
@@ -3476,7 +3472,7 @@ Regenerate with:
 
 ## Photo tuneup
 
-*test_photo_tuneup.py — 18 behaviours*
+*test_photo_tuneup.py — 19 behaviours*
 
 - a flat photograph gains contrast
 - a dark photograph is lifted
@@ -3500,6 +3496,8 @@ Regenerate with:
   Each edit re-encodes the file, so a second press would cost another generation of JPEG for a photograph that has already had the fix.
 - a later edit withdraws the offer to revert  
   Reverting after a crop would quietly undo the crop as well, which is not what the button says it does.
+- making it the default withdraws undo tune up  
+  Made the default, the photograph moves to the name the item's default has, and the original kept for the undo is no longer the truth about it.
 - deleting the photograph takes the kept original with it
 - the kept original cannot be fetched  
   It lives under a dotted directory precisely so it cannot: it is an unwatermarked copy of a photograph the site only ever serves watermarked.
@@ -5034,6 +5032,73 @@ Regenerate with:
 - a status reply is read for what it says not that it came  
   page is two bytes, then how far through printing and feeding, then -- in the long form only -- the error.
 - the driver waits for the page rather than for an answer
+
+
+## The photo editor
+
+*test_the_photo_editor.py — 39 behaviours*
+
+
+**The markup**
+
+- the big view is a dialog
+- it is named for what it shows  
+  The photograph's own name -- "Controller, photograph 2 of 3" -- on the view and on the photograph in it.
+- the crop box has a handle at each corner
+- the crop box is reached by the keyboard and says what it is
+- how to crop is written on the toolbar  
+  In the markup, where it is read, and not in a tooltip.
+- a tuned photograph is marked and offers undo
+- the tools read in three groups
+- every tool is named in words
+- a visitor sees the count and none of the tools
+- the count is under the photograph where the tools join it
+
+**The photographs on the page**
+
+- carry no buttons of their own  
+  Their tools are in the full-size view (decision 27).
+- each says whether it is the default and a reference
+- a location s are not offered reference
+
+**The routes**
+
+- default photo from the big view comes back to it still open  
+  Under its new name: the default is the file named for the item.
+- default photo from anywhere else still goes to the page
+- and on the tab it came from
+- reference from the big view comes back to it still open
+
+**The stylesheet**
+
+- each handle is a 24px target
+- apply crop is the primary on the scrim without a fill
+- no 0 1 rule draws the big view
+- no 0 1 button rule reaches the big view  
+  The view is outside `<main>`, so 0.1's buttons -- kept off v0.2 pages by `:not(main.v2 *)` -- reached it, and being unlayered they outranked the scrim's own: a pale fill under pale words.
+- apply and cancel are wide on a phone
+- delete reads as the destructive one  
+  Colour is what says this tool is not like its neighbours, in the scrim's own danger shade: the page's is unreadable on the dark.
+- on a phone the photograph is edge to edge
+- on a phone the rows part the groups rather than the rules  
+  Wrapped, a rule is left hanging at the end of a line with nothing after it.
+- the scrim outside the box stops at the photograph
+- the dialog fills the window and shows only when open
+
+**The script**
+
+- the view takes the focus and gives it back
+- esc cancels a crop before it closes the view
+- crop gives the box the focus
+- the box starts at the whole photograph less a margin
+- the arrow keys move the box while it has focus
+- shift and an arrow resize it
+- enter on the box applies the crop
+- its size is said after each key
+- the arrows stay on the photograph while cropping
+- the rest of the toolbar steps out while cropping
+- any corner resizes it
+- the page still sees an open big view
 
 
 ## The port letters are on the form

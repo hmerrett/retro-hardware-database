@@ -223,7 +223,9 @@ class TestNothingPressedIsSmallOnATouchscreen:
         )
         page = content(client.get(f"/{kind}/{aid}").text)
         assert "iconbtn" not in page
-        assert 'class="btn sm icon"' in page
+        # The history's delete and attach: the photographs carry no buttons of their
+        # own now, their tools being in the full-size view.
+        assert re.search(r'class="btn( \w+)* sm icon\b', page)
 
 
 class TestAnEmptyPanelSaysSo:

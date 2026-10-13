@@ -23,7 +23,7 @@
   const TYPED = 'input:not([type=hidden]):not([type=file]):not([type=radio])'
               + ':not([type=checkbox]), textarea';
   function busy() {
-    if (document.querySelector('#lightbox.open')) return true;
+    if (document.querySelector('#lightbox[open]')) return true;
     const on = document.activeElement;
     if (on && /^(INPUT|TEXTAREA|SELECT)$/.test(on.tagName) && on.type !== 'hidden') {
       return true;

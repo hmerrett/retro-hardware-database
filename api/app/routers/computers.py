@@ -773,6 +773,10 @@ async def gui_computer_primary(
     c.image = _set_primary_photo("computers", aid, form.get("image", ""))
     add_log(db, aid, "changed the default photo")
     db.commit()
+    # From the full-size view, back to the photograph still open, as a rotate comes
+    # back: under its new name, because the default is the file named for the item.
+    if form.get("next"):
+        return back_to(request, f"/computers/{aid}", photo=c.image)
     return back_to(request, f"/computers/{aid}")
 
 
@@ -805,6 +809,9 @@ async def gui_computer_photo_reference(
         db, aid, "flagged a photo as a reference image" if on else "unflagged a reference photo"
     )
     db.commit()
+    # From the full-size view, back to the same photograph still open.
+    if form.get("next"):
+        return RedirectResponse(_safe_next(form.get("next", "")), status_code=303)
     return back_to(request, f"/computers/{aid}")
 
 

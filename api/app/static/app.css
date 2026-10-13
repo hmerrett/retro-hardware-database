@@ -180,9 +180,9 @@
      list, and what is being read is the values beside them. */
   main:not(.v2) dl.specs dt { color: var(--muted); font-size: 12px; white-space: nowrap; }
   main:not(.v2) dl.specs dd { margin: 0; font-size: 13px; min-width: 0; overflow-wrap: break-word; }
-  .btn:not(main.v2 *) { display: inline-block; border: 1px solid var(--line); border-radius: 7px; padding: 5px 11px; text-decoration: none; font-size: 14px; cursor: pointer; background: var(--btn); color: inherit; white-space: nowrap;
+  .btn:not(main.v2 *, .lb *) { display: inline-block; border: 1px solid var(--line); border-radius: 7px; padding: 5px 11px; text-decoration: none; font-size: 14px; cursor: pointer; background: var(--btn); color: inherit; white-space: nowrap;
     min-height: 0; gap: normal; align-items: normal; justify-content: normal; box-shadow: none; transform: none; }
-  .btn:hover:not(main.v2 *) { background: var(--btn-hover); }
+  .btn:hover:not(main.v2 *, .lb *) { background: var(--btn-hover); }
   /* components.css hides the banner's Scan on a phone, where the tab bar has it; this
      .btn's display outranks the layer, so the hiding is said here too until it goes.
      Saying it is not enough on its own: `:not(main.v2 *)` counts as the class and
@@ -193,8 +193,8 @@
   /* And beside the side rail, which has a Scan of its own (components.css, 13a): the
      same `.btn` would otherwise keep the banner's showing as well. */
   @media (min-width: 1100px) { .shell.side .site-header .btn.hdr-scan { display: none; } }
-  .btn.primary:not(main.v2 *) { background: var(--accent); color: var(--primary-fg); border-color: var(--accent); }
-  .btn.sm:not(main.v2 *) { padding: 3px 8px; font-size: 13px; }
+  .btn.primary:not(main.v2 *, .lb *) { background: var(--accent); color: var(--primary-fg); border-color: var(--accent); }
+  .btn.sm:not(main.v2 *, .lb *) { padding: 3px 8px; font-size: 13px; }
   .row-actions a { font-size: 13px; margin-right: 8px; }
   main:not(.v2) .checks { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 4px 0 10px; }
   .hint:not(main.v2 *) { color: var(--muted); font-size: 12px; margin: 2px 0 0; font-family: inherit; }
@@ -249,8 +249,8 @@
      value of the colour is being read before the click, not during it. (The
      icon-button variant above stays plain until hover on purpose -- a row of
      photo tools would be all warning and no hierarchy otherwise.) */
-  .btn.danger:not(main.v2 *) { color: var(--danger); border-color: var(--danger-line); }
-  .btn.danger:hover:not(main.v2 *) { background: var(--danger-hover); border-color: var(--danger-line); }
+  .btn.danger:not(main.v2 *, .lb *) { color: var(--danger); border-color: var(--danger-line); }
+  .btn.danger:hover:not(main.v2 *, .lb *) { background: var(--danger-hover); border-color: var(--danger-line); }
   .ref-badge { position: absolute; top: 6px; left: 6px; background: #000000c0; color: #fff;
     font-size: 11px; line-height: 1; padding: 3px 7px; border-radius: 999px; pointer-events: none; }
   /* Icon variant: a fixed-size source-site favicon, same size at any thumbnail scale. */
@@ -295,26 +295,6 @@
 
   img.zoomable { cursor: zoom-in; }
   img.zoomable:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-  #lb-crop { position: absolute; border: 2px solid #fff; box-sizing: border-box;
-    box-shadow: 0 0 0 9999px rgba(0, 0, 0, .5); cursor: move; }
-  #lb-crop .handle { position: absolute; right: 1px; bottom: 1px; width: 18px; height: 18px;
-    background: #fff; border: 1px solid #333; border-radius: 2px; cursor: se-resize; }
-  #lightbox .lb-tools { position: absolute; z-index: 2; bottom: 2vh; left: 50%; transform: translateX(-50%);
-    display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center;
-    background: #000000a8; padding: 7px 10px; border-radius: 10px; max-width: 94vw; }
-  #lightbox .lb-tools form { margin: 0; display: flex; gap: 8px; align-items: center; }
-  #lightbox .lb-tools .btn { position: static; background: #ffffff1f; color: #fff;
-    border-color: #ffffff33; }
-  /* The colour has to be restated here: the rule above is an id and two classes,
-     so its #fff outranks .btn.primary's and the fill would have carried white
-     text into the dark theme's pale accent -- 2.4:1, the reading that opened #21. */
-  #lightbox .lb-tools .btn.primary { background: var(--accent); color: var(--primary-fg);
-    border-color: var(--accent); }
-  /* The register's warning colour, lightened: #b45300 is legible on a white page
-     and all but invisible on a black toolbar. The shade is what says at a glance
-     that this one tool is not like the others in the row. */
-  #lightbox .lb-tools .btn.danger { color: #ffb37a; border-color: #ffb37a55; }
-  #lightbox .lb-tools .btn.danger:hover { background: #b4530066; border-color: #ffb37aaa; }
   /* Scanning a label's code: a fullscreen overlay like the photo view, and for the
      same reason -- on a phone, aiming a camera wants the whole screen. Above the
      lightbox's z-index so the two can never argue about which is in front. */
@@ -334,10 +314,6 @@
   #scanner .scan-note { color: #fff; margin: 0; text-align: center; max-width: 34em;
     font-size: 14px; line-height: 1.45; }
   #scanner .btn { background: #ffffff1f; color: #fff; border-color: #ffffff33; }
-  /* Crop swaps its button for its apply/cancel form with the hidden attribute; the
-     rules above would outrank the browser's own `[hidden] { display: none }`, which
-     is why there is one of our own at the top of this stylesheet. */
-  #lightbox .lb-hint { color: #ffffffb0; font-size: 12px; }
   /* The side column leads an item page once it is one column, and a code that opens
      the page you are already reading is not worth a screenful of it. */
   @media (max-width: 860px) { .photo-qr { display: none; } }

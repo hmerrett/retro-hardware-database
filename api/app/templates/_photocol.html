@@ -13,34 +13,17 @@
 {% macro badge(img) %}
   {% if img in ref_marks %}{{ U.refbadge(ref_marks[img].icon) }}{% endif %}
 {% endmacro %}
-{% macro ctrls(img, is_primary) %}
-  {% if request.state.authed %}
-  {% set marked = img in ref_marks %}
-  <div class="photo-ctrls">
-    {% if not is_primary %}
-    <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/primary-photo{{ tabq }}">
-      <input type="hidden" name="image" value="{{ img }}">
-      {{ U.button('Make default photo', size='sm', icon='star', icon_only=true, type='submit', title='Make default photo') }}
-    </form>
-    {% endif %}
-    <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/photo-reference{{ tabq }}">
-      <input type="hidden" name="image" value="{{ img }}">
-      <input type="hidden" name="set" value="{{ '0' if marked else '1' }}">
-      {{ U.button('Reference image', size='sm', icon='tag', icon_only=true, type='submit', pressed=marked,
-                  title='Unmark reference image' if marked else 'Mark as reference image (not this unit)') }}
-    </form>
-    <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/photo-delete{{ tabq }}" data-confirm="Delete this photo? This cannot be undone.">
-      <input type="hidden" name="image" value="{{ img }}">
-      {{ U.button('Delete photo', kind='danger', size='sm', icon='trash', icon_only=true, type='submit', title='Delete photo') }}
-    </form>
-  </div>
-  {% endif %}
-{% endmacro %}
 {# What the fetch from the reference found, when it was nothing: at the top of the
    panel, where the eye arrives from the button, and saying what to do instead. #}
 {% macro fetcherr() %}
   {% if imgerr %}{{ U.banner('warning', 'Nothing found at the reference.', 'Check the Reference URL, or add a photograph yourself.') }}{% endif %}
 {% endmacro %}
+{#- What the full-size view needs to know to offer its tools for a photograph:
+    whether it is a reference image now. Only a machine's and a part's can be one; a
+    location's photographs are of the place, and carry nothing, so the toggle is not
+    offered there. The tools themselves are in the full-size view, not under each
+    photograph (MANUAL §10). -#}
+{% macro refmark(img) %}{% if kind in ('computers', 'parts') %} data-ref="{{ '1' if img in ref_marks else '0' }}"{% endif %}{% endmacro %}
 {% macro upload() %}
   {% if request.state.authed %}
   {# In the panel it adds to. Choosing the photos is the whole gesture: the upload
@@ -94,10 +77,9 @@
            data-full="{{ img_url(images[0]) }}" alt="{{ shown }}, photograph 1 of {{ images | length }}"
            tabindex="0" role="button"
            data-kind="{{ kind }}" data-aid="{{ obj.asset_id }}" data-rel="{{ images[0] }}"
-           data-group="photos"
+           data-group="photos" data-primary="1"{{ refmark(images[0]) }}
            {% if images[0] in tuned %}data-tuned="1"{% endif %}>
       {{ badge(images[0]) }}
-      {{ ctrls(images[0], True) }}
     </div>
     {% if images|length > 1 %}
     <div class="thumbs">
@@ -109,10 +91,9 @@
              loading="lazy" decoding="async"
              tabindex="0" role="button"
              data-kind="{{ kind }}" data-aid="{{ obj.asset_id }}" data-rel="{{ img }}"
-             data-group="photos"
+             data-group="photos"{{ refmark(img) }}
              {% if img in tuned %}data-tuned="1"{% endif %}>
         {{ badge(img) }}
-        {{ ctrls(img, False) }}
       </div>
       {% endfor %}
     </div>

@@ -367,7 +367,7 @@ Click any photograph to open it as large as the window allows. From there:
 | `⌘` or `ctrl` with a scroll | Zoom, at any point |
 | Drag, flick | Move about the enlarged photograph |
 | `+` `-` `0` | Zoom in, out, reset |
-| ← → , sideways swipe | The other photographs of this item (arrow keys move about the photo instead while zoomed in) |
+| ← → , sideways swipe | The other photographs of this item (arrow keys move about the photo instead while zoomed in, and move the crop box while cropping) |
 | Flick up or down | Close, on a phone: the photograph comes with your finger and the page shows through behind it. Let go past the mark and it drops back into its thumbnail; short of the mark it springs back out to the window |
 | `Esc` | Close |
 
@@ -382,9 +382,14 @@ looking at. The thumbnail's own copy stands in behind the big view until the
 original has loaded, which is why the first moment of a photograph you have not
 opened before is a soft one.
 
-Logged in, the big view is also the editor: a toolbar along the bottom rotates,
-crops and deletes the photograph you are looking at. See [what a photo can
-have done to it](#10-photographs).
+Where the item has more than one photograph, the view says which you are looking
+at: **3 of 8**. While it is open it has the keyboard to itself: Tab moves among its
+own buttons and nothing behind it, and closing it puts you back on the thumbnail it
+shrinks into.
+
+Logged in, the big view is also the editor: a toolbar under the photograph rotates
+it, tunes it up, crops it, makes it the default, marks it as a reference image and
+deletes it. See [section 10](#10-photographs).
 
 A tall photograph opens on a wide screen with a black band down either side, and
 a wide one on a phone with a band above and below. Zooming in spends those bands
@@ -664,7 +669,7 @@ at the start of a line — *Note*, *Photo* and *Moved* in the history, *Private*
 a file.
 
 On a touchscreen nothing you press is smaller than 36 pixels a side. The small
-buttons on a photograph, a history line and a part's card grow to 36, and a button
+buttons on a history line and a part's card grow to 36, and a button
 standing on its own — beside a box, or the one that opens a file — grows to 44.
 
 A panel with nothing in it says so in a sentence rather than standing empty: *No
@@ -1494,20 +1499,38 @@ already where it leads. Scan it and the phone is on that item, where choosing a
 photo shoots it or picks it from the camera roll. A phone that arrives not logged in is put back on the item after
 logging in, rather than dumped on the gallery.
 
-**Per photo**, once logged in:
+**In the full-size view**, logged in, a toolbar under the photograph edits it. The
+photographs on the item page carry no buttons of their own: open one, and its tools
+are there. The toolbar reads in three groups: the corrections (rotate either way,
+and **Tune up**), the choices (**Crop**, **Default photo** and **Reference image**),
+and at the far end on its own, **Delete**. Every one but Delete brings you back to
+the same photograph still open, so a run of corrections is one press after another.
+Delete cannot, so it asks first and puts you back on the item page.
 
-- **★ make default** — which photo represents the item in lists and previews.
-- **🏷 mark as reference image** — this is a picture of *this model*, not of *this
-  unit*. Reference images get a badge, and where the source site can be
-  identified the badge is that site's favicon. They are never watermarked.
-- **🗑 delete**.
+**Default photo** makes this the one that represents the item in lists and
+previews. It is not offered on the photograph that already is.
 
-**Rotate, crop and delete** are in the full-size view: two rotate buttons, a crop
-tool, and a delete at the far end of the row. Rotating and cropping return you to
-the same photograph still open, so a run of corrections is one gesture after
-another; deleting cannot, so it asks first and puts you back on the item page.
-The delete steps out of the row while you are cropping, where it would otherwise
-be sitting next to **apply crop**.
+**Reference image** marks this as a picture of *this model*, not of *this unit*,
+and pressing it again takes the mark off; the button shows which it is. Reference
+images get a badge, and where the source site can be identified the badge is that
+site's favicon. They are never watermarked. A location's photographs are of the
+place itself, so they are not offered it.
+
+**Tune up** is the one-press fix a phone does, levels and colour, held back so that
+a sun-yellowed case stays yellow and a good exposure keeps its brightness. Once a
+photograph is tuned, **Tuned up** stands where the button was, and **Undo tune-up**
+beside it puts the photograph back exactly as it was. One step back is all that is
+kept: rotate it, crop it or make it the default afterwards, and that edit is the
+photograph now, so the undo goes.
+
+**Crop** puts a box over the photograph, the whole of it less a margin, dims what is
+outside it and draws lines across it in thirds, to square a machine up on a table.
+Drag the box to move it, or any corner to resize it; a drag outside it draws a new
+one. From the keyboard the box has the focus: the arrow keys move it, Shift with an
+arrow resizes it, and Enter keeps it. **Apply crop** keeps what is inside; **Cancel**,
+or `Esc`, leaves the photograph as it was. While you crop, the toolbar says how and
+holds only those two, so Delete is never beside **Apply crop**. On a phone they are
+two wide buttons at the foot of the screen.
 
 **Fetch from reference** appears beside **Add photos** when the item has a
 reference URL. It

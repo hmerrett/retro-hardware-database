@@ -21,7 +21,15 @@
   const cropOff = document.getElementById('lb-crop-off');
   const cropApply = document.getElementById('lb-crop-apply');
   const del = document.getElementById('lb-delete');
-  const hint = document.getElementById('lb-hint');
+  const title = document.getElementById('lb-title');
+  const count = document.getElementById('lb-count');
+  const tuned = document.getElementById('lb-tuned');
+  const primary = document.getElementById('lb-primary');
+  const refForm = document.getElementById('lb-ref');
+  const said = document.getElementById('lb-said');
+  // The toolbar's three groups and the rules between them: what steps out while
+  // cropping, leaving the crop's own two buttons and the line that says how.
+  const groups = tools ? Array.from(tools.querySelectorAll('.lb-group, .lb-sep')) : [];
   const shots = Array.from(document.querySelectorAll('img.zoomable'));
   if (!shots.length) return;
 
@@ -30,7 +38,7 @@
   // picture of the machine, so the gallery's last comes round to its first rather
   // than stepping on into the history.
   let group = shots;
-  let idx = 0, sel = null, mode = null, startPt = null, startSel = null;
+  let idx = 0, sel = null, mode = null, corner = '', startPt = null, startSel = null;
 
   function current() { return group[idx]; }
 
@@ -38,6 +46,10 @@
     const el = current();
     stand(el);                  // something to look at until the original lands
     img.src = el.dataset.full || el.src;
+    // Named for what it shows: the photograph's own name, which says the item and
+    // where it falls among the others.
+    title.textContent = el.alt || 'Photograph';
+    img.alt = el.alt;
     const multi = group.length > 1;
     prev.style.display = next.style.display = multi ? '' : 'none';
     cropMode(false);
@@ -62,9 +74,22 @@
       // shows the right one of the pair without asking the server again.
       const kept = d.tuned === '1';
       if (tune) tune.hidden = kept;
+      if (tuned) tuned.hidden = !kept;
       if (untune) untune.hidden = !kept;
+      // Not offered on the one that already is the default; and a reference toggle
+      // only where the server says the photograph can be one, showing which way it
+      // stands and sending the other.
+      if (primary) primary.hidden = d.primary === '1';
+      if (refForm) {
+        refForm.hidden = !('ref' in d);
+        const on = d.ref === '1';
+        const btn = refForm.querySelector('button');
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        btn.classList.toggle('on', on);
+        refForm.querySelector('[name=set]').value = on ? '0' : '1';
+      }
     }
-    if (hint) hint.textContent = multi ? `${idx + 1} of ${group.length}` : '';
+    count.textContent = multi ? `${idx + 1} of ${group.length}` : '';
   }
   // Opened by hand, from a thumbnail: the photo grows out of the one that was
   // clicked. Opened by the page itself -- coming back from a rotate with the same
@@ -77,7 +102,7 @@
     // promised was to put the overlay away, and the overlay is wanted open.
     if (tween) tween.then = null;
     going = false;
-    box.classList.add('open');
+    if (!box.open) box.showModal();
     show();
     if (from) arrive(from);
   }
@@ -93,9 +118,13 @@
   function shut() {
     cropMode(false); resetZoom();
     box.style.backgroundColor = '';
-    box.classList.remove('open'); img.src = '';
+    if (box.open) box.close();
+    img.src = '';
     bare();
     dragged = false; going = false;
+    // Back on the thumbnail it closed into, which is the photograph last shown --
+    // not the one it was opened from, if the arrows walked on.
+    if (current()) current().focus({ preventScroll: true });
   }
   function step(d) {
     if (mode || going) return;
@@ -106,15 +135,25 @@
   // --- crop, in fractions of the image so the overlay's size is irrelevant ---
   // Cropping wants the whole photo in view and the drag to itself, so it starts
   // from a photo zoomed back out.
+  // The box starts as the whole photograph less a margin, ready to be pulled in,
+  // and takes the focus so the arrow keys can move it straight away.
+  const MARGIN = 0.05;
+  // No smaller than Apply will take.
+  const MIN = 0.03;
   function cropMode(on) {
+    const was = stage.classList.contains('cropping');
     sel = null; mode = null;
     if (on) resetZoom();
     stage.classList.toggle('cropping', on);
     cropLayer.hidden = true;
     if (cropForm) cropForm.hidden = !on;
-    if (cropOn) cropOn.hidden = on;
-    if (del) del.hidden = on;
+    groups.forEach(g => { g.hidden = on; });
     if (cropApply) cropApply.disabled = true;
+    if (on) {
+      sel = { x: MARGIN, y: MARGIN, w: 1 - 2 * MARGIN, h: 1 - 2 * MARGIN };
+      render();
+      cropLayer.focus();
+    } else if (was && cropOn && box.open) cropOn.focus();
   }
   const clamp = v => Math.min(1, Math.max(0, v));
   function ptFrac(e) {
@@ -144,8 +183,10 @@
     stage.addEventListener('pointerdown', e => {
       if (!stage.classList.contains('cropping')) return;
       const p = ptFrac(e);
-      if (sel && e.target === cropLayer.querySelector('.handle')) mode = 'resize';
-      else if (sel && e.target === cropLayer) {
+      if (sel && e.target.parentNode === cropLayer && e.target.classList.contains('h')) {
+        // A corner moves its own two edges, and leaves the other two where they are.
+        mode = 'resize'; corner = e.target.classList[1];
+      } else if (sel && e.target === cropLayer) {
         mode = 'move'; startPt = p; startSel = Object.assign({}, sel);
       } else { mode = 'draw'; startPt = p; sel = { x: p.x, y: p.y, w: 0, h: 0 }; }
       stage.setPointerCapture(e.pointerId);
@@ -158,8 +199,12 @@
         sel = { x: Math.min(startPt.x, p.x), y: Math.min(startPt.y, p.y),
                 w: Math.abs(p.x - startPt.x), h: Math.abs(p.y - startPt.y) };
       } else if (mode === 'resize') {
-        sel.w = Math.max(0.01, Math.min(1 - sel.x, p.x - sel.x));
-        sel.h = Math.max(0.01, Math.min(1 - sel.y, p.y - sel.y));
+        let l = sel.x, t = sel.y, r = sel.x + sel.w, b = sel.y + sel.h;
+        if (corner.includes('w')) l = Math.min(p.x, r - MIN);
+        if (corner.includes('e')) r = Math.max(p.x, l + MIN);
+        if (corner.includes('n')) t = Math.min(p.y, b - MIN);
+        if (corner.includes('s')) b = Math.max(p.y, t + MIN);
+        sel = { x: l, y: t, w: r - l, h: b - t };
       } else {
         sel.x = Math.min(1 - startSel.w, Math.max(0, startSel.x + (p.x - startPt.x)));
         sel.y = Math.min(1 - startSel.h, Math.max(0, startSel.y + (p.y - startPt.y)));
@@ -170,6 +215,32 @@
       if (mode === 'draw' && sel && (sel.w < 0.02 || sel.h < 0.02)) sel = null;
       mode = null;
       render();
+    });
+    // From the keyboard the box has the focus: an arrow moves it a hundredth of the
+    // photograph, Shift with an arrow grows it from its bottom-right corner (→ ↓) or
+    // shrinks it (← ↑), and Enter keeps it. The keys stop here, so none of them steps
+    // to another photograph or nudges the zoom, and its size is said after each.
+    const NUDGE = 0.01;
+    cropLayer.addEventListener('keydown', e => {
+      if (!sel) return;
+      if (e.key === 'Enter') {
+        e.preventDefault(); e.stopPropagation();
+        if (!cropApply.disabled) cropForm.requestSubmit();
+        return;
+      }
+      const dx = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0;
+      const dy = e.key === 'ArrowUp' ? -1 : e.key === 'ArrowDown' ? 1 : 0;
+      if (!dx && !dy) return;
+      e.preventDefault(); e.stopPropagation();
+      if (e.shiftKey) {
+        sel.w = Math.min(1 - sel.x, Math.max(MIN, sel.w + dx * NUDGE));
+        sel.h = Math.min(1 - sel.y, Math.max(MIN, sel.h + dy * NUDGE));
+      } else {
+        sel.x = Math.min(1 - sel.w, Math.max(0, sel.x + dx * NUDGE));
+        sel.y = Math.min(1 - sel.h, Math.max(0, sel.y + dy * NUDGE));
+      }
+      render();
+      said.textContent = `Crop box ${Math.round(sel.w * 100)}% wide, ${Math.round(sel.h * 100)}% high`;
     });
   }
 
@@ -851,10 +922,19 @@
     const l = limits();
     glideTo({ scale: scale, tx: pin(tx + dx, l.x), ty: pin(ty + dy, l.y) }, 180);
   }
+  // Esc reaches a dialog as its `cancel`, which would close it at once: caught, so
+  // it cancels a crop first and closes with the trip home into the thumbnail.
+  box.addEventListener('cancel', e => {
+    e.preventDefault();
+    if (going) return;
+    cropping() ? cropMode(false) : close();
+  });
   document.addEventListener('keydown', e => {
-    if (!box.classList.contains('open') || going) return;
-    if (e.key === 'Escape') { cropping() ? cropMode(false) : close(); }
-    else if (e.key === '+' || e.key === '=') zoomKeys(STEP_ZOOM);
+    if (!box.open || going) return;
+    // While cropping the keys are the box's (above): none of these may step to
+    // another photograph or move the zoom under it.
+    if (cropping()) return;
+    if (e.key === '+' || e.key === '=') zoomKeys(STEP_ZOOM);
     else if (e.key === '-' || e.key === '_') zoomKeys(1 / STEP_ZOOM);
     else if (e.key === '0') glideTo(fitted(), EASE);
     else if (e.key === 'ArrowLeft') zoomed() ? nudge(60, 0) : step(-1);

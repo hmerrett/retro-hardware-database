@@ -10,6 +10,8 @@ kept out gets the 404 a private project gives, which is the same answer as for a
 tag nothing has, so the label on a box says nothing about the box to a stranger.
 """
 
+from urllib.parse import urlencode
+
 from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
@@ -363,6 +365,11 @@ async def gui_location_primary(
     loc.image = _set_primary_photo(KIND, loc.asset_id, form.get("image", ""))
     add_log(db, loc.asset_id, "changed the default photo")
     db.commit()
+    # From the full-size view, back to the photograph still open under its new name.
+    if form.get("next"):
+        return RedirectResponse(
+            f"/locations/{loc.asset_id}?" + urlencode({"photo": loc.image}), status_code=303
+        )
     return RedirectResponse(f"/locations/{loc.asset_id}", status_code=303)
 
 
