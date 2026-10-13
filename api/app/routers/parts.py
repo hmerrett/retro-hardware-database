@@ -44,9 +44,11 @@ from ..assets import (
     _do_photo_tuneup,
     _machine_from_form,
     _machine_page,
+    _not_added,
     _require_disposed,
     _set_for_sale,
     _work_from_form,
+    add_photos,
     back_to,
     delete_part,
     item_view,
@@ -86,7 +88,6 @@ from ..photos import (
     _fetch_reference_photo,
     _mark_reference,
     _photo_edit_redirect,
-    _save_photo,
     _set_primary_photo,
     detect_images,
     reference_marks,
@@ -801,6 +802,7 @@ def gui_part(
     aid: str,
     request: Request,
     imgerr: int = 0,
+    notadded: str = "",
     fileerr: int = 0,
     fiterr: int = 0,
     mounterr: int = 0,
@@ -897,6 +899,7 @@ def gui_part(
             "tuned": tuned_photos("parts", aid),
             "spec_pairs": spec_pairs,
             "imgerr": bool(imgerr),
+            "notadded": _not_added(request, notadded),
             "fiterr": bool(fiterr),
             "mounterr": bool(mounterr),
             "log": _history(db, aid, kept=told),
@@ -1094,22 +1097,9 @@ async def gui_part_photo(
     request: Request,
     photos: list[UploadFile] = File(...),
     db: Session = Depends(get_db),
-) -> RedirectResponse:
+) -> Response:
     p = get_or_404(db, Part, aid)
-    first = None
-    n = 0
-    for up in photos:
-        if (up.filename or "").strip():
-            rel = _save_photo("parts", aid, up)
-            n += 1
-            if first is None:
-                first = rel
-    if first and not p.image:
-        p.image = first
-    if n:
-        add_log(db, aid, f"added {n} photo(s)")
-    db.commit()
-    return back_to(request, f"/parts/{aid}")
+    return add_photos(request, db, "parts", p, photos, f"/parts/{p.asset_id}")
 
 
 @router.post("/parts/{aid}/fetch-image", include_in_schema=False)

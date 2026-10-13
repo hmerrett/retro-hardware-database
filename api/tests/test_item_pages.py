@@ -586,7 +586,7 @@ class TestThePhotographsSitInsideThePanel:
         aid = item(kind, computer, part)
         shoot(kind, aid)
         inside = self.body(client.get(f"/{kind}/{aid}").text)
-        for cls in ("photo-main", "thumbs", "photo-actions"):
+        for cls in ("photo-main", "thumbs", "photoadd"):
             assert f'class="{cls}' in inside, cls
 
     @KINDS
@@ -595,14 +595,14 @@ class TestThePhotographsSitInsideThePanel:
     ):
         aid = item(kind, computer, part)
         inside = self.body(client.get(f"/{kind}/{aid}").text)
-        assert 'class="nophoto"' in inside and 'class="photo-actions' in inside
+        assert 'class="nophoto"' in inside and 'class="photoadd' in inside
 
     def test_a_visitor_sees_them_inside_it_too(self, client, computer, shoot):
         aid = computer()["asset_id"]
         shoot("computers", aid)
         visitor(client)
         inside = self.body(client.get(f"/computers/{aid}").text)
-        assert 'class="photo-main' in inside and "photo-actions" not in inside
+        assert 'class="photo-main' in inside and "photoadd" not in inside
 
 
 class TestTheThumbnailsSitTwoToARow:
@@ -643,24 +643,21 @@ class TestTheThumbnailsSitTwoToARow:
 class TestTheTwoWaysToAddAPhotoStandSideBySide:
     """Add photos and Fetch from reference are the two ways a photograph arrives,
     and they stood one above the other, so the second read as an afterthought of the
-    first (MANUAL §10)."""
+    first (MANUAL §10). The tile is in the thumbnails now; the buttons under them
+    share a row."""
 
     @KINDS
-    def test_fetch_from_reference_is_in_the_row_with_add_photos(self, client, computer, part, kind):
+    def test_fetch_from_reference_is_in_the_row_with_the_upload(self, client, computer, part, kind):
         aid = item(kind, computer, part, url="https://example.com/a-machine")
         page = client.get(f"/{kind}/{aid}").text
-        row = page[page.index('<div class="photo-actions across">') :]
+        row = page[page.index('<div class="photoadd">') :]
         row = row[: row.index("</div>")]
-        assert row.index("Add photos") < row.index("Fetch from reference")
+        assert row.index('id="photo-upload"') < row.index("Fetch from reference")
 
     def test_the_row_runs_across_and_wraps_only_when_it_must(self):
-        rule = TestTheThumbnailsSitTwoToARow().rule(".photo-actions.across")
-        assert "flex-direction: row" in rule
+        rule = TestTheThumbnailsSitTwoToARow().rule(".photoadd")
+        assert "display: flex" in rule
         assert "flex-wrap: wrap" in rule
-
-    def test_a_message_about_either_takes_a_line_of_its_own(self):
-        rule = TestTheThumbnailsSitTwoToARow().rule(".photo-actions.across > .hint")
-        assert "flex-basis: 100%" in rule
 
 
 class TestTheHistoryLinesUpItsButtons:

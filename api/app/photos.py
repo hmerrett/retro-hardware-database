@@ -71,6 +71,18 @@ def _image_size(image_rel: str) -> tuple[int, int] | None:
 # single-frame JPEG, which is what one image is.
 IMAGE_FORMATS = {"JPEG", "MPO", "PNG", "WEBP", "GIF"}
 
+# Why a photograph was not added, in the words its row on the page says it in
+# (MANUAL §10). Two answers, because they ask two different things of the owner: a
+# file that is not a picture was the wrong file, and a picture of another kind -- an
+# iPhone's HEIC, a scanner's BMP -- is the right one in a form the register does not
+# keep, which is worth saying by name.
+NOT_A_PHOTO = "not a photograph"
+KINDS_KEPT = "only JPEG, PNG, WebP and GIF are kept"
+
+# Pictures by name that Pillow may not open at all here (HEIC wants a plug-in), so a
+# failed decode alone would call an iPhone's photograph "not a photograph".
+_OTHER_IMAGE_EXTS = {".heic", ".heif", ".avif", ".bmp", ".tif", ".tiff", ".jxl", ".svg", ".ico"}
+
 # The three folders photographs live in, and why the third is not one of the first
 # two. A folder under here is read by filename: everything in computers/ whose stem
 # is an asset id belongs to that asset, and the first of them is its portrait. That
@@ -355,15 +367,22 @@ def _verify_image(source: Path | IO[bytes]) -> None:
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(400, "not a valid image file") from exc
+        raise HTTPException(400, NOT_A_PHOTO) from exc
     if fmt not in IMAGE_FORMATS:
-        raise HTTPException(400, f"unsupported image type: {fmt}")
+        raise HTTPException(400, KINDS_KEPT)
+
+
+def _refused_by_name(upload: UploadFile, ext: str) -> HTTPException:
+    """The answer to a file whose name is not one of the kinds kept, before its bytes
+    are read: a picture of another kind if its name or the browser says it is one."""
+    pictured = ext in _OTHER_IMAGE_EXTS or (upload.content_type or "").startswith("image/")
+    return HTTPException(400, KINDS_KEPT if pictured else NOT_A_PHOTO)
 
 
 def _save_photo(kind: str, asset_id: str, upload: UploadFile) -> str:
     ext = Path(upload.filename or "").suffix.lower() or ".jpg"
     if ext not in IMAGE_EXTS:
-        raise HTTPException(400, f"unsupported image type: {ext}")
+        raise _refused_by_name(upload, ext)
     path, rel = _photo_target(kind, asset_id, ext)
 
     def write(tmp: Path) -> None:
@@ -389,7 +408,7 @@ def _chosen_photos(form: Posted) -> list[UploadFile]:
     for up in ups:
         ext = Path(up.filename or "").suffix.lower() or ".jpg"
         if ext not in IMAGE_EXTS:
-            raise HTTPException(400, f"unsupported image type: {ext}")
+            raise _refused_by_name(up, ext)
         # Content-check here too, before the item is committed, so a file that is
         # not really an image leaves nothing created (see the docstring above).
         up.file.seek(0)

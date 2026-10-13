@@ -1,8 +1,10 @@
-{# The photographs of an item page, shared by computer.html and part.html: the top
-   of the side column, level with Details, with the code a phone adds one by. The
+{# The photographs of an item page, shared by computer.html, part.html and
+   location.html: the top of the side column, level with Details, with the code a
+   phone adds one by. The
    owner's label and disposal box are the rest of the column, in _sidecol.html,
    after the body in the source.
-   Expects: obj, kind ("computers"/"parts"), images, ref_marks, tuned, imgerr.
+   Expects: obj, kind ("computers"/"parts"/"locations"), images, ref_marks, tuned,
+   imgerr, notadded.
 
    After the head and before the body in the source, so a single column -- a
    phone -- reads summary, photograph, details: somebody who has just scanned a
@@ -24,22 +26,41 @@
     offered there. The tools themselves are in the full-size view, not under each
     photograph (MANUAL §10). -#}
 {% macro refmark(img) %}{% if kind in ('computers', 'parts') %} data-ref="{{ '1' if img in ref_marks else '0' }}"{% endif %}{% endmacro %}
+{#- What a form post with no script running could not keep, named at the top of the
+    panel: the script's rows say it one photograph at a time, and a browser without
+    them would otherwise be shown nothing at all. -#}
+{% macro refusals() %}
+  {% set names = notadded | default([]) %}
+  {% if names %}{{ U.banner('warning', 'Not added: ' ~ names | join(', ') ~ '.', 'The register keeps JPEG, PNG, WebP and GIF photographs.') }}{% endif %}
+{% endmacro %}
+{#- The next cell of the thumbnails, and the owner's alone: it is the label of the
+    picker, so pressing it, or Enter on it, opens the files, and photographs dropped
+    on it go the same way (uploads.js). The input is in the grid and its form is
+    under it, which is what `form=` is for. On a touchscreen it reads Choose photos,
+    because Take photo stands beside it there, and the word not shown is
+    `display: none`, so it is not in the name either. -#}
+{% macro addtile() %}
+  {% if request.state.authed %}
+  <label class="addtile" data-drop title="Choose photographs, or drop them here. Each one uploads as soon as it is chosen.">
+    {{ I.ico('plus') }}<span class="on-fine">{{ 'Add photos' | ui }}</span><span class="on-coarse">{{ 'Choose photos' | ui }}</span>
+    <input class="sr-only" type="file" name="photos" accept="image/*" multiple form="photo-upload">
+  </label>
+  {% endif %}
+{% endmacro %}
 {% macro upload() %}
   {% if request.state.authed %}
-  {# In the panel it adds to. Choosing the photos is the whole gesture: the upload
-     goes as soon as they are picked, so the button below is only there for a
-     browser with no JavaScript. The native file input is behind its own label,
-     which is how the button says "Add photos" rather than whatever the browser
-     calls it. Fetching from the reference is the other way a photograph arrives,
-     so it stands beside Add photos rather than under it. #}
-  <div class="photo-actions across">
+  {#- Choosing is the whole gesture: with script each photograph goes as soon as it
+      is picked, on a request of its own with a row of its own, so Upload is only
+      there for a browser running none. No picker is required: two of them on a
+      touchscreen would make a post need both. Take photo opens the camera, and
+      only a touchscreen is shown it -- a desktop browser ignores `capture` and would
+      open a file chooser under the name. Fetching from the reference is the other
+      way a photograph arrives, so it stands in the same row. -#}
+  <div class="photoadd">
     <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/photo{{ tabq }}"
-          enctype="multipart/form-data" id="photo-upload" data-autosend>
-      <label class="btn sm filebtn">{{ 'Add photos' | ui }}
-        <input type="file" name="photos" accept="image/*" multiple required>
-      </label>
-      <button class="btn sm" type="submit" data-send-go>{{ 'Upload photos' | ui }}</button>
-      <span class="hint" data-send-busy hidden>{{ 'Uploading…' | ui }}</span>
+          enctype="multipart/form-data" id="photo-upload">
+      <label class="btn primary takephoto">{{ I.ico('camera') }} {{ 'Take photo' | ui }}<input class="sr-only" type="file" name="photos" accept="image/*" capture="environment"></label>
+      <button class="btn sm" type="submit" data-send-go>{{ 'Upload' | ui }}</button>
     </form>
     {% if obj.url %}
     <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/fetch-image{{ tabq }}">
@@ -47,6 +68,15 @@
     </form>
     {% endif %}
   </div>
+  {#- A row to a photograph while it goes, read out as it changes. In the page from
+      the start and empty, because a region that appears at the moment it speaks is
+      not reliably heard. The row is copied from the server's own markup so that Try
+      again follows Button text; the percentage is for the eye, since a polite region
+      would otherwise read out every one of a hundred. -#}
+  <ul class="uploads" aria-live="polite"></ul>
+  <template id="uprow"><li class="up"><canvas class="th" width="112" height="84" aria-hidden="true"></canvas><span><span class="nm"></span><span class="st"><span></span><span class="pc" aria-hidden="true"></span></span><span class="meter" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></span></span><button class="btn sm" type="button" hidden>{{ 'Try again' | ui }}</button></li></template>
+  {% include "_photoqr.html" %}
+  <script defer src="/static/uploads.js?v={{ js_ver['uploads.js'] }}"></script>
   {% endif %}
 {% endmacro %}
 {#- Each photograph is named for what it shows -- the item, and where it falls among
@@ -65,6 +95,7 @@
   {% if images %}
   {% call PN.panel('Photographs', images | length) %}
     {{ fetcherr() }}
+    {{ refusals() }}
     <div class="photo-primary">
       {# data-full is what the lightbox opens, and it is the original: the point of
          a photograph of a board is being able to read the chips on it. What sits
@@ -81,7 +112,7 @@
            {% if images[0] in tuned %}data-tuned="1"{% endif %}>
       {{ badge(images[0]) }}
     </div>
-    {% if images|length > 1 %}
+    {% if images|length > 1 or request.state.authed %}
     <div class="thumbs">
       {% for img in images[1:] %}
       <div class="thumb-item">
@@ -96,6 +127,7 @@
         {{ badge(img) }}
       </div>
       {% endfor %}
+      {{ addtile() }}
     </div>
     {% endif %}
     {{ upload() }}
@@ -108,14 +140,14 @@
      arriving here from the card lands on the same picture it was clicked on. #}
   {% call PN.panel('Photographs') %}
     {{ fetcherr() }}
+    {{ refusals() }}
     <div class="nophoto">
       <img class="ph" src="/static/{{ placeholder }}" alt="" aria-hidden="true">
       <p class="hint">No photograph yet.</p>
     </div>
+    {% if request.state.authed %}<div class="thumbs">{{ addtile() }}</div>{% endif %}
     {{ upload() }}
   {% endcall %}
   {% endif %}
-  {#- With the photographs: it is how a phone adds one. -#}
-  {% include "_photoqr.html" %}
 </aside>
 

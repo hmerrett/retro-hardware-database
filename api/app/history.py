@@ -83,6 +83,13 @@ FOLD_WINDOW = timedelta(minutes=5)
 _ONE_OF = re.compile(r"\ba (photo|file)\b")
 
 
+def photos_added(n: int) -> str:
+    """The line for `n` photographs added in one go, worded so the fold can read it: a
+    run of "added a photo" is "added 3 photos", where "added 1 photo(s)" came out as
+    "added 1 photo(s) ×3"."""
+    return "added a photo" if n == 1 else f"added {n} photos"
+
+
 def _folded_message(message: str | None, n: int) -> str | None:
     # The column is nullable, and a row from a restored dump can hold a null the
     # app itself would never write. Nothing to pluralise is nothing to fold.

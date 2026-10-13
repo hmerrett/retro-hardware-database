@@ -148,6 +148,10 @@
     .btn.icon.sm { width: 36px; }
     .check input, .tickbox input[type=checkbox] { width: 22px; height: 22px; }
     .viewswitch a { font-size: 16px; min-height: calc(36px - 2 * var(--border-w)); }
+    /* Take photo runs the width of the panel, under the thumb; the tile beside it reads
+       Choose photos. */
+    .takephoto { flex-basis: 100%; }
+    .on-fine { display: none; }
     :is(.notebar, .fileform, .toolbar, .photo-actions form) .btn { min-height: var(--tap); }
     :is(.notebar, .fileform, .toolbar, .photo-actions form) input:not([type=checkbox], [type=radio], [type=file]),
     :is(.notebar, .fileform, .toolbar, .photo-actions form) select:not(.select) { height: var(--tap); }
@@ -618,15 +622,12 @@
     font-size: 11px; line-height: 1; color: var(--on-scrim); background: var(--scrim); border-radius: var(--radius-pill); }
   .ref-badge.icon { display: inline-flex; padding: var(--space-1); border-radius: var(--radius-sm); }
   .ref-badge.icon img { display: block; width: 18px; height: 18px; object-fit: contain; border-radius: var(--radius-xs); }
-  /* The ways a photograph arrives, and the disposal box: a column, where a note box
-     stands over its button; across, for Add photos beside Fetch from reference, with
-     a message about either on a line of its own. */
+  /* A column of controls under a location's photographs, where a box stands over its
+     button. */
   .photo-actions { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3);
     margin-top: var(--space-4); max-width: 320px; }
   .photo-actions form { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin: 0; }
   .photo-actions .hint { margin: 0; }
-  .photo-actions.across { flex-direction: row; flex-wrap: wrap; align-items: center; }
-  .photo-actions.across > .hint { flex-basis: 100%; }
   /* A file input sits invisible over its own label, so the button says what it does
      in the site's words rather than the browser's, and is still a real input: it
      takes the keyboard, opens the picker and works with no script. The ring it would
@@ -634,16 +635,12 @@
   .filebtn { position: relative; overflow: hidden; }
   .filebtn input[type=file] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 0; }
   .filebtn:has(input:focus-visible) { outline: var(--focus-w) solid var(--focus); outline-offset: var(--focus-w); }
+  /* The panel's pickers hide their input instead (.sr-only), and the ring that would
+     be drawn round its pixel is drawn round what you press. */
+  :is(.addtile, .takephoto):has(input:focus-visible) { outline: var(--focus-w) solid var(--focus); outline-offset: var(--focus-w); }
   form.sending .filebtn { pointer-events: none; opacity: .55; }
   .newphotos { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
   .newphotos .hint { margin: 0; }
-  /* The code a phone adds a photograph by. The SVG paints its own light quiet zone, so
-     the edge is clipped to the panel's corners rather than given a ground of its own. */
-  .qr-code { display: inline-block; line-height: 0; overflow: hidden;
-    border: var(--border-w) solid var(--line); border-radius: var(--radius-md); }
-  .qr-code svg { display: block; width: 132px; height: 132px; }
-  /* One column, it would open every item with a code of the page already open. */
-  @media (max-width: 860px) { .photo-qr { display: none; } }
   /* The paragraph at the top runs as wide as the Details under it, rather than the
      seventy-character measure, so the head and the body share an edge: the details
      column's share of the two, less the gap between them. One column, the panels'
@@ -1062,26 +1059,51 @@
   @media (pointer: coarse) { .suggest .sg, .suggest .all { min-height: var(--tap); } }
 
   /* ---- 14i. Photo upload ---------------------------------------------------
-     Picking is the whole gesture: the upload starts at once. A row per photograph while it
-     goes, each saying where it is in a word as well as a bar. */
-  .dropzone { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); padding: var(--space-5) var(--space-4);
-    text-align: center; color: var(--text); background: var(--surface-sunken);
-    border: 2px dashed var(--line-strong); border-radius: var(--radius-md); }
-  .dropzone .hint { color: var(--text-muted); }
-  .dropzone.is-over { border-color: var(--accent); background: var(--surface-hover); }
-  .dropzone .row { justify-content: center; }
+     Picking is the whole gesture: the upload starts at once. The picker is the next cell
+     of the thumbnails, and a row per photograph while it goes says where it is in a word
+     as well as a bar. */
+  .addtile { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: var(--space-2); aspect-ratio: var(--thumb-ratio); padding: var(--space-3); text-align: center; cursor: pointer;
+    font-size: 13px; font-weight: 500; color: var(--accent);
+    border: var(--border-w) dashed var(--line-strong); border-radius: var(--radius-md); }
+  .addtile svg { width: 24px; height: 24px; }
+  /* Everything on a hovered thing is `text`: accent ink on the hover ground is not a
+     pair the design uses. A drop is outlined in accent as well. */
+  .addtile:hover, .addtile.is-over { color: var(--text); background: var(--surface-hover); border-color: var(--accent); }
+  .addtile.is-over { border-style: solid; }
+  /* Take photo, Upload for a browser with no script, and Fetch from reference, in one
+     row. The upload form's own box steps aside so its buttons share the row. */
+  .photoadd { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+  .photoadd form { display: contents; }
+  /* Which picker a pointer is given: a touchscreen is where the camera is. A desktop
+     browser ignores `capture` and would open a file chooser called Take photo. */
+  @media not all and (pointer: coarse) { .takephoto, .on-coarse { display: none; } }
   .uploads { list-style: none; margin: var(--space-4) 0 0; padding: 0; }
+  .uploads:empty { margin: 0; }
   .up { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: var(--space-3); align-items: center;
     padding: var(--space-3) 0; border-top: 1px solid var(--line); }
   .up:first-child { border-top: 0; }
-  .up .th { width: 56px; aspect-ratio: var(--thumb-ratio); background: var(--surface-sunken); border-radius: var(--radius-xs); }
+  .up .th { display: block; width: 56px; aspect-ratio: var(--thumb-ratio); background: var(--surface-sunken); border-radius: var(--radius-xs); }
   .up .nm { display: block; font-family: var(--font-data); font-size: 13px; overflow-wrap: anywhere; }
   .up .st { display: block; margin-top: var(--space-1); font-size: 12px; color: var(--text-muted); }
   .up .meter { display: block; height: 6px; margin-top: var(--space-2); overflow: hidden;
     background: var(--accent-track); border-radius: var(--radius-pill); }
-  .up .meter > i { display: block; height: 100%; background: var(--accent-fill); }
+  .up .meter > i { display: block; width: 0; height: 100%; background: var(--accent-fill); }
+  .up .pc { font-variant-numeric: tabular-nums; }
   .up.is-done .st { color: var(--success); }
   .up.is-failed .st { color: var(--danger); }
+  /* The code a phone adds a photograph by, at the foot of the panel, drawn as a label.
+     The SVG paints its own light quiet zone, so its edge is clipped to the corners
+     rather than given a ground of its own. One column, it would open every item with
+     a code of the page already open. */
+  .qrlabel { display: flex; gap: var(--space-3); align-items: center; margin-top: var(--space-5); padding: var(--space-3);
+    border: var(--border-w) dashed var(--line-strong); border-radius: var(--radius-xs); background: var(--surface-raised); }
+  .qrlabel .qr { flex: none; line-height: 0; overflow: hidden;
+    border: var(--border-w) solid var(--line); border-radius: var(--radius-xs); }
+  .qrlabel .qr svg { display: block; width: 96px; height: 96px; }
+  .qrlabel .t { min-width: 0; margin: 0; font-family: var(--font-data); font-size: 12px; line-height: 1.3; }
+  .qrlabel .t b { display: block; font-size: 14px; }
+  @media (max-width: 860px) { .qrlabel { display: none; } }
 
   /* ---- 14j. The lightbox as editor ----------------------------------------
      Crop: a box dragged over the photograph, everything outside it under the scrim, a
