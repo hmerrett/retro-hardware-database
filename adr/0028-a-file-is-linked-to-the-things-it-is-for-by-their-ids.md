@@ -1,6 +1,7 @@
 # 0028 — A file is linked to the things it is for, by their asset ids
 
-**Status:** Accepted
+**Status:** Accepted — amended by
+[ADR-0042](0042-a-file-row-carries-its-public-switch.md) (each row carries its Public switch)
 **Date:** 2026-09-24
 **Supersedes:** [ADR-0020](0020-a-model-link-names-a-maker-and-a-model.md), and the
 model link and the tags of [ADR-0006](0006-files-are-linked-to-what-they-are-for.md).

@@ -667,7 +667,7 @@ on, what happens to the parts in a machine you dispose of — is in its tooltip.
 
 The words on its buttons follow [Button text](#button-text), and so do the marks
 at the start of a line — *Note*, *Photo* and *Moved* in the history, *Private* on
-a file.
+a file — and so does **Public** on a file's row.
 
 On a touchscreen nothing you press is smaller than 36 pixels a side. The small
 buttons on a history line and a part's card grow to 36, and a button
@@ -1651,7 +1651,9 @@ you. It says what kind of file it is, how big, when it was added and what it is
 linked to, with a **Download** button — and, for a PDF or a text file, a **View**
 button before it, which opens the file in your browser to read rather than saving
 it ([Reading a PDF](#reading-a-pdf), [Reading a text file](#reading-a-text-file)).
-Everything you can do to a file is done there, and nowhere else:
+Everything you can do to a file is done there, and all of it but publishing is
+done nowhere else — publishing is on every list too ([who can see a
+file](#who-can-see-a-file)):
 
 - **Note** — change it, and **Save**.
 - **Public** — the tick that publishes the file. It takes effect the moment you
@@ -1680,7 +1682,8 @@ link it, so a driver never lands on a card nobody has looked at.
 `/files` lists every file, newest first: its name, what it is linked to, its size
 and when it was added. Selecting a row opens the file's page; the button at the
 end of the row downloads the file, or, for a PDF or a text file, opens it in your
-browser. Five links to units of one model are shown as one —
+browser. On an account that can change files, **Public** sits before it ([who can
+see a file](#who-can-see-a-file)). Five links to units of one model are shown as one —
 **5 × Polpo PicoGUS** — and the file's page lists all five.
 
 The row above the list narrows it, and **All** puts it back. **Documents**, **Disk
@@ -1720,7 +1723,7 @@ decides nothing about what a file is linked to or who can see it.
 ### Who can see a file
 
 **Nothing you upload is public until the box is ticked.** Tick **Public** as you
-upload, or on the file's page afterwards. If most of what you upload is meant for
+upload, or publish it afterwards from any list of files or from the file's page. If most of what you upload is meant for
 visitors — drivers and manuals — turn on **New files are public** in the settings
 and the box starts ticked, so a file goes up published unless you untick it
 first. Either way the tick is on the upload box in front of you before the file
@@ -1729,8 +1732,13 @@ is chosen.
 Until it is ticked, a visitor is not shown the file on any item page, does not see
 it in the file list, and gets "not found" at its page, at its download link and,
 for a PDF or a text file, at the link that views it.
-You see all of your files, ticked or not, whenever you are logged in, and the lists
-mark the ones that are private.
+You see all of your files, ticked or not, whenever you are logged in. In every
+list of files — an item's or a project's Files panel and the `/files` page — each
+row carries a **Public** button, pressed while the file is published. Press it to
+publish the file or take it back; the list stays where it is, and the change holds
+everywhere at once, exactly as the tick on the file's page does. A viewer's
+account, which sees the private files without being able to change them, sees
+*Private* on those rows instead.
 
 A file linked to a private project is shown to a visitor only if it has been
 ticked, and never with the project: the file's page and the file list say nothing
