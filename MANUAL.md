@@ -2760,9 +2760,9 @@ arrives:
    in there and then, and the panel says **→ Moved in** and where it was. That goes
    for a box scanned onto a shelf and a machine scanned into a box as much as for a
    card scanned into a machine, and whatever is inside the thing scanned comes with
-   it: the panel says how many. Each moved line in the list has **undo**, which
+   it: the panel says how many. Each moved line in the list has **Undo**, which
    puts it back where it was.
-3. **next**, when you have finished there. Nothing is open, and the next scan
+3. **Next**, when you have finished there. Nothing is open, and the next scan
    opens whatever it is. Until you press it, everything scanned goes into the open
    one, a location included: scanning Shelf 3 while Shelf 2 is open puts Shelf 3
    on Shelf 2.
