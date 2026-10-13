@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2949 behaviours, from 88 files.*
+*2952 behaviours, from 88 files.*
 
 
 ## A barcode takes the room the words leave
@@ -1684,7 +1684,7 @@ Regenerate with:
 
 ## Deployment
 
-*test_deployment.py — 14 behaviours*
+*test_deployment.py — 17 behaviours*
 
 
 **The api trusts its proxy**
@@ -1705,6 +1705,14 @@ Regenerate with:
   It runs as root, so what it may touch is spelled out and kept small.
 - it looks before it changes anything  
   A chown -R over every photograph on every start would be slow on a large collection and would churn the backup's view of what changed.
+
+**The mcp server does not run as root**
+
+- the image ends as a user that is not root
+- the user has a fixed uid  
+  A fixed uid means the same thing from one build to the next, as api's does.
+- it owns none of its own code  
+  It writes nothing, so nothing in the image is given to it.
 
 **The development override**
 

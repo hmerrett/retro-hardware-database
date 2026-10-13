@@ -40,6 +40,8 @@ Compose V2, Docker Engine. British English.
   volumes to appuser if anything in them is not. A fresh install never needs it;
   an install from before the change, or a restore done as root, does. It looks
   before it changes anything.
+- The MCP server's image ends `USER appuser` too, with the same fixed uid. It
+  writes nothing, so it owns nothing: all of its image is root's.
 - Anything that writes into a volume from outside the app — a restore, a one-off
   script through `docker compose exec` — runs as appuser by default, which is
   what keeps the volumes consistent between `api-init` runs.

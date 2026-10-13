@@ -109,6 +109,29 @@ class TestTheAppDoesNotRunAsRoot:
         assert find < chown
 
 
+class TestTheMcpServerDoesNotRunAsRoot:
+    """The MCP server runs as its own user too, for the same reason as the app.
+
+    It is reached only on localhost, so the exposure is smaller, but it handles
+    what an agent sends it and holds the API token; as root it would own its
+    container outright for the price of one line not written.
+    """
+
+    MCP_DOCKERFILE = (ROOT / "mcp" / "Dockerfile").read_text()
+
+    def test_the_image_ends_as_a_user_that_is_not_root(self):
+        users = _instructions(self.MCP_DOCKERFILE, "USER")
+        assert users and users[-1] not in ("root", "0", "0:0")
+
+    def test_the_user_has_a_fixed_uid(self):
+        """A fixed uid means the same thing from one build to the next, as api's does."""
+        assert "--uid 10001" in self.MCP_DOCKERFILE
+
+    def test_it_owns_none_of_its_own_code(self):
+        """It writes nothing, so nothing in the image is given to it."""
+        assert "chown" not in self.MCP_DOCKERFILE
+
+
 class TestTheDevelopmentOverride:
     """`docker compose -f docker-compose.yml -f docker-compose.dev.yml up` runs the
     same image with the source mounted over it, reloading on save."""
