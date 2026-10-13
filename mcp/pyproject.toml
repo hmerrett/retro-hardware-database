@@ -1,0 +1,19 @@
+# The tool server's dependencies. The lockfile beside this file pins the whole
+# transitive tree behind them, as api/uv.lock does the app's (backend-standards), so
+# every build of a release holds the same code (ADR-0041).
+#
+# To change one: edit the list here, run `uv lock --project mcp`, and rebuild.
+[project]
+name = "retro-hardware-database-mcp"
+# Not the release, which has one home, api/app/__init__.py. This is a script with
+# dependencies rather than a package, and uv asks for a version all the same.
+version = "0"
+description = "The tool server: the register's REST API as MCP tools"
+requires-python = ">=3.12"
+dependencies = [
+    "mcp==2.3.0",
+    "httpx==0.28.1",
+]
+
+[tool.uv]
+package = false
