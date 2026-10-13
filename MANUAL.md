@@ -568,8 +568,8 @@ in muted ink ([Section 6](#a-models-own-page)). It runs as wide as the **Details
 under it.
 
 The two banners are different kinds of news and look it. **Disposed** is a
-warning: the date and the reason, and when logged in **Restore** and **Delete…**
-at its right ([disposal](#disposal)). **Build walk** is plain, because a machine
+warning: the date and the reason, and when logged in **Delete…** at its right
+([disposal](#disposal)). Putting it back is done from **Status**. **Build walk** is plain, because a machine
 being built is not a problem: it says what to add next.
 
 The rest is a stack of panels — each section in a box with its title on a band
@@ -602,10 +602,10 @@ Down the main column:
 
 Down the side column, starting level with **Details**: the photographs and the
 item's own QR code for adding one from a phone and, when logged in, the **Label**
-panel with its two print buttons and the disposal box. On a narrow screen there is one column, and the
+panel with its two print buttons and the [**Status**](#status) panel. On a narrow screen there is one column, and the
 photographs come straight after the summary, before the details: somebody who has
 just scanned a label wants to see first that they have the right thing. The label
-and disposal come last, after everything else. The Tab key goes through the page
+and Status come last, after everything else. The Tab key goes through the page
 in the order you see it, at every width.
 
 A URL written into any of that — a summary, a note, a spec value, where the item
@@ -645,7 +645,7 @@ both columns, and under it the main column holds one tab's panels:
 - **History** — with how many lines.
 
 The head of the page and the side column — the photographs with the code for a
-phone, the label and the disposal box — stay as they are whichever tab is open,
+phone, the label and Status — stay as they are whichever tab is open,
 so **Details** and **Photographs** still start level. Each tab is a link with an
 address of its own, `?tab=files`, so a tab can be bookmarked or sent, and the tabs
 work with JavaScript switched off. Sending anything from the page — a note, a file,
@@ -658,7 +658,7 @@ label lands, so a photograph is still the first thing seen there.
 ### Its boxes and buttons
 
 Logged in, most of the work on an item is done from its page, and every box on it
-says what it is for above it: **Why** and **When** in the disposal box, **Note**
+says what it is for above it: **Why** and **When** under **Status**, **Note**
 in History and in Files, **Link a board** and **Link a part** under Motherboard
 and Parts, **Machine** under Fitted in, **Mount storage** under Mounted parts, and
 **Jobs** and **Project** in Work. Each box has an edge you can see against the
@@ -2909,8 +2909,8 @@ which keeps its tag, and the first is deleted.
 ## 15. History
 
 Every item has a dated history, and it fills itself in. Creating, editing,
-photographing, linking, unlinking, disposing and restoring all write a line
-saying what changed.
+photographing, linking, unlinking, disposing, correcting a disposal and restoring
+all write a line saying what changed.
 
 Detaching a board writes on both sides of the one event: the machine's history
 says which tag its board became, and the board's history opens by saying which
@@ -3015,17 +3015,42 @@ The history says what happened, and that happened.
 
 ## 16. Disposing, restoring and deleting
 
+### Status
+
+Logged in, an item page has a **Status** panel in its side column, with three
+answers to one question — where does this thing stand?
+
+- **In the collection** — the ordinary answer.
+- **Might sell** — still here, and on your [shortlist](#might-go-the-for-sale-shortlist).
+- **Disposed** — gone, with **Why** and **When**: sold, binned or given away, and
+  the date it went, which is today unless you change it ([disposal](#disposal)).
+
+Choose one and press **Save**: nothing changes until you do, so a stray tap cannot
+put a machine back on the shelf or take it off. **Why** and **When** belong to
+**Disposed**, so they open when you choose it and close again when you choose
+something else. With JavaScript switched off they are always there, and only
+**Disposed** reads them.
+
+On something already disposed of, the panel opens on **Disposed** with what you
+wrote at the time. Change **Why** or **When** and save to correct them; the parts
+that went out with it are corrected too, so restoring it still brings them back.
+Choosing **In the collection** or **Might sell** restores it.
+
+A visitor never sees the panel: a disposed item shows them its **Disposed** banner,
+and **Might sell** shows them nothing at all.
+
 ### Might go: the for-sale shortlist
 
 Between keeping a thing and having got rid of it there is *this one could go*, and
 it had nowhere to live but a note on the item — which anybody can read — or your
 memory, which is worse.
 
-**Tick "might sell" on any item page** and it joins **/for-sale**, a list of
-everything you have flagged. Untick it and it leaves. The tick sends as soon as you
-change it; there is a save button beside it for a browser running no script.
+**Choose Might sell under [Status](#status) on any item page** and it joins
+**/for-sale**, a list of everything you have flagged. Choose **In the collection**
+and it leaves. So does disposing of it: something that has gone is not something
+you might sell, and it is one status or the other.
 
-**Nobody but you sees it.** The tick and the marker are not rendered for a visitor,
+**Nobody but you sees it.** The choice and the marker are not rendered for a visitor,
 `/for-sale` asks for a login, and — the part that is easy to get wrong — a visitor's
 search does not match on it either. Searching the site for `true` does not hand a
 stranger your shortlist.
@@ -3040,8 +3065,8 @@ A viewer's account reads `/for-sale` and cannot change what is on it — see
 ### Disposal
 
 **Disposal is how something leaves the collection while keeping its record.** Sold,
-binned, donated, given away, cannibalised. The disposal box on an item page takes
-a reason and a date.
+binned, donated, given away, cannibalised. **Disposed** under [Status](#status)
+on an item page takes a reason and a date.
 
 A disposed item keeps everything — its page, its photographs, its history, its
 tag. It is hidden from the gallery unless you tick **show disposed**, and left
@@ -3053,7 +3078,8 @@ it, and anything mounted on those in turn — on the same date and for the same
 reason. So does disposing of a part with others mounted on it: a controller card
 goes with its drive. A part already disposed of keeps its own record.
 
-**Restore** puts it back. Restoring a machine brings back only the parts that
+**Restoring** puts it back: choose **In the collection** (or **Might sell**) under
+Status and save. Restoring a machine brings back only the parts that
 went out with it. A part restored on its own, out of a machine that is still
 disposed of, comes out of it and is nowhere until you put it somewhere. Nothing can
 be fitted in, mounted on or kept in something that has been disposed of.

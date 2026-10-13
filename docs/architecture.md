@@ -216,7 +216,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `routers/storage.py` | the audit (`/audit`; its first name, storage, is still the code's): the screen, a scan, an undo, finishing a round, and the report |
 | `routers/projects.py` | the project pages: jobs, orders, and the things a project is about |
 | `register.py` | the register as one id space: which table an asset id is in, what sits either side, whether a page has gone stale |
-| `disposal.py` | disposing of a thing and bringing it back, including everything inside it, read off the tree |
+| `disposal.py` | where a thing stands (the Status panel: in the collection, might sell, disposed), disposing of it and bringing it back, including everything inside it, read off the tree |
 | `forms.py` | what was typed turned into what a column holds, and what changed |
 | `history.py` | the change log: writing a line, reading them back, and folding a burst into one |
 | `web.py` | the templates object and what a page needs around one: the globals, the share card, the schema.org data |

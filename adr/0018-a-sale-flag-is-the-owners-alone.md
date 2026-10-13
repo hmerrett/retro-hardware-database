@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 **Date:** 2026-09-16
+**Updated:** 2026-10-13 — the tick is now **Might sell**, one of three answers on an
+item page's Status panel (MANUAL §16), and disposing of a thing clears it: one
+question, one answer. Who may see it is unchanged.
 
 ## Context
 

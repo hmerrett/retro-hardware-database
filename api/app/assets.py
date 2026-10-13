@@ -46,8 +46,9 @@ from starlette.datastructures import UploadFile
 
 from . import entry, filesdb, locations, machinedb, machines, projects, specdb, tree
 from .common import folder_images, to_dict
+from .disposal import STATUSES, set_status
 from .disposal import inside as _inside
-from .forms import Posted, Refusal, posted
+from .forms import Posted, Refusal, _parse_date, posted
 from .history import add_log, photos_added
 from .models import (
     AssetChip,
@@ -595,27 +596,35 @@ def _require_disposed(obj: Computer | Part, kind: str) -> None:
         )
 
 
-async def _set_for_sale(
+async def _set_status(
     db: Session, model: type[Computer] | type[Part], aid: str, request: Request
 ) -> RedirectResponse:
-    """Tick or untick "might sell" on one item (ADR-0018).
+    """The Status panel on an item page: In the collection, Might sell or Disposed,
+    sent by its one Save (disposal.set_status does what each answer means).
 
-    The box on the page is the answer, so an absent field is "no": an unticked
-    checkbox sends nothing at all, which is the one form control whose off state has
-    to be read from its silence. The same reading gui_file_public takes of the same
-    gesture, and for the same reason -- these two ticks are the same control.
+    Why and When are on the page whatever is chosen when no script hides them, so
+    they are sent with every answer and read only with Disposed.
 
-    Nothing is written to the history. A shortlist is a thought about a thing, not
-    something that happened to it, and a machine ticked and unticked over a month of
-    Sundays would otherwise fill its own record with the owner changing their mind.
+    Might sell writes nothing to the history (ADR-0018). A shortlist is a thought about
+    a thing, not something that happened to it, and a machine flagged and unflagged
+    over a month of Sundays would otherwise fill its own record with the owner
+    changing their mind. Disposing, correcting and restoring each write their line.
     """
     row = get_or_404(db, model, aid)
     form = await posted(request)
-    row.for_sale = bool(form.get("for_sale"))
-    db.commit()
-    return RedirectResponse(
-        f"/{'computers' if model is Computer else 'parts'}/{aid}", status_code=303
+    to = form.get("status", "")
+    if to not in STATUSES:
+        raise HTTPException(400, "Choose In the collection, Might sell or Disposed.")
+    set_status(
+        db,
+        row,
+        to,
+        (form.get("note", "") or "").strip(),
+        _parse_date(form.get("date", "")),
+        request.state.principal.username,
     )
+    db.commit()
+    return back_to(request, f"/{'computers' if model is Computer else 'parts'}/{aid}")
 
 
 def _work_from_form(db: Session, obj: Computer | Part, form: Posted) -> Project | None:

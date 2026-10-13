@@ -44,13 +44,11 @@
   <h1 class="title">{{ name }}</h1>
   <div class="tag muted">{{ obj.asset_id }}</div>
   {% if obj.disposed %}
-  {#- A warning, not danger: the record is all still here, and Restore is beside it.
+  {#- A warning, not danger: the record is all still here, and Status puts it back.
       What became of the thing is its own sentence: the date, then why. -#}
   {% set when %}{% if obj.disposed_at %}{{ obj.disposed_at }}{% endif %}{% if obj.disposed_note %} — {{ obj.disposed_note | linked }}{% endif %}{% endset %}
   {% if authed %}
   {% call U.banner('warning', 'Disposed', when | trim) %}
-    <form class="inline-form" method="post" action="/{{ kind }}/{{ obj.asset_id }}/restore{{ tabq }}">
-      {{- U.button('Restore', size='sm', type='submit') -}}</form>
     {# Deleting the record for good, once it is already marked as gone. Behind a
        confirmation page, so this is a link rather than a button. #}
     {{ U.button('Delete…', kind='danger', size='sm', href='/' ~ kind ~ '/' ~ obj.asset_id ~ '/delete') }}
@@ -79,20 +77,6 @@
      about the thing (MANUAL §6). #}
   {% if obj.summary %}<p class="prose">{{ obj.summary | linked }}</p>
   {% elif machine and machine.summary %}<p class="prose muted">{{ machine.summary | linked }}</p>{% endif %}
-  {% if authed %}
-  {# Might sell (ADR-0018). Rendered for nobody else: not the tick, not the state it
-     is in, and not the search that would find it -- an intention to sell is the
-     owner's, on a page anybody may read. The tick sends the moment it changes, the
-     same bargain files.public makes, with the button kept in the markup for a
-     browser running no script, which is what a keyboard user without JavaScript
-     presses. #}
-  <form class="row mt-3" method="post" action="/{{ kind }}/{{ obj.asset_id }}/for-sale{{ tabq }}" data-ticksend>
-    <label class="check"><input type="checkbox" name="for_sale" value="1"
-      {{ 'checked' if obj.for_sale else '' }}
-      aria-label="Might sell {{ obj.asset_id }}"> Might sell</label>
-    <button class="btn sm" type="submit" data-send-go>{{ 'Save' | ui }}</button>
-  </form>
-  {% endif %}
   {#- The tabs end the head, across both columns, so Details and Photographs still
       start level under them. Each carries the count its panel does; Work is not
       offered where it would draw nothing. -#}

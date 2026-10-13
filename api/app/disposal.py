@@ -6,10 +6,12 @@ a thing: disposing of a machine, or of a part with others mounted on it, dispose
 everything inside it, all the way down (ADR-0036), and restoring it brings back only
 those that went with it and not the ones disposed of separately beforehand. A part
 brought back on its own, out of something still gone, comes out of it, since nothing
-is kept inside something that has left. That bookkeeping is here.
+is kept inside something that has left. That bookkeeping is here, and so is the one
+question the owner answers on an item page that drives it: where the thing stands.
 """
 
 from datetime import date
+from typing import Final
 
 from sqlalchemy.orm import Session
 
@@ -18,13 +20,20 @@ from .history import add_log
 from .models import Computer, Part
 
 
-def _disposal_log(obj: Computer | Part, with_machine: str | None = None) -> str:
+# The three answers on an item page's Status panel, as its radio buttons send them.
+HELD: Final = "held"
+MIGHT_SELL: Final = "might-sell"
+DISPOSED: Final = "disposed"
+STATUSES: Final = (HELD, MIGHT_SELL, DISPOSED)
+
+
+def _disposal_log(
+    obj: Computer | Part, with_machine: str | None = None, what: str = "marked disposed"
+) -> str:
     """The history line for a disposal: when, and why if a reason was given."""
     when = obj.disposed_at.isoformat() if obj.disposed_at else "date unknown"
     who = f" with {with_machine}" if with_machine else ""
-    return f"marked disposed{who} ({when})" + (
-        f": {obj.disposed_note}" if obj.disposed_note else ""
-    )
+    return f"{what}{who} ({when})" + (f": {obj.disposed_note}" if obj.disposed_note else "")
 
 
 def inside(db: Session, aid: str, r: tree.Tree | None = None) -> list[Part]:
@@ -57,6 +66,13 @@ def _dispose_contents(db: Session, c: Computer | Part) -> int:
     return n
 
 
+def _went_with(p: Part, was_at: date | None, was_note: str | None) -> bool:
+    """Whether a part inside something went out with it: nothing records that but the
+    part carrying the same disposal, date and why, which is why a correction has to
+    reach the parts too."""
+    return p.disposed and p.disposed_at == was_at and (p.disposed_note or "") == (was_note or "")
+
+
 def _restore_contents(
     db: Session, c: Computer | Part, was_at: date | None, was_note: str | None
 ) -> int:
@@ -64,14 +80,66 @@ def _restore_contents(
     in it, and still carrying its disposal record -- come back with it."""
     n = 0
     for p in inside(db, c.asset_id):
-        if not (
-            p.disposed and p.disposed_at == was_at and (p.disposed_note or "") == (was_note or "")
-        ):
+        if not _went_with(p, was_at, was_note):
             continue
         p.disposed, p.disposed_at, p.disposed_note = False, None, ""
         add_log(db, p.asset_id, f"restored with {c.asset_id}")
         n += 1
     return n
+
+
+def _correct_contents(
+    db: Session, c: Computer | Part, was_at: date | None, was_note: str | None
+) -> int:
+    """A disposal's date or why corrected: the parts that went out with it are
+    corrected with it, or the restore that finds them by that record would leave them
+    behind. A part disposed of on its own beforehand keeps its own record."""
+    n = 0
+    for p in inside(db, c.asset_id):
+        if not _went_with(p, was_at, was_note):
+            continue
+        p.disposed_at, p.disposed_note = c.disposed_at, c.disposed_note
+        add_log(db, p.asset_id, _disposal_log(p, c.asset_id, "disposal corrected"))
+        n += 1
+    return n
+
+
+def set_status(
+    db: Session, obj: Computer | Part, to: str, note: str, when: date | None, who: str
+) -> None:
+    """The Status panel's answer, carried out: In the collection, Might sell or
+    Disposed. One question with one answer, so disposing of a thing takes it off the
+    shortlist, and choosing either of the others brings a disposed thing back.
+
+    Disposed again, on something already gone, corrects the date and why rather than
+    disposing of it twice. A blank date is today for a disposal being made, and
+    unknown for one being corrected: emptying the box on a record says the date is not
+    known, where a new disposal is ordinarily happening now."""
+    if to == DISPOSED:
+        obj.for_sale = False
+        if not obj.disposed:
+            obj.disposed, obj.disposed_at, obj.disposed_note = True, when or date.today(), note
+            n = _dispose_contents(db, obj)
+            add_log(db, obj.asset_id, _disposal_log(obj) + _and_parts(n))
+        elif (obj.disposed_at, obj.disposed_note or "") != (when, note):
+            was_at, was_note = obj.disposed_at, obj.disposed_note
+            obj.disposed_at, obj.disposed_note = when, note
+            n = _correct_contents(db, obj, was_at, was_note)
+            add_log(
+                db,
+                obj.asset_id,
+                _disposal_log(obj, what="disposal corrected") + _and_parts(n, "corrected too"),
+            )
+        return
+    if obj.disposed:
+        was_at, was_note = obj.disposed_at, obj.disposed_note
+        obj.disposed, obj.disposed_at, obj.disposed_note = False, None, ""
+        n = _restore_contents(db, obj, was_at, was_note)
+        add_log(db, obj.asset_id, "restored" + _and_parts(n, "came back too"))
+        if isinstance(obj, Part):
+            # Back on its own, out of something still gone: it comes out of it (ADR-0036).
+            out_of_the_disposed(db, obj, who)
+    obj.for_sale = to == MIGHT_SELL
 
 
 def out_of_the_disposed(db: Session, p: Part, who: str) -> bool:

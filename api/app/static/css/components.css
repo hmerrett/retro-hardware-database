@@ -581,6 +581,13 @@
   .itemcols > .itemphotos { grid-area: photos; }
   .itemcols > .itembody { grid-area: body; }
   .itemcols > .itemside { grid-area: side; }
+  /* The Status panel (MANUAL §16): the three answers down the panel, Why and When on a
+     row of their own under them, and Save last. The fieldset is there for the answers'
+     name and is drawn as nothing. */
+  .statusform { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-4); }
+  .statusform > fieldset { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0;
+    margin: 0; padding: 0; border: 0; }
+  .statusform > .addrow { align-self: stretch; margin: 0; }
   @media (max-width: 860px) { .itemcols { display: block; } }
   /* Tabbed, in one column, the photographs come with Details alone: the other tabs
      open on what they are for, rather than under a screen of pictures already seen

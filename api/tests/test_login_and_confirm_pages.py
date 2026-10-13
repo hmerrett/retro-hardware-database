@@ -46,7 +46,11 @@ def body(page: str) -> str:
 
 def disposed(client, kind, aid):
     """An item marked gone, which is the precondition of deleting it."""
-    r = client.post(f"/{kind}/{aid}/dispose", data={"note": "skipped"}, follow_redirects=False)
+    r = client.post(
+        f"/{kind}/{aid}/status",
+        data={"status": "disposed", "note": "skipped"},
+        follow_redirects=False,
+    )
     assert r.status_code == 303, r.text
     return aid
 

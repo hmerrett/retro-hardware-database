@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2988 behaviours, from 90 files.*
+*3017 behaviours, from 91 files.*
 
 
 ## A barcode takes the room the words leave
@@ -2265,22 +2265,20 @@ Regenerate with:
 
 ## For sale
 
-*test_for_sale.py — 21 behaviours*
+*test_for_sale.py — 20 behaviours*
 
 
-**Ticking an item**
+**Flagging an item**
 
 - an item starts unflagged  
   A fresh install has never thought about selling anything.
-- the tick sets it and unticking takes it back
-- an unticked box sends nothing and that means no  
-  The one form control whose off state has to be read from its silence -- the same reading files.public already takes of the same gesture.
-- the tick comes back to the item
-- ticking something that is not there is a 404
+- might sell sets it and in the collection takes it back
+- it comes back to the item
+- flagging something that is not there is a 404
 
 **The shortlist**
 
-- it lists what is ticked and nothing else
+- it lists what is flagged and nothing else
 - it holds machines and parts together
 - an empty shortlist says so rather than erroring
 - it is kept out of the index  
@@ -2289,8 +2287,8 @@ Regenerate with:
 **Nobody else sees it**
 
 - the shortlist asks a visitor to log in
-- a visitor cannot tick one
-- the item page shows a visitor neither tick nor marker
+- a visitor cannot flag one
+- the item page shows a visitor neither control nor marker
 - a visitors search does not match on it  
   The one that would have gone unnoticed.
 - the owners search does match on it  
@@ -2309,8 +2307,8 @@ Regenerate with:
 
 **It survives the rest of the site**
 
-- disposing a flagged item leaves the flag alone  
-  Two different facts.
+- disposing a flagged item takes it off the shortlist  
+  One status or the other (MANUAL section 16): something that has gone is not something you might sell.
 - the decision is written down
 
 
@@ -2533,7 +2531,8 @@ Regenerate with:
 **The banners are different kinds of news**
 
 - disposed is a warning
-- with restore and delete at its right
+- with delete at its right  
+  Restore went to the Status panel (MANUAL section 16); Delete… stays, as the one thing nothing else on the page does.
 - build walk is plain
 - every banner is one of the design systems  
   A tone the stylesheet does not draw is drawn as plain, which is how `warn` came to be a refusal with nothing to mark it as one.
@@ -3483,6 +3482,60 @@ Regenerate with:
   Where a look stands its navigation on the page's own colour -- Default light's white, the 128K screen's grey, the desktop's grey, the paper -- the rule is all that tells the rail from the page beside it and the bar from the page scrolling under it.
 - a row under the pointer is written in text  
   The hover ground is one only `text` is written on: the design turns everything on a hovered row to it, as the search suggestions do.
+
+
+## One status
+
+*test_one_status.py — 30 behaviours*
+
+
+**The panel**
+
+- the owner has one status with three answers
+- the answers are one named group  
+  Three radio buttons with no name for the question they answer are three loose words to a screen reader.
+- it is sent by save and nothing else  
+  Nothing changes until Save is pressed (Jonathan, 2026-10-13): unlike the tick it replaces, it is not a data-ticksend form.
+- it is in the side column under the label
+- a new item is in the collection
+- a flagged item opens on might sell
+- a disposed item opens on disposed with what was written
+- why and when are labelled and shown without script  
+  With JavaScript switched off they are always there: the markup never hides them, the script does.
+- the script opens why and when only with disposed  
+  What no rendered page can show: read off the script the page links.
+- what disposing a machine does to its parts is in the tooltip
+- the tick and the disposal box are gone
+- the banner keeps delete and loses restore  
+  Putting it back is choosing In the collection; the banner is left with the one thing nothing else on the page does.
+
+**Nobody else sees it**
+
+- a visitor is shown no panel and no might sell
+- a visitor is shown the disposed banner
+- a viewer account is shown no panel  
+  A viewer reads the shortlist and changes nothing on it (ADR-0018).
+- a visitor cannot set one
+
+**Choosing**
+
+- might sell puts it on the shortlist and in the collection takes it off
+- disposed records why and when
+- disposed with no date went today
+- why and when are ignored by any other answer  
+  Without script they are on the page whatever is chosen, and sent with it.
+- disposing takes it off the shortlist  
+  One status or the other: something gone is not something you might sell.
+- in the collection restores a machine and the parts that went with it
+- might sell on something disposed restores it and flags it
+- saving disposed again corrects it and the parts that went with it
+- a corrected disposal still brings its parts back  
+  The reason the correction reaches the parts: a restore finds what went with a machine by its date and why.
+- a part disposed of separately is left out of the correction
+- saving the same answer again writes nothing
+- an answer it does not offer is refused
+- something that is not there is a 404
+- it comes back to the page and the tab it was sent from
 
 
 ## Openapi contract

@@ -109,7 +109,7 @@ class TestTheToolbar:
 
     def test_the_shortlist_submits_to_itself(self, client, computer):
         aid = computer()["asset_id"]
-        client.post(f"/computers/{aid}/for-sale", data={"for_sale": "1"})
+        client.post(f"/computers/{aid}/status", data={"status": "might-sell"})
         assert 'action="/for-sale"' in client.get("/for-sale").text
 
 

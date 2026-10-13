@@ -51,8 +51,8 @@ def moves_of(db, aid):
 
 def dispose(client, kind, aid, note="binned"):
     r = client.post(
-        f"/{kind}/{aid}/dispose",
-        data={"date": "2026-10-08", "note": note},
+        f"/{kind}/{aid}/status",
+        data={"status": "disposed", "date": "2026-10-08", "note": note},
         follow_redirects=False,
     )
     assert r.status_code == 303
@@ -224,13 +224,13 @@ class TestWhatIsInsideShareItsFate:
 
     def test_restoring_the_card_brings_the_drive_back(self, client, db, rig):
         dispose(client, "parts", rig["card"])
-        client.post(f"/parts/{rig['card']}/restore")
+        client.post(f"/parts/{rig['card']}/status", data={"status": "held"})
         db.expire_all()
         assert not db.get(Part, rig["drive"]).disposed
 
     def test_a_part_restored_on_its_own_comes_out_of_a_disposed_machine(self, client, db, rig):
         dispose(client, "computers", rig["machine"])
-        client.post(f"/parts/{rig['card']}/restore")
+        client.post(f"/parts/{rig['card']}/status", data={"status": "held"})
         db.expire_all()
         assert not db.get(Part, rig["card"]).disposed
         assert inside(db, rig["card"]) is None
