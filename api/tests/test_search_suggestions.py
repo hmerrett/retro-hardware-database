@@ -181,7 +181,9 @@ class TestModelsFromTheCatalogue:
         for aid in (kept, gone):
             file_as(client, aid, "vic-20")
         file_as(client, board, "vic-20", "parts")
-        client.post(f"/computers/{gone}/dispose", data={"note": "", "date": ""})
+        client.post(
+            f"/computers/{gone}/status", data={"status": "disposed", "note": "", "date": ""}
+        )
         [vic] = [m for m in suggest(client, "vic-20")["models"] if m["url"] == "/machines/vic-20"]
         assert vic["here"] == "3 in this collection"
         page = client.get("/machines/vic-20").text

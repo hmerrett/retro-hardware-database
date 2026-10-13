@@ -4,7 +4,6 @@ fitted inside it."""
 from .. import machines
 from ..assets import _bezel_ctx, _machine_ctx
 from ..pages import _datalists
-from datetime import date
 
 
 # --- detaching the board: the moment a description becomes an object ---------
@@ -83,7 +82,7 @@ from ..assets import (
     _machine_page,
     _not_added,
     _require_disposed,
-    _set_for_sale,
+    _set_status,
     _work_from_form,
     add_photos,
     back_to,
@@ -97,8 +96,8 @@ from ..assets import (
 )
 from ..common import to_dict
 from ..db import get_db
-from ..disposal import _and_parts, _disposal_log, _dispose_contents, _restore_contents, inside
-from ..forms import Posted, _coerce, _field_diffs, _parse_date, posted, refusals, year_hint
+from ..disposal import inside
+from ..forms import Posted, _coerce, _field_diffs, posted, refusals, year_hint
 from ..history import _history, add_log
 from ..ids import next_asset_id
 from ..models import Computer, Part, StoredFile
@@ -648,44 +647,11 @@ async def gui_detach_board(
     return RedirectResponse(f"/parts/{board.asset_id}", status_code=303)
 
 
-@router.post("/computers/{aid}/dispose", include_in_schema=False)
-async def gui_dispose_computer(
+@router.post("/computers/{aid}/status", include_in_schema=False)
+async def gui_computer_status(
     aid: str, request: Request, db: Session = Depends(get_db)
 ) -> RedirectResponse:
-    c = get_or_404(db, Computer, aid)
-    form = await posted(request)
-    c.disposed = True
-    c.disposed_at = _parse_date(form.get("date", "")) or date.today()
-    c.disposed_note = form.get("note", "") or ""
-    # What was in the machine went out with the machine, on the same date and for
-    # the same reason -- recording it any other way would leave the register
-    # claiming we still hold parts that are in the same skip as their host.
-    n = _dispose_contents(db, c)
-    add_log(db, aid, _disposal_log(c) + _and_parts(n))
-    db.commit()
-    return back_to(request, f"/computers/{aid}")
-
-
-@router.post("/computers/{aid}/for-sale", include_in_schema=False)
-async def gui_computer_for_sale(
-    aid: str, request: Request, db: Session = Depends(get_db)
-) -> RedirectResponse:
-    return await _set_for_sale(db, Computer, aid, request)
-
-
-@router.post("/computers/{aid}/restore", include_in_schema=False)
-def gui_restore_computer(
-    aid: str, request: Request, db: Session = Depends(get_db)
-) -> RedirectResponse:
-    c = get_or_404(db, Computer, aid)
-    was_at, was_note = c.disposed_at, c.disposed_note
-    c.disposed = False
-    c.disposed_at = None
-    c.disposed_note = ""
-    n = _restore_contents(db, c, was_at, was_note)
-    add_log(db, aid, "restored" + _and_parts(n, "came back too"))
-    db.commit()
-    return back_to(request, f"/computers/{aid}")
+    return await _set_status(db, Computer, aid, request)
 
 
 @router.get("/computers/{aid}/delete", response_class=HTMLResponse, include_in_schema=False)

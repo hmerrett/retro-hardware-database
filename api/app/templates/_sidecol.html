@@ -1,5 +1,5 @@
 {# The rest of an item page's side column, under the photographs: the owner's label
-   and the disposal box. After the body in the source, so on a phone,
+   and Status. After the body in the source, so on a phone,
    and for the Tab key at every width, they come after the details -- somebody at
    the shelf wants the facts before the print buttons. Expects: obj, kind, one. #}
 {% import "_icons.html" as I %}
@@ -17,19 +17,32 @@
        which is what a print job is keyed by. #}
     <div class="row">{{ LS.buttons(kind, obj.asset_id, one) }}</div>
   {% endcall %}
-  {% if not obj.disposed %}
-  {% call PN.panel('Disposal') %}
-    {# The consequence for the parts in a machine is in the tooltip rather than
-       printed under the box (interface-text): it is the why, not the meaning. #}
-    <form class="addrow labelled mt-0" method="post" action="/{{ kind }}/{{ obj.asset_id }}/dispose{{ tabq }}"
-          title="{{ 'Sold, binned or given away. The parts in it go with it, on the same date and for the same reason; restoring the machine brings them back.' if kind == 'computers' else 'Sold, binned or given away. Restoring it brings it back.' }}">
-      <div class="field"><label for="dispose-note">Why</label>
-        <input class="input" id="dispose-note" name="note" placeholder="sold, binned…"></div>
-      <div class="field short"><label for="dispose-date">When</label>
-        <input class="input" id="dispose-date" name="date" type="date" value="{{ today() }}"></div>
-      {{ U.button('Dispose', type='submit') }}
+  {# Where the thing stands: one question, one answer, sent by Save and nothing else
+     -- leaving Disposed clears its date and why, so a stray tap must not be enough.
+     Might sell is the owner's alone (ADR-0018), so none of this is drawn for anybody
+     else. Why and When belong to Disposed: app.js hides them under any other answer,
+     and a browser running no script shows them throughout, where only Disposed reads
+     them. The consequence for the parts in a machine is in the tooltip rather than
+     printed under the boxes (interface-text): it is the why, not the meaning. #}
+  {% set now = 'disposed' if obj.disposed else ('might-sell' if obj.for_sale else 'held') %}
+  {% call PN.panel('Status') %}
+    <form class="statusform" method="post" action="/{{ kind }}/{{ obj.asset_id }}/status{{ tabq }}" data-status
+          title="Might sell is yours alone. Disposed is on the page for everyone, with its date and why.">
+      <fieldset>
+        <legend class="sr-only">Status</legend>
+        {% for value, words in [('held', 'In the collection'), ('might-sell', 'Might sell'), ('disposed', 'Disposed')] %}
+        <label class="check"><input type="radio" name="status" value="{{ value }}"{{ ' checked' if value == now }}> {{ words }}</label>
+        {% endfor %}
+      </fieldset>
+      <div class="addrow labelled" data-status-when
+           title="{{ 'Sold, binned or given away. The parts in it go with it, on the same date and for the same reason; restoring the machine brings them back.' if kind == 'computers' else 'Sold, binned or given away. Restoring it brings it back.' }}">
+        <div class="field"><label for="status-note">Why</label>
+          <input class="input" id="status-note" name="note" value="{{ obj.disposed_note or '' }}" placeholder="sold, binned…"></div>
+        <div class="field short"><label for="status-date">When</label>
+          <input class="input" id="status-date" name="date" type="date" value="{{ (obj.disposed_at or '') if obj.disposed else today() }}"></div>
+      </div>
+      {{ U.button('Save', size='sm', type='submit') }}
     </form>
   {% endcall %}
-  {% endif %}
   {% endif %}
 </div>

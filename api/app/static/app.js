@@ -1519,6 +1519,23 @@ function combobox(box, list, pick) {
 })();
 
 
+// Why and When belong to Disposed on an item's Status panel, so they show only while
+// it is the answer chosen. The markup leaves them showing: a browser running none of
+// this sends them with every answer, and the server reads them only with Disposed.
+(function () {
+  for (const form of document.querySelectorAll('form[data-status]')) {
+    const when = form.querySelector('[data-status-when]');
+    if (!when) continue;
+    const show = () => {
+      const picked = form.querySelector('input[name=status]:checked');
+      when.hidden = !picked || picked.value !== 'disposed';
+    };
+    form.addEventListener('change', show);
+    show();
+  }
+})();
+
+
 // Photos picked on a create form are held until it is submitted, so the picker
 // has to say what it is holding: the styled button covers the native input that
 // would otherwise name the files itself.

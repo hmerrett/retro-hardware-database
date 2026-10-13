@@ -171,7 +171,7 @@ class TestWhatAViewerSees:
 
     def test_the_for_sale_shortlist(self, client, part):
         aid = part(model="Spare SIMM")["asset_id"]
-        client.post(f"/parts/{aid}/for-sale", data={"for_sale": "1"}, follow_redirects=False)
+        client.post(f"/parts/{aid}/status", data={"status": "might-sell"}, follow_redirects=False)
         as_viewer(client)
         assert "Spare SIMM" in client.get("/for-sale").text
         log_out(client)
@@ -210,7 +210,9 @@ class TestWhatAViewerIsRefused:
     def test_any_write(self, client, part):
         aid = part()["asset_id"]
         as_viewer(client)
-        r = client.post(f"/parts/{aid}/for-sale", data={"for_sale": "1"}, follow_redirects=False)
+        r = client.post(
+            f"/parts/{aid}/status", data={"status": "might-sell"}, follow_redirects=False
+        )
         assert r.status_code == 403
         with SessionLocal() as db:
             assert db.get(Part, aid).for_sale is False

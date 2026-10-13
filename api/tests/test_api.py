@@ -153,8 +153,8 @@ class TestDisposal:
     def test_disposing_records_a_flag_a_date_and_a_note(self, client, part):
         aid = part()["asset_id"]
         client.post(
-            f"/parts/{aid}/dispose",
-            data={"note": "sold at the rally", "date": "2026-07-20"},
+            f"/parts/{aid}/status",
+            data={"status": "disposed", "note": "sold at the rally", "date": "2026-07-20"},
             follow_redirects=False,
         )
         p = client.get(f"/api/parts/{aid}").json()
@@ -164,15 +164,23 @@ class TestDisposal:
 
     def test_disposing_with_nothing_typed_still_records_the_day(self, client, part):
         aid = part()["asset_id"]
-        client.post(f"/parts/{aid}/dispose", data={"note": "", "date": ""}, follow_redirects=False)
+        client.post(
+            f"/parts/{aid}/status",
+            data={"status": "disposed", "note": "", "date": ""},
+            follow_redirects=False,
+        )
         p = client.get(f"/api/parts/{aid}").json()
         assert p["disposed"] is True
         assert p["disposed_at"] == date.today().isoformat()
 
     def test_restoring_clears_all_three(self, client, part):
         aid = part()["asset_id"]
-        client.post(f"/parts/{aid}/dispose", data={"note": "binned"}, follow_redirects=False)
-        client.post(f"/parts/{aid}/restore", follow_redirects=False)
+        client.post(
+            f"/parts/{aid}/status",
+            data={"status": "disposed", "note": "binned"},
+            follow_redirects=False,
+        )
+        client.post(f"/parts/{aid}/status", data={"status": "held"}, follow_redirects=False)
         p = client.get(f"/api/parts/{aid}").json()
         assert p["disposed"] is False
         assert p["disposed_at"] is None and p["disposed_note"] == ""
@@ -195,8 +203,8 @@ class TestDisposingAMachineTakesItsPartsWithIt:
         cid = computer()["asset_id"]
         pid = part(computer_id=cid)["asset_id"]
         client.post(
-            f"/computers/{cid}/dispose",
-            data={"note": "sold as a lot", "date": "2026-07-20"},
+            f"/computers/{cid}/status",
+            data={"status": "disposed", "note": "sold as a lot", "date": "2026-07-20"},
             follow_redirects=False,
         )
         p = client.get(f"/api/parts/{pid}").json()
@@ -210,26 +218,34 @@ class TestDisposingAMachineTakesItsPartsWithIt:
         cid = computer()["asset_id"]
         card = part(type="io", computer_id=cid)["asset_id"]
         disk = part(type="storage", parent_id=card)["asset_id"]
-        client.post(f"/computers/{cid}/dispose", data={"note": "binned"}, follow_redirects=False)
+        client.post(
+            f"/computers/{cid}/status",
+            data={"status": "disposed", "note": "binned"},
+            follow_redirects=False,
+        )
         assert client.get(f"/api/parts/{disk}").json()["disposed"] is True
 
     def test_a_part_outside_the_machine_is_left_alone(self, client, computer, part):
         cid = computer()["asset_id"]
         spare = part()["asset_id"]
-        client.post(f"/computers/{cid}/dispose", data={"note": "binned"}, follow_redirects=False)
+        client.post(
+            f"/computers/{cid}/status",
+            data={"status": "disposed", "note": "binned"},
+            follow_redirects=False,
+        )
         assert client.get(f"/api/parts/{spare}").json()["disposed"] is False
 
     def test_a_part_already_disposed_keeps_its_own_record(self, client, computer, part):
         cid = computer()["asset_id"]
         pid = part(computer_id=cid)["asset_id"]
         client.post(
-            f"/parts/{pid}/dispose",
-            data={"note": "died on the bench", "date": "2026-01-05"},
+            f"/parts/{pid}/status",
+            data={"status": "disposed", "note": "died on the bench", "date": "2026-01-05"},
             follow_redirects=False,
         )
         client.post(
-            f"/computers/{cid}/dispose",
-            data={"note": "sold as a lot", "date": "2026-07-20"},
+            f"/computers/{cid}/status",
+            data={"status": "disposed", "note": "sold as a lot", "date": "2026-07-20"},
             follow_redirects=False,
         )
         p = client.get(f"/api/parts/{pid}").json()
@@ -239,8 +255,12 @@ class TestDisposingAMachineTakesItsPartsWithIt:
     def test_restoring_the_machine_brings_those_parts_back(self, client, computer, part):
         cid = computer()["asset_id"]
         pid = part(computer_id=cid)["asset_id"]
-        client.post(f"/computers/{cid}/dispose", data={"note": "binned"}, follow_redirects=False)
-        client.post(f"/computers/{cid}/restore", follow_redirects=False)
+        client.post(
+            f"/computers/{cid}/status",
+            data={"status": "disposed", "note": "binned"},
+            follow_redirects=False,
+        )
+        client.post(f"/computers/{cid}/status", data={"status": "held"}, follow_redirects=False)
         p = client.get(f"/api/parts/{pid}").json()
         assert p["disposed"] is False
         assert p["disposed_at"] is None and p["disposed_note"] == ""
@@ -250,12 +270,16 @@ class TestDisposingAMachineTakesItsPartsWithIt:
         cid = computer()["asset_id"]
         pid = part(computer_id=cid)["asset_id"]
         client.post(
-            f"/parts/{pid}/dispose",
-            data={"note": "died on the bench", "date": "2026-01-05"},
+            f"/parts/{pid}/status",
+            data={"status": "disposed", "note": "died on the bench", "date": "2026-01-05"},
             follow_redirects=False,
         )
-        client.post(f"/computers/{cid}/dispose", data={"note": "binned"}, follow_redirects=False)
-        client.post(f"/computers/{cid}/restore", follow_redirects=False)
+        client.post(
+            f"/computers/{cid}/status",
+            data={"status": "disposed", "note": "binned"},
+            follow_redirects=False,
+        )
+        client.post(f"/computers/{cid}/status", data={"status": "held"}, follow_redirects=False)
         assert client.get(f"/api/parts/{pid}").json()["disposed"] is True
 
     def test_the_json_api_cascades_the_same_way(self, client, computer, part):
@@ -279,13 +303,15 @@ class TestDisposingAMachineTakesItsPartsWithIt:
         cid = computer()["asset_id"]
         pid = part(computer_id=cid)["asset_id"]
         client.patch(f"/api/computers/{cid}", json={"disposed": True})
-        client.post(f"/parts/{pid}/restore", follow_redirects=False)
+        client.post(f"/parts/{pid}/status", data={"status": "held"}, follow_redirects=False)
         client.patch(f"/api/computers/{cid}", json={"notes": "in the garage"})
         assert client.get(f"/api/parts/{pid}").json()["disposed"] is False
 
 
 def dispose(client, kind, aid, note="binned"):
-    client.post(f"/{kind}/{aid}/dispose", data={"note": note}, follow_redirects=False)
+    client.post(
+        f"/{kind}/{aid}/status", data={"status": "disposed", "note": note}, follow_redirects=False
+    )
 
 
 def photo_for(kind, aid, name=None):
@@ -530,7 +556,7 @@ class TestWhatIsInsideGoesWithIt:
         card = part(type="io", computer_id=cid)["asset_id"]
         disk = part(type="storage", parent_id=card)["asset_id"]
         dispose(client, "computers", cid)
-        client.post(f"/parts/{disk}/restore", follow_redirects=False)
+        client.post(f"/parts/{disk}/status", data={"status": "held"}, follow_redirects=False)
         client.post(
             f"/computers/{cid}/delete",
             data={"confirm": f"/computers/{cid}"},
@@ -620,7 +646,7 @@ class TestTheConfirmationPageSaysWhatWillGo:
         cid = computer()["asset_id"]
         kept = part(computer_id=cid)["asset_id"]
         dispose(client, "computers", cid)
-        client.post(f"/parts/{kept}/restore", follow_redirects=False)
+        client.post(f"/parts/{kept}/status", data={"status": "held"}, follow_redirects=False)
         page = client.get(f"/computers/{cid}/delete").text
         going = page.split('<ul class="going">', 1)[1].split("</ul>", 1)[0]
         assert kept not in going
@@ -649,7 +675,11 @@ class TestTheDeleteConfirmationIsNotPublic:
     def test_both_histories_say_what_happened(self, client, computer, part):
         cid = computer()["asset_id"]
         pid = part(computer_id=cid)["asset_id"]
-        client.post(f"/computers/{cid}/dispose", data={"note": "binned"}, follow_redirects=False)
+        client.post(
+            f"/computers/{cid}/status",
+            data={"status": "disposed", "note": "binned"},
+            follow_redirects=False,
+        )
         assert "1 part in it went with it" in client.get(f"/computers/{cid}").text
         assert f"marked disposed with {cid}" in client.get(f"/parts/{pid}").text
 
@@ -1923,7 +1953,9 @@ class TestTheMakerLeagueTable:
         gone = part(manufacturer="Goneco", model="g", condition="Faulty")["asset_id"]
         self.stock(part, "Goneco", 5, 0)
         client.post(
-            f"/parts/{gone}/dispose", data={"note": "sold", "date": ""}, follow_redirects=False
+            f"/parts/{gone}/status",
+            data={"status": "disposed", "note": "sold", "date": ""},
+            follow_redirects=False,
         )
         assert self.table(db)[0] == ("Goneco", 5, 5, 100)
 
@@ -2132,7 +2164,9 @@ class TestWhatIsGoneIsNotCounted:
         gone = part(manufacturer="Dudco", model="goes", condition="Working")
         before = main._collection_stats(db)["n_parts"]
         client.post(
-            f"/parts/{gone['asset_id']}/dispose", data={"note": "sold"}, follow_redirects=False
+            f"/parts/{gone['asset_id']}/status",
+            data={"status": "disposed", "note": "sold"},
+            follow_redirects=False,
         )
         db.expire_all()
         after = main._collection_stats(db)
@@ -2146,7 +2180,9 @@ class TestWhatIsGoneIsNotCounted:
     def test_the_count_of_disposals_does_count_them(self, client, db, part):
         gone = part(model="goes")
         client.post(
-            f"/parts/{gone['asset_id']}/dispose", data={"note": "binned"}, follow_redirects=False
+            f"/parts/{gone['asset_id']}/status",
+            data={"status": "disposed", "note": "binned"},
+            follow_redirects=False,
         )
         db.expire_all()
         assert self.facts(db)["No longer with us"]["v"] == "1"
@@ -2158,7 +2194,9 @@ class TestWhatIsGoneIsNotCounted:
         part(model="also", year=1995)
         gone = part(model="goes", year=1970)
         client.post(
-            f"/parts/{gone['asset_id']}/dispose", data={"note": "sold"}, follow_redirects=False
+            f"/parts/{gone['asset_id']}/status",
+            data={"status": "disposed", "note": "sold"},
+            follow_redirects=False,
         )
         db.expire_all()
         assert min(main._all_years(db)) == 1990
@@ -2171,7 +2209,9 @@ class TestWhatIsGoneIsNotCounted:
             part(model=f"p{i}", computer_id=c["asset_id"])
         assert main._collection_stats(db)["fullest"] is not None
         client.post(
-            f"/computers/{c['asset_id']}/dispose", data={"note": "sold"}, follow_redirects=False
+            f"/computers/{c['asset_id']}/status",
+            data={"status": "disposed", "note": "sold"},
+            follow_redirects=False,
         )
         db.expire_all()
         assert main._collection_stats(db)["fullest"] is None
@@ -2369,7 +2409,9 @@ class TestTheShuffledFigures:
         gone = part(type="motherboard", model="Doomed", specs="Form factor: Baby-AT | BIOS: Award")
         before = {c["k"]: c["s"] for c in self.pool(db)}
         client.post(
-            f"/parts/{gone['asset_id']}/dispose", data={"note": "binned"}, follow_redirects=False
+            f"/parts/{gone['asset_id']}/status",
+            data={"status": "disposed", "note": "binned"},
+            follow_redirects=False,
         )
         db.expire_all()
         after = {c["k"]: c["s"] for c in self.pool(db)}
@@ -3734,7 +3776,9 @@ class TestDuplication:
     def test_a_duplicated_part_drops_what_belongs_to_the_original(self, client, part):
         src = part(source="eBay", acquired_date="2026-01-05", notes="a bit bent")
         client.post(
-            f"/parts/{src['asset_id']}/dispose", data={"note": "binned"}, follow_redirects=False
+            f"/parts/{src['asset_id']}/status",
+            data={"status": "disposed", "note": "binned"},
+            follow_redirects=False,
         )
         r = client.post(f"/parts/{src['asset_id']}/duplicate", follow_redirects=False)
         copy = client.get(f"/api/parts/{r.headers['location'].split('/')[-1]}").json()
@@ -4994,7 +5038,9 @@ class TestTheFirstFewMatchesWhileYouType:
         gone = part(name="Maxtor spare")["asset_id"]
         here = part(name="Maxtor keeper")["asset_id"]
         client.post(
-            f"/parts/{gone}/dispose", data={"note": "died", "date": ""}, follow_redirects=False
+            f"/parts/{gone}/status",
+            data={"status": "disposed", "note": "died", "date": ""},
+            follow_redirects=False,
         )
         items = self.sug(client, "maxtor")["items"]
         assert [i["aid"] for i in items] == [here, gone]
@@ -5829,7 +5875,11 @@ class TestAPageNoticesItHasChanged:
         was = self.token(client, aid)
         # Deleting takes a disposal first and the item's own URL as the
         # confirmation -- see _confirms_url.
-        client.post(f"/parts/{aid}/dispose", data={"note": "gone"}, follow_redirects=False)
+        client.post(
+            f"/parts/{aid}/status",
+            data={"status": "disposed", "note": "gone"},
+            follow_redirects=False,
+        )
         r = client.post(
             f"/parts/{aid}/delete", data={"confirm": f"/parts/{aid}"}, follow_redirects=False
         )

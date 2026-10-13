@@ -301,7 +301,10 @@ class TestTheBannersAreDifferentKindsOfNews:
     @pytest.fixture
     def disposed(self, client, computer):
         aid = computer(name="Lounge PC")["asset_id"]
-        client.post(f"/computers/{aid}/dispose", data={"note": "sold", "date": "2026-10-01"})
+        client.post(
+            f"/computers/{aid}/status",
+            data={"status": "disposed", "note": "sold", "date": "2026-10-01"},
+        )
         return aid
 
     def banner(self, page: str) -> Node:
@@ -315,10 +318,12 @@ class TestTheBannersAreDifferentKindsOfNews:
         assert b.classes() == {"banner", "warning"}
         assert b.text().startswith("Disposed")
 
-    def test_with_restore_and_delete_at_its_right(self, client, disposed):
+    def test_with_delete_at_its_right(self, client, disposed):
+        """Restore went to the Status panel (MANUAL section 16); Delete… stays, as the
+        one thing nothing else on the page does."""
         b = self.banner(client.get(f"/computers/{disposed}").text)
         last = [n for n in b.walk() if n.tag in ("button", "a") and "btn" in n.classes()]
-        assert [n.text() for n in last][-2:] == ["Restore", "Delete…"]
+        assert [n.text() for n in last] == ["Delete…"]
         assert any("push" in n.classes() for n in b.walk())
 
     def test_build_walk_is_plain(self, client, computer):

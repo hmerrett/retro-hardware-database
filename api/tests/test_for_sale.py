@@ -19,21 +19,21 @@ def visitor(client):
 
 
 def flag(client, kind, aid, on=True):
-    """Tick or untick, the way the page does."""
-    data = {"for_sale": "1"} if on else {}
-    r = client.post(f"/{kind}/{aid}/for-sale", data=data, follow_redirects=False)
+    """Might sell, or back to In the collection, the way the Status panel sends it."""
+    data = {"status": "might-sell" if on else "held"}
+    r = client.post(f"/{kind}/{aid}/status", data=data, follow_redirects=False)
     assert r.status_code == 303, r.text
     return r
 
 
-class TestTickingAnItem:
+class TestFlaggingAnItem:
     def test_an_item_starts_unflagged(self, client, db, part, computer):
         """A fresh install has never thought about selling anything."""
         assert db.get(Part, part()["asset_id"]).for_sale is False
         assert db.get(Computer, computer()["asset_id"]).for_sale is False
 
     @pytest.mark.parametrize("kind,model", [("parts", Part), ("computers", Computer)])
-    def test_the_tick_sets_it_and_unticking_takes_it_back(
+    def test_might_sell_sets_it_and_in_the_collection_takes_it_back(
         self, client, db, part, computer, kind, model
     ):
         aid = (part() if kind == "parts" else computer())["asset_id"]
@@ -44,26 +44,18 @@ class TestTickingAnItem:
         db.expire_all()
         assert db.get(model, aid).for_sale is False
 
-    def test_an_unticked_box_sends_nothing_and_that_means_no(self, client, db, part):
-        """The one form control whose off state has to be read from its silence --
-        the same reading files.public already takes of the same gesture."""
-        aid = part()["asset_id"]
-        flag(client, "parts", aid)
-        client.post(f"/parts/{aid}/for-sale", data={}, follow_redirects=False)
-        db.expire_all()
-        assert db.get(Part, aid).for_sale is False
-
-    def test_the_tick_comes_back_to_the_item(self, client, part):
+    def test_it_comes_back_to_the_item(self, client, part):
         aid = part()["asset_id"]
         r = flag(client, "parts", aid)
         assert r.headers["location"] == f"/parts/{aid}"
 
-    def test_ticking_something_that_is_not_there_is_a_404(self, client):
-        assert client.post("/parts/RH-9999/for-sale", data={"for_sale": "1"}).status_code == 404
+    def test_flagging_something_that_is_not_there_is_a_404(self, client):
+        r = client.post("/parts/RH-9999/status", data={"status": "might-sell"})
+        assert r.status_code == 404
 
 
 class TestTheShortlist:
-    def test_it_lists_what_is_ticked_and_nothing_else(self, client, part):
+    def test_it_lists_what_is_flagged_and_nothing_else(self, client, part):
         kept = part(model="Keeping")["asset_id"]
         going = part(model="Going")["asset_id"]
         flag(client, "parts", going)
@@ -101,14 +93,18 @@ class TestNobodyElseSeesIt:
         assert r.status_code == 303
         assert r.headers["location"].startswith("/login?next=")
 
-    def test_a_visitor_cannot_tick_one(self, client, part, monkeypatch):
+    def test_a_visitor_cannot_flag_one(self, client, part, monkeypatch):
         aid = part()["asset_id"]
         visitor(client)
-        r = client.post(f"/parts/{aid}/for-sale", data={"for_sale": "1"}, follow_redirects=False)
+        r = client.post(
+            f"/parts/{aid}/status", data={"status": "might-sell"}, follow_redirects=False
+        )
         assert r.status_code == 303
         assert r.headers["location"].startswith("/login?next=")
 
-    def test_the_item_page_shows_a_visitor_neither_tick_nor_marker(self, client, part, monkeypatch):
+    def test_the_item_page_shows_a_visitor_neither_control_nor_marker(
+        self, client, part, monkeypatch
+    ):
         aid = part()["asset_id"]
         flag(client, "parts", aid)
         assert "for-sale" in client.get(f"/parts/{aid}").text, "the owner sees it"
@@ -188,19 +184,20 @@ class TestTheNamedSetRatherThanAHabit:
 
 
 class TestItSurvivesTheRestOfTheSite:
-    def test_disposing_a_flagged_item_leaves_the_flag_alone(self, client, db, part):
-        """Two different facts. Something can be on its way out and also sold, and
-        the shortlist is the owner's note to themselves either way."""
+    def test_disposing_a_flagged_item_takes_it_off_the_shortlist(self, client, db, part):
+        """One status or the other (MANUAL section 16): something that has gone is not
+        something you might sell. Until the Status panel these were two facts and a
+        sold thing could stay on the list; one control for one question ended that."""
         aid = part()["asset_id"]
         flag(client, "parts", aid)
         client.post(
-            f"/parts/{aid}/dispose",
-            data={"note": "sold", "date": "2026-01-01"},
+            f"/parts/{aid}/status",
+            data={"status": "disposed", "note": "sold", "date": "2026-01-01"},
             follow_redirects=False,
         )
         db.expire_all()
         row = db.get(Part, aid)
-        assert row.disposed is True and row.for_sale is True
+        assert row.disposed is True and row.for_sale is False
 
     def test_the_decision_is_written_down(self):
         from pathlib import Path

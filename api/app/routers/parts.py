@@ -12,7 +12,6 @@ from sqlalchemy import func
 from ..assets import _bezel_ctx, _machine_ctx
 from ..pages import _datalists
 from ..photos import _storage_placeholder
-from datetime import date
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -46,7 +45,7 @@ from ..assets import (
     _machine_page,
     _not_added,
     _require_disposed,
-    _set_for_sale,
+    _set_status,
     _work_from_form,
     add_photos,
     back_to,
@@ -61,19 +60,13 @@ from ..assets import (
 from ..common import to_dict
 from ..db import get_db
 from ..disposal import (
-    _and_parts,
-    _disposal_log,
-    _dispose_contents,
-    _restore_contents,
     inside,
-    out_of_the_disposed,
 )
 from ..forms import (
     Posted,
     Refusal,
     _coerce,
     _field_diffs,
-    _parse_date,
     posted,
     refusals,
     year_hint,
@@ -1016,43 +1009,11 @@ def gui_duplicate_part(aid: str, db: Session = Depends(get_db)) -> RedirectRespo
     return RedirectResponse(f"/parts/{obj.asset_id}", status_code=303)
 
 
-@router.post("/parts/{aid}/for-sale", include_in_schema=False)
-async def gui_part_for_sale(
+@router.post("/parts/{aid}/status", include_in_schema=False)
+async def gui_part_status(
     aid: str, request: Request, db: Session = Depends(get_db)
 ) -> RedirectResponse:
-    return await _set_for_sale(db, Part, aid, request)
-
-
-@router.post("/parts/{aid}/dispose", include_in_schema=False)
-async def gui_dispose_part(
-    aid: str, request: Request, db: Session = Depends(get_db)
-) -> RedirectResponse:
-    p = get_or_404(db, Part, aid)
-    form = await posted(request)
-    p.disposed = True
-    p.disposed_at = _parse_date(form.get("date", "")) or date.today()
-    p.disposed_note = form.get("note", "") or ""
-    # What is mounted on it goes with it, as a machine's parts go with the machine
-    # (ADR-0036): a controller card goes to the tip with its drive still on it.
-    n = _dispose_contents(db, p)
-    add_log(db, aid, _disposal_log(p) + _and_parts(n))
-    db.commit()
-    return back_to(request, f"/parts/{aid}")
-
-
-@router.post("/parts/{aid}/restore", include_in_schema=False)
-def gui_restore_part(aid: str, request: Request, db: Session = Depends(get_db)) -> RedirectResponse:
-    p = get_or_404(db, Part, aid)
-    was_at, was_note = p.disposed_at, p.disposed_note
-    p.disposed = False
-    p.disposed_at = None
-    p.disposed_note = ""
-    n = _restore_contents(db, p, was_at, was_note)
-    add_log(db, aid, "restored" + _and_parts(n, "came back too"))
-    # Back on its own, out of something still gone: it comes out of it (ADR-0036).
-    out_of_the_disposed(db, p, request.state.principal.username)
-    db.commit()
-    return back_to(request, f"/parts/{aid}")
+    return await _set_status(db, Part, aid, request)
 
 
 @router.get("/parts/{aid}/delete", response_class=HTMLResponse, include_in_schema=False)

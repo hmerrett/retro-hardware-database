@@ -187,7 +187,7 @@ class TestInThisCollection:
     def test_a_disposed_one_is_listed_and_says_so(self, client, computer):
         aid = computer()["asset_id"]
         client.patch(f"/api/computers/{aid}", json={"machine": {"model_key": "vic-20"}})
-        client.post(f"/computers/{aid}/dispose", data={"note": "", "date": ""})
+        client.post(f"/computers/{aid}/status", data={"status": "disposed", "note": "", "date": ""})
         units = panel(client.get("/machines/vic-20").text, "In this collection")
         row = re.search(r'<a class="result".*?</a>', units, re.S).group(0)
         assert aid in row and "Disposed" in row

@@ -215,7 +215,9 @@ class TestWhatItIsAbout:
         # Or the count below would be zero for the wrong reason.
         assert db.query(ProjectAsset).count() == 1
         client.post(
-            f"/computers/{c}/dispose", data={"disposed_note": "gone"}, follow_redirects=False
+            f"/computers/{c}/status",
+            data={"status": "disposed", "disposed_note": "gone"},
+            follow_redirects=False,
         )
         client.post(
             f"/computers/{c}/delete", data={"confirm": f"/computers/{c}"}, follow_redirects=False
@@ -232,7 +234,11 @@ class TestWhatItIsAbout:
         aid, p = make(client), part()["asset_id"]
         client.post(f"/projects/{aid}/add-item", data={"asset_id": p}, follow_redirects=False)
         assert db.query(ProjectAsset).count() == 1
-        client.post(f"/parts/{p}/dispose", data={"disposed_note": "gone"}, follow_redirects=False)
+        client.post(
+            f"/parts/{p}/status",
+            data={"status": "disposed", "disposed_note": "gone"},
+            follow_redirects=False,
+        )
         client.post(f"/parts/{p}/delete", data={"confirm": f"/parts/{p}"}, follow_redirects=False)
         # The part really went, so the empty membership table means what it says.
         assert db.get(Part, p) is None
