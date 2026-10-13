@@ -2033,9 +2033,16 @@ up again on its own. A project written about today is still in the draw, only
 rarely: what you worked on this morning is a fair answer to what to do this
 afternoon.
 
-It draws afresh on every visit, so reloading the page gets another suggestion.
+**Shuffle**, at the foot of the panel, draws again. It never hands back the project
+already on screen unless that is the only one in hand, so pressing it always
+changes something when there is anything to change it to. The new suggestion
+replaces the old one in place and the list below stays where it was; without
+JavaScript, Shuffle loads the page again with the new draw. Reloading the page
+draws again too.
+
 Finished and abandoned projects are never offered, the panel steps aside while you
-are searching the list, and a visitor is only ever shown a public one.
+are searching the list, and a visitor is only ever shown a public one, Shuffle
+included.
 
 ### Noting something down
 

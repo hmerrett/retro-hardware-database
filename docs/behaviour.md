@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2954 behaviours, from 88 files.*
+*2962 behaviours, from 88 files.*
 
 
 ## A barcode takes the room the words leave
@@ -3661,7 +3661,7 @@ Regenerate with:
 
 ## Project of the day
 
-*test_project_of_the_day.py — 17 behaviours*
+*test_project_of_the_day.py — 25 behaviours*
 
 
 **Whether there is one**
@@ -3697,6 +3697,22 @@ Regenerate with:
   The reason this one was drawn and not another, said plainly.
 - a project with nothing written down says so
 - one waiting on a part says that instead
+
+**Shuffle**
+
+- the panel has a shuffle that is a link  
+  A link and not a button, so it works with no script at all: following it is the reload, and the reload is the draw.
+- it never hands back the one on screen  
+  Weighted, the same project could come up twice running, and a Shuffle that changes nothing reads as a Shuffle that is broken.
+- with only one in hand it comes back  
+  Nothing else to offer is not a reason to offer nothing.
+- a visitor has it too
+- a visitor shuffling is still never offered a private one
+- naming one that is not there changes nothing  
+  A stale link, or a private tag a visitor has been handed: the draw goes ahead as though it had not been named, and the page says nothing about it.
+- it follows the button text setting
+- with script it swaps the panel in place  
+  The page loads the script that fetches the next draw and puts it where the last one was, so the list below does not move and the place on the page is kept.
 
 
 ## Project pages

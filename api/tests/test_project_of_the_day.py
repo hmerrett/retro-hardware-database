@@ -176,3 +176,85 @@ class TestWhatItShows:
         pid = make(client, "Waitingzzz")
         client.post(f"/api/projects/{pid}/orders", json={"description": "a belt", "qty": 1})
         assert "1 on order" in panel(client.get("/projects").text)
+
+
+def shown(html):
+    """The asset tag of the project the panel is suggesting."""
+    return re.search(r'<h4><a href="/projects/([^"]+)">', panel(html)).group(1)
+
+
+def shuffle(html):
+    """The panel's Shuffle control, or None."""
+    m = re.search(r"<a [^>]*data-shuffle[^>]*>[^<]*</a>", panel(html))
+    return m.group(0) if m else None
+
+
+class TestShuffle:
+    """Drawing again was always there -- a reload did it -- but nothing said so, and
+    nobody guesses that reloading a page changes what is on it."""
+
+    def test_the_panel_has_a_shuffle_that_is_a_link(self, client):
+        """A link and not a button, so it works with no script at all: following it
+        is the reload, and the reload is the draw."""
+        tag = make(client, "Recap the +2A")
+        control = shuffle(client.get("/projects").text)
+        assert control is not None
+        assert f'href="/projects?instead_of={tag}"' in control
+        assert ">Shuffle</a>" in control
+
+    def test_it_never_hands_back_the_one_on_screen(self, client):
+        """Weighted, the same project could come up twice running, and a Shuffle that
+        changes nothing reads as a Shuffle that is broken."""
+        first = make(client, "Recap the +2A")
+        second = make(client, "Re-cap the C64 PSU")
+        for _ in range(20):
+            assert shown(client.get(f"/projects?instead_of={first}").text) == second
+
+    def test_with_only_one_in_hand_it_comes_back(self, client):
+        """Nothing else to offer is not a reason to offer nothing."""
+        only = make(client, "Recap the +2A")
+        assert shown(client.get(f"/projects?instead_of={only}").text) == only
+
+    def test_a_visitor_has_it_too(self, client):
+        make(client, "Recap the +2A")
+        visitor(client)
+        assert shuffle(client.get("/projects").text) is not None
+
+    def test_a_visitor_shuffling_is_still_never_offered_a_private_one(self, client):
+        first = make(client, "Recap the +2A")
+        second = make(client, "Re-cap the C64 PSU")
+        make(client, "Hiddenzzz", private=True)
+        visitor(client)
+        for _ in range(20):
+            page = client.get(f"/projects?instead_of={first}").text
+            assert shown(page) == second
+            assert "Hiddenzzz" not in page
+
+    def test_naming_one_that_is_not_there_changes_nothing(self, client):
+        """A stale link, or a private tag a visitor has been handed: the draw goes
+        ahead as though it had not been named, and the page says nothing about it."""
+        make(client, "Recap the +2A")
+        hidden = make(client, "Hiddenzzz", private=True)
+        visitor(client)
+        for tag in ("RH-ZZZZ", hidden, ""):
+            r = client.get(f"/projects?instead_of={tag}")
+            assert r.status_code == 200
+            assert shown(r.text) != hidden
+
+    def test_it_follows_the_button_text_setting(self, client):
+        from test_settings import save
+
+        make(client, "Recap the +2A")
+        save(client, button_case="lower")
+        assert ">shuffle</a>" in shuffle(client.get("/projects").text)
+
+    def test_with_script_it_swaps_the_panel_in_place(self, client):
+        """The page loads the script that fetches the next draw and puts it where
+        the last one was, so the list below does not move and the place on the page
+        is kept."""
+        make(client, "Recap the +2A")
+        page = client.get("/projects").text
+        assert re.search(r'<script defer src="/static/today\.js\?v=[^"]+"></script>', page)
+        script = (main.STATIC_DIR / "today.js").read_text()
+        assert "[data-shuffle]" in script
+        assert ".today" in script
