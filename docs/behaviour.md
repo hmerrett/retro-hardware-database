@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2946 behaviours, from 88 files.*
+*2949 behaviours, from 88 files.*
 
 
 ## A barcode takes the room the words leave
@@ -1561,7 +1561,7 @@ Regenerate with:
 
 ## Barcode labels
 
-*test_barcode_labels.py — 28 behaviours*
+*test_barcode_labels.py — 31 behaviours*
 
 
 **The table**
@@ -1571,6 +1571,12 @@ Regenerate with:
 - the browsers reader carries the same table
 - a tag is the symbols it should be  
   Start B, the seven characters, the checksum, the stop.
+
+**The reader reads what A scanner would**
+
+- a start a character and its check with no stop is not a barcode
+- the same with its stop is read
+- nor is one with no quiet zone before it
 
 **The codes setting**
 
