@@ -6575,7 +6575,7 @@ class TestFilesReadLikeThePartsDo:
         aid = computer()["asset_id"]
         self.upload(client, aid, note="the driver disk that came with it")
         page = client.get(f"/computers/{aid}").text
-        assert '<li class="filerow">' in page
+        assert re.search(r'<li class="filerow" id="file-\d+">', page)
         assert re.search(r'<a class="fname" href="/files/\d+">sb16\.img</a>', page)
         assert "the driver disk that came with it" in page
 
@@ -6590,7 +6590,11 @@ class TestFilesReadLikeThePartsDo:
         rows = re.search(
             r'<ul class="filerows">.*?</ul>', client.get(f"/computers/{aid}").text, re.S
         )
-        assert rows and "<input" not in rows.group(0) and 'name="tags"' not in rows.group(0)
+        # The Public switch's form carries hidden fields and nothing to type (ADR-0042).
+        boxes = [
+            i for i in re.findall(r"<input\b[^>]*>", rows.group(0)) if 'type="hidden"' not in i
+        ]
+        assert rows and boxes == [] and 'name="tags"' not in rows.group(0)
 
 
 class TestPagesAreNotKeptByBrowsers:

@@ -14,7 +14,7 @@ keeps a phone's screen for the files rather than for the boxes around them.
 from urllib.parse import quote, urlencode
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
 
 from .. import filekinds, filesdb, textfiles
@@ -312,18 +312,22 @@ async def gui_file_note(
 
 
 @router.post("/files/{fid}/public", include_in_schema=False)
-async def gui_file_public(
-    fid: int, request: Request, db: Session = Depends(get_db)
-) -> RedirectResponse:
-    """Publish one, or take it back.
+async def gui_file_public(fid: int, request: Request, db: Session = Depends(get_db)) -> Response:
+    """Publish one, or take it back: the tick on the file's page, or the Public
+    switch on a row of any list of files (ADR-0042).
 
-    The box on the page is the answer, so an absent field is "no": an unticked
-    checkbox sends nothing at all, which is the one form control whose off state
-    has to be read from its silence."""
+    The box on the page is the answer, so an absent or empty field is "no": an
+    unticked checkbox sends nothing at all, which is the one form control whose off
+    state has to be read from its silence. The switch sends the opposite of what is.
+
+    The switch's script asks for JSON, so the list it was pressed in does not move;
+    a form without script is sent back to where it was."""
     row = _file_or_404(db, fid)
     form = await posted(request)
     row.public = bool(form.get("public"))
     db.commit()
+    if "application/json" in request.headers.get("accept", ""):
+        return JSONResponse({"public": row.public})
     return RedirectResponse(_safe_next(form.get("next") or f"/files/{row.id}"), status_code=303)
 
 
