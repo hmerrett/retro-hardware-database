@@ -20,13 +20,6 @@
      `margin: revert`, `font-family: inherit`). Each goes with its rule. */
   :root[data-theme="light"] { color-scheme: light; }
   :root[data-theme="dark"] { color-scheme: dark; }
-  * { box-sizing: border-box; }
-  /* `[hidden] { display: none }` is a browser rule, so any author rule that sets
-     display -- .btn, .lb-tools form, .photo-actions form -- outranks it and leaves
-     the element on screen with its hidden attribute set. That has now caught the
-     crop toolbar and the upload button, so it is said once here, loudly, and
-     `hidden` means hidden everywhere. */
-  [hidden] { display: none !important; }
   /* Form controls don't inherit font-family by default, so they'd fall back to
      the browser's own face rather than the site's.
 
@@ -41,81 +34,12 @@
      is the height of the words in it like everything else. */
   button, input, select, textarea { font-family: inherit; line-height: inherit; }
   ::file-selector-button { font-family: inherit; line-height: inherit; }
-  /* Links take the accent from components.css's base, which says the same: stated
-     here too, unlayered, it outranked every v0.2 rule giving a link its own colour. */
-  /* Back, where a link used to be: it sits in the prose and should read as one,
-     but it performs an action rather than going to an address, so it is a button.
-     Given no size of its own -- `font: inherit` -- so it needs no restating in the
-     coarse-pointer block, and no colour of its own beyond the one links already
-     use, so it adds no pair to the contrast tests. */
   /* A link found in what somebody wrote -- a note, a summary, a history entry, a
      spec value; anything the `linked` filter has been through. It breaks anywhere
      rather than setting a minimum width for whatever it sits in: a URL is one
      unbreakable word to a browser, and a long one in a note would otherwise push
      a table column or a card wider than the phone it is being read on. */
   a.url { overflow-wrap: anywhere; }
-  /* Names like "TMC/MyComp/MyNix/Megastar AI5TV" are one unbreakable word to a
-     browser, and a heading is a flex item that will not shrink below it. */
-  h1, h2, h3 { overflow-wrap: anywhere; }
-  :is(h1, h2, h3, h4):not(main.v2 *) { margin: revert; }
-  table:not(.table) { border-collapse: collapse; width: 100%; }
-  /* A cell's longest unbroken run -- a disk-image path, a URL in the history --
-     sets the column's minimum width, and a table refuses to shrink below it. On a
-     phone that is what pushes the whole page sideways, so let such a run break.
-     break-word, not anywhere: `anywhere` also drops the column's min-content width
-     to a single character, which lets the layout squeeze a narrow column until its
-     heading reads one letter per line. Where a column really must be allowed to
-     collapse that far, .wrap opts into it. */
-  :is(th, td):not(.table *) { border-top: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; overflow-wrap: break-word; }
-  /* Short columns never wrap: their content is a word or two, and wrapping them
-     buys no room while making the table look broken. */
-  td.tight, th.tight { white-space: nowrap; }
-  th:not(.table *) { color: var(--muted); font-weight: 500; font-size: 13px; }
-  /* `main:not(.v2)` below: a page moved onto the v0.2 components says so with
-     `class="v2"` on its <main>, and these 0.1 rules, unlayered and so outranking
-     the v2 layer, stand back from it. They are still what draws the pages not yet
-     moved, and go with app.css (Task 6.1). */
-  /* A section of an item page. The title sits on a band across the top and what
-     belongs to the section is inside the border, so a page of them says which level
-     anything is at -- which a column of headings and gaps could not. */
-  main:not(.v2) .panel { border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
-    margin-top: 14px; background: none; }
-  main:not(.v2) .panel > header { background: var(--band); padding: 6px 11px; display: flex;
-    flex-wrap: wrap; align-items: baseline; gap: 2px 9px; }
-  main:not(.v2) .panel > header h3 { margin: 0; font-size: 14px; font-weight: bold; }
-  main:not(.v2) .panel > header .muted { font-size: 13px; }
-  /* Said here since the bare `header` rule that gave these a rule underneath and
-     undecorated links went with the site banner's move to components.css. */
-  main:not(.v2) .panel > header, main:not(.v2) .itemcard > header { border-bottom: 1px solid var(--line); }
-  main:not(.v2) .panel > header a, main:not(.v2) .itemcard > header a { text-decoration: none; }
-  main:not(.v2) .panel .pbody { padding: 9px 11px; }
-  /* Under a band of its own, a table's first rule is a second line saying the same
-     thing. */
-  main:not(.v2) .panel .pbody > table tr:first-child > * { border-top: 0; }
-  main:not(.v2) .panel .pbody > p:first-child, main:not(.v2) .panel .pbody > .toolbar:first-child { margin-top: 0; }
-  main:not(.v2) .panel .pbody > p:last-child { margin-bottom: 0; }
-
-  /* One thing in a list of them -- a part fitted in a machine, a file kept beside
-     the register, a chip in one of a machine's sockets. Everything about it is
-     inside one border, which is the thing a table could not say: laid out as rows,
-     a part was five loose cells with a rule somewhere in the middle of it, and
-     nothing on the page told you which rule ended one and began the next. */
-  main:not(.v2) .itemcards { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
-  main:not(.v2) .itemcard { border: 1px solid var(--line); border-radius: 12px; padding-bottom: 9px;
-    overflow: hidden; background: none; }
-  /* The strip the eye lands on when it is looking for a tag: what this thing is
-     called in the register and what kind of thing it is, with the way of taking it
-     out at the far end. */
-  main:not(.v2) .itemcard > header { display: flex; flex-wrap: wrap; align-items: center;
-    gap: 3px 8px; background: var(--chip); padding: 5px 10px; font-size: 13px;
-    margin-bottom: 8px; }
-  main:not(.v2) .itemcard > header form { margin: 0 0 0 auto; }
-  main:not(.v2) .itemcard > header .grow { flex: 1; }
-  /* The name is the thing itself and carries the weight; the strip above it is
-     labelling. anywhere, because a name like "TMC/MyComp/MyNix/Megastar AI5TV" is
-     one unbreakable word to a browser and would otherwise widen the card. */
-  .itemcard > h4 { margin: 0 10px; font-size: 14px; font-weight: 600;
-    overflow-wrap: anywhere; }
   /* A part's picture beside what is written about it, and the way through to its
      own page. A list of parts was the one place here that described hardware
      without showing any: four Teac drives read as four near-identical lines, and
@@ -123,16 +47,6 @@
      cannot do at all with a model number. Small -- this is a list to be scanned,
      not a gallery -- and 4:3 like the gallery card, so the same photograph is
      cropped the same way in both places. */
-  main:not(.v2) .itemcard > .cardmain { display: flex; align-items: flex-start; gap: 11px;
-    margin: 0 10px; }
-  main:not(.v2) .cardmain > .cardtext { flex: 1 1 auto; min-width: 0; }
-  main:not(.v2) .cardtext > h4 { margin: 0; font-size: 14px; font-weight: 600;
-    overflow-wrap: anywhere; }
-  main:not(.v2) .cardtext > dl.specs { margin: 7px 0 0; }
-  main:not(.v2) .cardthumb { flex: none; width: 92px; aspect-ratio: 4 / 3; position: relative;
-    display: flex; align-items: center; justify-content: center; overflow: hidden;
-    background: var(--chip); border: 1px solid var(--line); border-radius: 8px; }
-  main:not(.v2) .cardthumb:hover { border-color: var(--accent); }
   .cardthumb > img { width: 100%; height: 100%; object-fit: cover; display: block; }
   /* The stand-in drawing is a symbol rather than a picture, so it sits small and
      quiet in the middle of the space instead of filling it -- the same treatment,
@@ -144,42 +58,6 @@
   .cardthumb .ref-badge { top: 3px; left: 3px; font-size: 9px; padding: 2px 5px; }
   .cardthumb .ref-badge.icon { padding: 2px; }
   .cardthumb .ref-badge.icon img { width: 12px; height: 12px; }
-  .itemcard > .cardrow { margin: 7px 10px 0; display: flex; flex-wrap: wrap;
-    align-items: center; gap: 5px 8px; font-size: 13px; }
-  .itemcard > .cardrow > .lbl { color: var(--muted); font-size: 12px; }
-  .itemcard > .cardrow form { display: flex; flex: 1 1 260px; align-items: center;
-    gap: 6px; min-width: 0; margin: 0; }
-  .itemcard > .cardrow input { flex: 1 1 200px; min-width: 0; padding: 4px 7px;
-    border: 1px solid var(--line); border-radius: 6px; font: inherit;
-    font-size: 13px; background: transparent; color: inherit; }
-  /* A list that is the panel's own content: the box is already drawn, so the cards
-     give theirs up and keep their bands -- edge to edge, one rule between one and
-     the next, the way a table's rows sit under its heading. A list nested deeper
-     than that (the chips inside the machine panel) keeps its cards whole, which is
-     what tells the two apart. */
-  main:not(.v2) .panel > .itemcards { gap: 0; margin: 0; }
-  main:not(.v2) .panel > .itemcards > .itemcard { border: 0; border-radius: 0; }
-  main:not(.v2) .panel > .itemcards > .itemcard + .itemcard { border-top: 1px solid var(--line); }
-  /* What follows such a list in the same panel -- the upload form under the files --
-     is a different thing and says so. */
-  main:not(.v2) .panel > .itemcards + .pbody { border-top: 1px solid var(--line); }
-  /* Where the things in a list are small enough to sit side by side -- a machine's
-     chip sockets, where what is written in one is a part number. */
-  main:not(.v2) .cardgrid { display: grid; gap: 10px; margin-top: 8px;
-    grid-template-columns: repeat(auto-fill, minmax(min(215px, 100%), 1fr)); }
-  main:not(.v2) .panel > .cardgrid { margin: 0; padding: 11px; }
-  /* The specs themselves: label and value paired, as many pairs across as the width
-     allows, in tracks so the pairs line up down the page instead of landing wherever
-     the previous value happened to end. min(Npx, 100%) for the same reason the count
-     grids use it -- a narrower screen than one track drops to one column rather than
-     hanging off the side. */
-  main:not(.v2) dl.specs { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
-    gap: 2px 18px; margin: 7px 10px 0; }
-  main:not(.v2) dl.specs > div { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
-  /* The label is the quiet half: it is the same six words down every part in the
-     list, and what is being read is the values beside them. */
-  main:not(.v2) dl.specs dt { color: var(--muted); font-size: 12px; white-space: nowrap; }
-  main:not(.v2) dl.specs dd { margin: 0; font-size: 13px; min-width: 0; overflow-wrap: break-word; }
   .btn:not(main.v2 *, .lb *) { display: inline-block; border: 1px solid var(--line); border-radius: 7px; padding: 5px 11px; text-decoration: none; font-size: 14px; cursor: pointer; background: var(--btn); color: inherit; white-space: nowrap;
     min-height: 0; gap: normal; align-items: normal; justify-content: normal; box-shadow: none; transform: none; }
   .btn:hover:not(main.v2 *, .lb *) { background: var(--btn-hover); }
@@ -195,17 +73,6 @@
   @media (min-width: 1100px) { .shell.side .site-header .btn.hdr-scan { display: none; } }
   .btn.primary:not(main.v2 *, .lb *) { background: var(--accent); color: var(--primary-fg); border-color: var(--accent); }
   .btn.sm:not(main.v2 *, .lb *) { padding: 3px 8px; font-size: 13px; }
-  .row-actions a { font-size: 13px; margin-right: 8px; }
-  main:not(.v2) .checks { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 4px 0 10px; }
-  .hint:not(main.v2 *) { color: var(--muted); font-size: 12px; margin: 2px 0 0; font-family: inherit; }
-  .muted { color: var(--muted); }
-  .chip:not(main.v2 *) { display: inline-block; background: var(--chip); border-radius: 999px; padding: 1px 8px; font-size: 12px; white-space: inherit; }
-  /* What is going to be done to a thing, as against what became of it. Its own
-     colour rather than the disposal banner's, because the two are opposite tenses
-     and somebody who has learnt that the orange band means "gone" should not have
-     to read the words to find out that this one means the opposite. Drawn only for
-     a reader who is logged in -- see the panel in _photocol.html. */
-  .plan-banner { background: #15803d22; border: 1px solid #15803daa; border-radius: 8px; padding: 8px 12px; margin: 10px 0; }
   .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 12px 0; }
   /* input[list] was every text box a toolbar had until the projects page put a
      plain search field in one; a search box is not a picker and has no datalist. */
@@ -213,9 +80,6 @@
      it to this, since an unlayered rule outranks the layer whatever the class. */
   .toolbar input[type=text], .toolbar input[list], .toolbar input:not([type]),
   .toolbar select:not(.select) { padding: 7px 9px; border: 1px solid var(--line); border-radius: 7px; font: inherit; background: transparent; color: inherit; }
-  /* The one thing in the row that should take the leftover width -- the query, not
-     the buttons beside it. */
-  .toolbar input.fill { flex: 1 1 240px; }
   /* A picker is as wide as its widest option, and the options here are whole item
      names -- wider than a phone. Let it shrink; the chosen line still fits. */
   select:not(.select) { max-width: 100%; }
@@ -237,18 +101,8 @@
   .thumb-item { display: flex; flex-direction: column; align-items: center; gap: 4px; position: relative; }
   .thumb-item .btn.sm { font-size: 11px; padding: 1px 7px; }
   .photo-primary { position: relative; }
-  .photo-ctrls { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 6px; }
-  .photo-ctrls form { margin: 0; }
-  .iconbtn { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px;
-    padding: 0; border: 1px solid var(--line); border-radius: 7px; background: var(--btn); color: inherit; cursor: pointer; }
-  .iconbtn:hover { background: var(--btn-hover); }
-  .iconbtn svg { width: 16px; height: 16px; display: block; }
-  .iconbtn.on { border-color: var(--accent); color: var(--accent); }
-  .iconbtn.danger:hover { background: var(--danger-hover); border-color: var(--danger-line); }
   /* A destructive button says so at rest, not only under the pointer: the whole
-     value of the colour is being read before the click, not during it. (The
-     icon-button variant above stays plain until hover on purpose -- a row of
-     photo tools would be all warning and no hierarchy otherwise.) */
+     value of the colour is being read before the click, not during it. */
   .btn.danger:not(main.v2 *, .lb *) { color: var(--danger); border-color: var(--danger-line); }
   .btn.danger:hover:not(main.v2 *, .lb *) { background: var(--danger-hover); border-color: var(--danger-line); }
   .ref-badge { position: absolute; top: 6px; left: 6px; background: #000000c0; color: #fff;
@@ -289,9 +143,6 @@
     border: 1px solid var(--line); line-height: 0; }
   .qr-card .qr-code svg { display: block; width: 132px; height: 132px; }
   .qr-card p { margin: 0; }
-  .qr-card .qr-url { overflow-wrap: anywhere; margin-top: 6px; }
-
-
 
   img.zoomable { cursor: zoom-in; }
   img.zoomable:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
@@ -317,42 +168,17 @@
   /* The side column leads an item page once it is one column, and a code that opens
      the page you are already reading is not worth a screenful of it. */
   @media (max-width: 860px) { .photo-qr { display: none; } }
-  .section { margin-top: 24px; }
   .count { color: var(--muted); font-size: 13px; }
-  fieldset:not(main.v2 *) { border: 1px solid var(--line); border-radius: 8px; margin: 14px 0; padding: 8px 14px 14px; }
-  legend:not(main.v2 *) { color: var(--muted); font-size: 13px; padding: 0 6px; }
   .inline-form { display: inline; }
-  /* Centred, because the box to type in is taller than the buttons beside it and a
-     flex row left to itself stretches its children to match. The picker was safe --
-     it sits inside .newphotos, which centres its own -- so "add note" grew to the
-     height of the input and "photos" did not, and the pair looked wrong next to
-     each other on any screen wide enough to keep them on one line. */
-  .notebar { display: flex; gap: 6px; margin: 6px 0 12px; flex-wrap: wrap;
-    align-items: center; }
   /* A history line: what happened, with the picker for a photograph of it out at
      the right where it is reachable without being read. */
   /* The message takes the slack, which puts both controls together at the right.
      space-between spread three children instead, so the picker sat out in the middle
      of the line with the delete button away at the end -- two buttons for the same
      entry, reading as though they belonged to different things. */
-  /* The date column: nowrap so a stamp is one line, and top-aligned because what
-     is beside it -- words, photographs, or both -- runs to as many as it needs. */
-  .logwhen { white-space: nowrap; vertical-align: top; font-variant-numeric: tabular-nums; }
-  /* Only as wide as the stamp in it, not the 176px the other key/value tables share:
-     a visitor's stamp is a bare date, and on a phone the width it gave back is width
-     the entry itself had been wrapping for. */
-  .detail-main table.kv.log tr > *:first-child { width: calc(10.5ch + 16px); }
-  .detail-main table.kv.log.timed tr > *:first-child { width: calc(16.5ch + 16px); }
   .logline { display: flex; gap: 8px; align-items: center; }
   .logmsg { white-space: pre-line; min-width: 0; flex: 1; }
   .logadd { flex: none; }
-  /* Both controls on a history line are the same size, because to the eye they are
-     the same kind of thing: one puts a photograph on the entry and one takes the
-     entry away. Sized to the line, not to the picker's own form -- scoped to the
-     form, the delete button beside it kept the 30px default and the pair sat there
-     visibly mismatched. */
-  .logline .iconbtn { width: 24px; height: 24px; border-radius: 6px; }
-  .logline .iconbtn svg { width: 13px; height: 13px; }
   /* A row of them across the entry, wrapping onto another row where there are more
      than fit. No wrapper around each any more: they had a delete button underneath
      and now the line's own one, at the right, is the only one there is.
@@ -362,11 +188,6 @@
      pictures. The lightbox is a click away for the one that matters. */
   .logshots { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 2px; }
   .logshots img { width: 120px; height: 88px; border-radius: 6px; border: 1px solid var(--line); object-fit: cover; }
-  .notebar input { flex: 1; min-width: 220px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: inherit; font: inherit; }
-  /* The invisible file input covering the picker is not a box to type in, whatever
-     the rule above says about inputs in here. */
-  .notebar .filebtn input[type=file] { flex: none; min-width: 0; padding: 0; border: 0; }
-
 
   /* Last, so it outranks the sizes set above. iOS zooms the page in when it
      focuses a control whose text is under 16px, and does not zoom back out when
@@ -391,8 +212,7 @@
     input, select, textarea,
     .toolbar input[type=text], .toolbar input[list],
     .toolbar input:not([type]), .toolbar select:not(.select),
-    .photo-actions input[name=note], .notebar input,
-    .itemcard > .cardrow input { font-size: 16px; }
+    .photo-actions input[name=note] { font-size: 16px; }
   }
 
   /* Nothing here animates today, which is when this is cheapest to write: it
