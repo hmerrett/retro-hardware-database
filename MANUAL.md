@@ -1470,11 +1470,19 @@ panel, which answer *which one is this?* A photograph of something that happened
 to it — a recap, a repair, damage found on arrival — belongs on the history entry
 that says what happened, and is described in [section 15](#15-history).
 
-**In the panel**, the default photograph is the large one, with the others under it
-as small ones in the same 4:3 shape as a gallery card: two to a row beside the
-details, and more across where the panel has the width of the page to itself. They
-sit inside the panel's margin, so the photographs and the buttons under them start
-from the same edge.
+**In the panel**, the default photograph is the large one, in a 4:3 frame the width
+of the panel. A photograph of another shape is shown whole inside the frame, on a
+shaded ground, rather than cropped to fit. The others are under it as small ones in
+the same 4:3 shape as a gallery card: two to a row beside the details, and more
+across where the panel has the width of the page to itself. They sit inside the
+panel's margin, so the photographs and the buttons under them start from the same
+edge.
+
+The frame, not the photograph, decides the room it takes: a tall photograph and a
+wide one fill the same space, so the panels under them do not move from one item to
+the next because of a photograph's shape. An item nobody has photographed has a
+frame of the same shape, holding the drawing its gallery card wears and the words
+*No photograph yet.*
 
 **Add photos** and choose the files — that is the whole gesture, the upload goes
 as soon as they are picked. Several at once is fine.
