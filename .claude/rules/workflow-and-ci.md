@@ -33,10 +33,32 @@ diff of the file is the change being asked for.
 
 ## Dependencies
 
-- Locked (backend-standards). **Dependabot** (`.github/dependabot.yml`) raises
-  weekly grouped PRs for the lockfile, the base images and the actions CI runs;
-  that plus `pip-audit` is how security advisories get noticed rather than piling
-  up.
+- Locked (backend-standards): the app's in `api/uv.lock`, the tool server's in
+  `mcp/uv.lock`. **Dependabot** (`.github/dependabot.yml`) raises weekly grouped
+  PRs for both lockfiles, the base images and the actions CI and a release run;
+  that plus `pip-audit`, which CI runs over both, is how security advisories get
+  noticed rather than piling up.
+
+## Releases
+
+A release is a tag, `vX.Y.Z`, on a commit of `main`. Pushing it runs
+`.github/workflows/publish.yml`, which builds the app's and the tool server's
+images on amd64 and arm64 runners and publishes them to
+`ghcr.io/hmerrett/retro-hardware-database/{api,mcp}` as `X.Y.Z` and `X.Y`
+(ADR-0041). It refuses a tag that is not the release the code names.
+
+1. **A pull request makes the release**: `__version__` in `api/app/__init__.py`
+   moves to `X.Y.Z`, the image tags in `docker-compose.yml` move with it (the suite
+   fails until they do), and the CHANGELOG's *Unreleased* becomes `## X.Y.Z`.
+2. **Merge it, then tag the merge commit** `vX.Y.Z` and push the tag.
+3. **Once, after the first release:** GitHub creates a new package private, so make
+   `api` and `mcp` public on each package's settings page.
+
+A release candidate is tagged `vX.Y.Z-rc.N` on a commit whose `__version__` is
+already `X.Y.Z`, and is published under that tag alone. A pull request that changes
+a Dockerfile or a lockfile runs the same workflow to build both images on both
+architectures, and pushes nothing. Its actions are pinned to commits, because it can
+publish under the project's name; Dependabot moves the pins.
 
 ## Decisions & findings
 

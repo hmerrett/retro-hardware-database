@@ -3,22 +3,23 @@
 # not -- the rule was written for the intent and the intent never landed.
 version: 2
 updates:
-  # The application's dependencies, from api/uv.lock. Grouped into one pull request
-  # a week: fourteen separate bumps is fourteen CI runs and fourteen reviews of the
-  # same kind of change.
+  # The application's dependencies, from api/uv.lock, and the tool server's, from
+  # mcp/uv.lock. Grouped into one pull request a week: fourteen separate bumps is
+  # fourteen CI runs and fourteen reviews of the same kind of change.
   - package-ecosystem: uv
-    directory: /api
+    directories: ["/api", "/mcp"]
     schedule:
       interval: weekly
     groups:
       python:
         patterns: ["*"]
-  # The images the build is made of -- python:3.12-slim and the pinned uv.
+  # The images the two builds are made of -- the Python base images and the pinned uv.
   - package-ecosystem: docker
-    directory: /api
+    directories: ["/api", "/mcp"]
     schedule:
       interval: weekly
-  # And the actions CI runs, which are code from other people on every push.
+  # And the actions CI and a release run, which are code from other people on every
+  # push. The release's are pinned to commits, and these PRs move the pins.
   - package-ecosystem: github-actions
     directory: /
     schedule:

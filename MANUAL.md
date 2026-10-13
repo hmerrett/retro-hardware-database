@@ -3560,10 +3560,12 @@ follows the code as it is written runs many builds under one number. The commit 
 what tells two of them apart, and what to compare with the newest commit in the
 project's repository to see whether this one is behind.
 
-The build is told the commit when the image is made. `./deploy.sh` tells it, and so
-does `RHDB_COMMIT=$(git rev-parse --short HEAD) docker compose up -d --build` by
-hand. A build that was not told, such as a plain `docker compose up -d --build`,
-shows the release alone, because it has no way to find out.
+The build is told the commit when the image is made. The images a release publishes
+are told it, so an installation that pulls them shows the commit the release was
+tagged on. `./deploy.sh` tells it too, and so does
+`RHDB_COMMIT=$(git rev-parse --short HEAD) docker compose up -d --build` by hand. A
+build that was not told, such as a plain `docker compose up -d --build`, shows the
+release alone, because it has no way to find out.
 
 The line is on Settings, so only an administrator sees it. A visitor has no use for
 it, and telling strangers exactly which build is running would tell them which

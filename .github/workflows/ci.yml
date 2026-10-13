@@ -69,9 +69,12 @@ jobs:
       # Fails the build if a locked runtime dependency has a known vulnerability.
       # The export is the runtime half of the lock -- the whole transitive tree,
       # not the fourteen names in pyproject.toml, which is what the move to uv
-      # bought. If it ever blocks unrelated work, bump the offending pin -- or move
-      # this to a scheduled run.
+      # bought. The tool server's lock is audited too, as its image is published
+      # beside the app's (ADR-0041). If it ever blocks unrelated work, bump the
+      # offending pin -- or move this to a scheduled run.
       - name: Audit dependencies
         run: |
           uv export --project api --frozen --no-dev --no-emit-project \
+            | uv run --project api pip-audit --requirement /dev/stdin
+          uv export --project mcp --frozen --no-dev --no-emit-project \
             | uv run --project api pip-audit --requirement /dev/stdin

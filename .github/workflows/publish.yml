@@ -1,0 +1,185 @@
+# Publishes the two images this repository builds, the app and the tool server, to
+# the GitHub Container Registry when a release is tagged, so that an installation
+# pulls them rather than building them on its own machine (ADR-0041). Everything
+# else in the stack is somebody else's image already.
+#
+# Each image is built on a runner of its own architecture rather than for both on
+# one under emulation, so the arm64 half is as quick as the amd64 half. The halves
+# are pushed by digest alone, and the second job joins each pair under the release's
+# tags.
+#
+# A pull request that changes what an image is made of builds both images on both
+# architectures and pushes nothing, so a release is never the first time a lockfile
+# or a Dockerfile meets arm64.
+#
+# The actions are pinned to commits rather than tags. This workflow can publish under
+# the project's name, and a tag can be moved under it; Dependabot moves the pins.
+name: Publish images
+
+on:
+  push:
+    tags: ["v*"]
+  pull_request:
+    paths:
+      - api/Dockerfile
+      - api/.dockerignore
+      - api/pyproject.toml
+      - api/uv.lock
+      - mcp/**
+      - .github/workflows/publish.yml
+
+permissions:
+  contents: read
+
+# One run to a ref. A pull request's newer push replaces its older build; a release's
+# run is never cut off halfway through publishing.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: ${{ matrix.image }} (${{ matrix.arch }})
+    strategy:
+      matrix:
+        image: [api, mcp]
+        arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write # to push each architecture by its digest, on a release only
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}/${{ matrix.image }}
+      RELEASE: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The Settings page names the release from __version__ (MANUAL §19), so an image
+      # published under one number with another inside would tell its administrator
+      # the wrong version. The two agree before anything is built. A release
+      # candidate, v0.2.0-rc.1, is a build of the release it leads to.
+      - name: Check the tag is the release the code names
+        if: env.RELEASE == 'true'
+        run: |
+          tagged="${GITHUB_REF_NAME#v}"
+          named="$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' api/app/__init__.py)"
+          if [ "${tagged%%-*}" != "$named" ]; then
+            echo "::error::$GITHUB_REF_NAME is not the release api/app/__init__.py names ($named)"
+            exit 1
+          fi
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - if: env.RELEASE == 'true'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Only the labels here: the source, the revision, the licence and the version
+      # go on the image, and the tags are the second job's. The version is worked out
+      # as the second job works it out, so the label says 0.2.0 where the tag does.
+      - id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.IMAGE }}
+          flavor: latest=false
+          tags: |
+            type=semver,pattern={{version}}
+            type=ref,event=pr
+          labels: |
+            org.opencontainers.image.title=retro-hardware-database ${{ matrix.image }}
+
+      # The app is told the commit it is, as deploy.sh tells a build on a server, and
+      # the Settings page shows it beside the release (MANUAL §19).
+      - id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ./${{ matrix.image }}
+          platforms: linux/${{ matrix.arch }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: ${{ matrix.image == 'api' && format('RHDB_COMMIT={0}', github.sha) || '' }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=${{ env.RELEASE }}
+
+      - name: Note the digest
+        if: env.RELEASE == 'true'
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
+
+      - if: env.RELEASE == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: digest-${{ matrix.image }}-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: ${{ matrix.image }}
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    strategy:
+      matrix:
+        image: [api, mcp]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write # to put the release's tags on what the build job pushed
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}/${{ matrix.image }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digest-${{ matrix.image }}-*
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # The release's own number, and its minor line to follow: 0.2.0 and 0.2. No
+      # latest, as nothing else in docker-compose.yml floats either: an image changes
+      # when an installation says so. A release candidate gets its own number alone.
+      # The annotations go on the index, where the registry reads its description.
+      - id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        env:
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: index
+        with:
+          images: ${{ env.IMAGE }}
+          flavor: latest=false
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Join the two architectures under the release's tags
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          args=()
+          while IFS= read -r tag; do args+=(--tag "$tag"); done \
+            < <(jq -r '.tags[]' <<<"$DOCKER_METADATA_OUTPUT_JSON")
+          while IFS= read -r note; do args+=(--annotation "$note"); done \
+            < <(jq -r '.annotations[]' <<<"$DOCKER_METADATA_OUTPUT_JSON")
+          for digest in *; do args+=("$IMAGE@sha256:$digest"); done
+          docker buildx imagetools create "${args[@]}"
+
+      - name: Show what was published
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: docker buildx imagetools inspect "$IMAGE:$VERSION"

@@ -174,9 +174,22 @@ class TestABuildSendsOnlyWhatItNeeds:
         context = ROOT / name
         lines = (context / ".dockerignore").read_text().splitlines()
         ignore = [ln.strip() for ln in lines if ln.strip() and not ln.startswith("#")]
-        copies = [i.split()[0] for i in _instructions((context / "Dockerfile").read_text(), "COPY")]
         assert ignore[0] == "*"
-        assert sorted(line[1:] for line in ignore if line.startswith("!")) == sorted(copies)
+        assert sorted(line[1:] for line in ignore if line.startswith("!")) == sorted(
+            _copied_from_the_context(context / "Dockerfile")
+        )
+
+
+def _copied_from_the_context(dockerfile):
+    """Every source a COPY takes from the build context: all but its last argument,
+    which is where it goes. A COPY --from takes from another stage or image, which
+    is not the context and is never sent."""
+    sources = []
+    for copy in _instructions(dockerfile.read_text(), "COPY"):
+        args = copy.split()
+        if not any(arg.startswith("--from=") for arg in args):
+            sources += [arg for arg in args[:-1] if not arg.startswith("--")]
+    return sources
 
 
 class TestTheDevelopmentOverride:
