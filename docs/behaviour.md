@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2902 behaviours, from 87 files.*
+*2905 behaviours, from 87 files.*
 
 
 ## A barcode takes the room the words leave
@@ -4875,7 +4875,7 @@ Regenerate with:
 
 ## Stylesheet lint
 
-*test_stylesheet_lint.py — 7 behaviours*
+*test_stylesheet_lint.py — 10 behaviours*
 
 - no colour is stated outside the token files  
   A colour written into a component is one no preset can change and no contrast test reads.
@@ -4891,6 +4891,11 @@ Regenerate with:
   An exception nothing needs any more is a hole left open for the next one.
 - while app css is here it outranks the new stylesheets  
   The templates move over a group at a time, and until a group has moved its 0.1 rules have to win wherever a class name is shared -- .btn, .panel and fifty more.
+- every page is drawn with the v0 2 components  
+  A page not marked v2 is drawn by app.css's 0.1 rules, which is what keeps them here.
+- app css keeps no rule for a page on 0 1
+- app css draws no class that nothing writes  
+  A rule for a class no template, script or module names is a rule nobody can see, and one more thing to read past on the way to deleting the file.
 
 
 ## The agent on the other machine

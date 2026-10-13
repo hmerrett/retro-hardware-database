@@ -186,3 +186,47 @@ def test_while_app_css_is_here_it_outranks_the_new_stylesheets(path):
         pytest.skip("app.css has gone, and the layer with it")
     body = text(path).strip()
     assert body.startswith("@layer v2 {") and body.endswith("}")
+
+
+# What app.css is held to while it lasts. These go with it.
+APP = CSS.parent.parent
+TEMPLATES = APP / "templates"
+
+
+def test_every_page_is_drawn_with_the_v0_2_components():
+    """A page not marked v2 is drawn by app.css's 0.1 rules, which is what keeps them
+    here. With every page across, those rules have nothing left to draw."""
+    on_0_1 = sorted(
+        t.name
+        for t in TEMPLATES.glob("*.html")
+        if '{% extends "base.html" %}' in (body := t.read_text(encoding="utf-8"))
+        and "{% block main_class %} v2{% endblock %}" not in body
+    )
+    assert on_0_1 == [], "these pages are still drawn by app.css"
+
+
+def test_app_css_keeps_no_rule_for_a_page_on_0_1():
+    if not LEGACY.exists():
+        pytest.skip("app.css has gone")
+    assert "main:not(.v2)" not in text(LEGACY)
+
+
+def test_app_css_draws_no_class_that_nothing_writes():
+    """A rule for a class no template, script or module names is a rule nobody can
+    see, and one more thing to read past on the way to deleting the file. The
+    search is loose -- the class's name anywhere in the source -- so it can only
+    miss a dead rule, never call a live one dead."""
+    if not LEGACY.exists():
+        pytest.skip("app.css has gone")
+    heads = "".join(re.findall(r"([^{}]+)\{", text(LEGACY)))
+    drawn = set(re.findall(r"\.(-?[a-zA-Z_][\w-]*)", heads))
+    source = "\n".join(
+        p.read_text(encoding="utf-8")
+        for pattern in ("*.html", "*.js", "*.py")
+        for p in APP.rglob(pattern)
+        if "vendor" not in p.parts
+    )
+    unwritten = sorted(
+        c for c in drawn if not re.search(rf"(?<![\w-]){re.escape(c)}(?![\w-])", source)
+    )
+    assert unwritten == [], "app.css draws these, and nothing writes them"

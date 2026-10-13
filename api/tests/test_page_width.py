@@ -195,7 +195,6 @@ READING = {
     "delete.html",
     "detach.html",
     "error.html",
-    "forbidden.html",
 }
 
 
