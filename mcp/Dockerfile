@@ -3,7 +3,7 @@
 # and adds the server. So the tree is what uv.lock says and nothing that resolved on
 # the day, every build of a release holds the same code (ADR-0041), and uv is not in
 # the image that runs.
-FROM python:3.12-slim AS deps
+FROM python:3.14-slim AS deps
 # Pinned, as the app's build pins it.
 COPY --from=ghcr.io/astral-sh/uv:0.12.15 /uv /usr/local/bin/uv
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never
@@ -13,7 +13,7 @@ COPY pyproject.toml uv.lock ./
 # package, so there is no project to install.
 RUN uv sync --frozen --no-dev --no-install-project
 
-FROM python:3.12-slim
+FROM python:3.14-slim
 WORKDIR /app
 
 # Its own unprivileged user, as the app has: the server handles what an agent sends
