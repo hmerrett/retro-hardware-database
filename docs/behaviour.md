@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2856 behaviours, from 85 files.*
+*2864 behaviours, from 86 files.*
 
 
 ## A barcode takes the room the words leave
@@ -3450,6 +3450,28 @@ Regenerate with:
   The other door: the photo column on an item that already exists, which is where most photographs are actually added.
 - a phone photograph can still be rotated  
   The write path, which re-encodes in the format the file was opened as.
+
+
+## Photo frames
+
+*test_photo_frames.py — 8 behaviours*
+
+
+**The photograph is framed4 by3**
+
+- the frame is the cards shape the width of the panel
+- a photograph of another shape is shown whole on a shaded ground
+- nothing caps its height  
+  340px high was the old cap: a frame of no fixed shape, so the panels under it moved with every photograph's proportions.
+
+**No photograph has the same frame**
+
+- the same shape on the same ground
+- holding the cards drawing at the cards size  
+  The design system's card draws its picture at 46% of the frame.
+- and the words
+- nothing of 0 1 s outranks either frame
+- the page draws the photograph in the frame
 
 
 ## Photo tuneup
