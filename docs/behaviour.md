@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2903 behaviours, from 87 files.*
+*2946 behaviours, from 88 files.*
 
 
 ## A barcode takes the room the words leave
@@ -384,9 +384,83 @@ Regenerate with:
 - revoke
 
 
+## Adding photographs
+
+*test_adding_photographs.py — 47 behaviours*
+
+
+**The panel**
+
+- add photos is a tile after the last thumbnail
+- the picker is inside the tile hidden but focusable
+- with no photograph the tile sits under the drawing
+- with one photograph the tile is the first thumbnail
+- the tile is where photographs are dropped
+- take photo opens the camera
+- choose photos takes several at once
+- a touchscreen gets take photo and choose photos and a desktop add photos
+- no picker is required
+- a browser without script still has upload
+- the rows are read out as they change
+- only the state is read out not every percent  
+  A polite region reads every change inside it, and a percentage changes a hundred times: the figure is for the eye.
+- try again follows the button text setting
+- a visitor gets no picker
+- every picker is named by what you press  
+  The input is hidden and the label is what is seen, so the label is its name.
+
+**The code for A phone**
+
+- the code is in the photographs panel under the rows
+- the code on the page says take photo
+- it still points at the upload
+- it stays hidden on a phone
+
+**The route**
+
+- one photograph sent by the script is answered in json
+- a form post still goes back to the page
+- a form post from a tab goes back to that tab
+- a file that is not a photograph is refused in the rows words
+- a kind of image not kept says which are
+- a bmp wearing a png name is refused as a kind not kept
+- three added one at a time read as one line
+- several in one form post are one line
+- a photograph on a new item is worded the same
+- a signed out upload is not answered as added
+- with no script a refused photograph is named on the page
+- the names are said to the owner and nobody else  
+  The names ride in the address, and an address can be sent to anybody: a visitor's page does not print words a stranger put in a link.
+
+**The stylesheet**
+
+- the button shows where the keyboard is
+- the tile is outlined in accent while something is dragged over it  
+  And everything on it turns `text`, as on any hovered row: the accent ink on the hover ground is not a pair the design uses.
+- the tile is the cards shape in accent ink on a dashed edge
+- on a touchscreen take photo runs the width of the panel
+- the old panel is gone
+
+**The script**
+
+- the page waits for its own uploads before reloading
+- the page reloads once every photograph is added
+- if one is not added the page asks rather than reloads
+- photographs go one at a time
+- progress comes from xmlhttprequest  
+  `fetch` reports nothing about an upload's progress.
+- it asks the route for json
+- try again is offered where it could help and not for a refusal
+- a signed out answer says to log in
+- each row draws its picture on a canvas
+- no preview is drawn from a blob url  
+  The policy is `img-src 'self'`, which a blob: URL in an <img> is not.
+- the bar is set through the cssom
+
+
 ## Api
 
-*test_api.py — 554 behaviours*
+*test_api.py — 551 behaviours*
 
 
 **Typed columns**
@@ -975,13 +1049,6 @@ Regenerate with:
 - a duplicated computer s memory survives editing it  
   The copy needs its own child rows, not just the rendered strings, or the first save would render them away.
 - both sides record the duplication
-
-**Choosing photos**
-
-- the button is the site s own
-- it uploads without a button press
-- the button is still there for a browser without scripts  
-  The submit hides itself from the script above rather than being absent, so the form still works where that script never runs.
 
 **The code that puts A phone on the item**
 
@@ -2455,7 +2522,7 @@ Regenerate with:
 
 ## Item pages
 
-*test_item_pages.py — 72 behaviours*
+*test_item_pages.py — 71 behaviours*
 
 
 **The head**
@@ -2577,9 +2644,8 @@ Regenerate with:
 
 **The two ways to add A photo stand side by side**
 
-- fetch from reference is in the row with add photos
+- fetch from reference is in the row with the upload
 - the row runs across and wraps only when it must
-- a message about either takes a line of its own
 
 **The history lines up its buttons**
 

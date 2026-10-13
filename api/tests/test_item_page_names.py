@@ -272,7 +272,7 @@ class TestTheCodeUnderThePhotographs:
     def test_is_a_picture_named_for_what_it_is_for(self, client, computer):
         aid = computer(name="Lounge PC")["asset_id"]
         t = tree(client.get(f"/computers/{aid}").text)
-        code = next(n for n in t.root.walk() if "qr-code" in n.classes())
+        code = next(n for n in t.root.walk() if "qr" in n.classes())
         assert code.get("role") == "img"
         assert t.name(code) == "Code for this page, to add photographs from a phone"
 

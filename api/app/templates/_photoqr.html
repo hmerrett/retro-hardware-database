@@ -1,24 +1,17 @@
-{# The code at the foot of the photo column, included by _photocol.html.
-   Expects: obj, og.
+{# The code at the foot of the Photographs panel, included by _photocol.html's
+   upload(), so it is the owner's only: a visitor has nothing to upload with, and a
+   code leading to a page with nothing to upload with promises something the site
+   will not do. Expects: obj, og.
 
    It holds this page's own URL, because the register is edited at a desk and the
    hardware is photographed on the bench: scan it and the phone already in your hand
-   is on the right item, with its camera a tap away. It sits under the upload button
-   the fragment points at, which is the thing the phone is being sent to. A phone
-   reading this page is already where the code leads, so the column hides it at that
-   width rather than opening every item with a QR of itself.
-
-   Logged in only, like every other thing on the page that does something: a visitor
-   has nothing to upload with, and a code leading to a page with no upload button on
-   it promises something the site will not do. #}
-{% import "_panel.html" as PN %}
-{% if request.state.authed %}
+   is on the right item, with Take photo under your thumb. A phone reading this page
+   is already where the code leads, so it is hidden at that width rather than opening
+   every item with a code of itself. #}
 {% set here = og.url ~ '#photo-upload' %}
-{% call PN.panel('From your phone', cls='photo-qr') %}
-  <div title="Scan to open this page on a phone, then choose files to photograph {{ obj.asset_id }}. It uploads as soon as it is chosen.">
-    {#- A picture, named for what it is for: read out, a drawing of squares is
-        nothing, and its tooltip is not reached by a screen reader at all. -#}
-    <div class="qr-code" role="img" aria-label="Code for this page, to add photographs from a phone">{{ qr_svg(here) }}</div>
-  </div>
-{% endcall %}
-{% endif %}
+<div class="qrlabel" title="Scan to open this page on a phone, then take a photograph of {{ obj.asset_id }}. It uploads as soon as it is kept.">
+  {#- A picture, named for what it is for: read out, a drawing of squares is
+      nothing, and its tooltip is not reached by a screen reader at all. -#}
+  <div class="qr" role="img" aria-label="Code for this page, to add photographs from a phone">{{ qr_svg(here) }}</div>
+  <p class="t"><b>On your phone</b>Scan to open this page there, then Take photo.</p>
+</div>

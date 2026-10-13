@@ -38,7 +38,7 @@ from urllib.parse import urlencode, urlparse
 # box again.
 
 from fastapi import HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -48,7 +48,7 @@ from . import entry, filesdb, locations, machinedb, machines, projects, specdb, 
 from .common import folder_images, to_dict
 from .disposal import inside as _inside
 from .forms import Posted, Refusal, posted
-from .history import add_log
+from .history import add_log, photos_added
 from .models import (
     AssetChip,
     AssetVariant,
@@ -302,7 +302,53 @@ def _attach_photos(
     if first and not obj.image:
         obj.image = first
     if uploads:
-        add_log(db, obj.asset_id, f"added {len(uploads)} photo(s)")
+        add_log(db, obj.asset_id, photos_added(len(uploads)))
+
+
+def add_photos(
+    request: Request,
+    db: Session,
+    kind: str,
+    obj: Computer | Part | Location,
+    uploads: Sequence[UploadFile],
+    page: str,
+) -> Response:
+    """The Photographs panel's upload, for a machine, a part or a location.
+
+    The page's script sends one photograph at a time and asks for JSON, because it
+    has to be told plainly whether that one was kept: a redirect it followed says
+    nothing, and the gate's redirect to the login page looks exactly like the
+    route's own back to the item. So it is answered for its photograph, 200 with what
+    was added or 400 with why not, in the words the row prints. A form -- a browser
+    running no script -- may send several, keeps the ones that can be kept, and goes
+    back to the page naming the rest (MANUAL §10).
+
+    Each photograph is checked as it is written, and one refused leaves nothing of
+    itself on disk; the ones before it stay, and the history says so."""
+    added: list[str] = []
+    refused: list[tuple[str, str]] = []
+    for up in uploads:
+        name = (up.filename or "").strip()
+        if not name:
+            continue
+        try:
+            added.append(_save_photo(kind, obj.asset_id, up))
+        except HTTPException as exc:
+            if exc.status_code != 400:
+                raise
+            refused.append((name, str(exc.detail)))
+    if added and not obj.image:
+        obj.image = added[0]
+    if added:
+        add_log(db, obj.asset_id, photos_added(len(added)))
+    db.commit()
+    if "application/json" in request.headers.get("accept", ""):
+        if refused:
+            return JSONResponse({"reason": refused[0][1]}, status_code=400)
+        return JSONResponse({"added": added})
+    # A filename cannot hold a slash, so it can separate them.
+    said = {"notadded": "/".join(n for n, _ in refused)} if refused else {}
+    return back_to(request, page, **said)
 
 
 def _confirms_url(text: str | None, kind: str, aid: str) -> bool:
@@ -758,6 +804,15 @@ def with_tab(request: Request, page: str, **said: str | int) -> str:
         q["tab"] = tab
     q.update(said)
     return page + ("?" + urlencode(q) if q else "")
+
+
+def _not_added(request: Request, said: str) -> list[str]:
+    """The photographs a form post could not keep, as `add_photos` named them in the
+    address. The owner's alone: an address can be sent to anybody, and a visitor's
+    page does not print words somebody else put in a link."""
+    if not request.state.authed:
+        return []
+    return [n for n in said.split("/") if n.strip()][:20]
 
 
 def back_to(request: Request, page: str, **said: str | int) -> RedirectResponse:

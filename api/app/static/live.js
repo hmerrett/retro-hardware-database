@@ -22,8 +22,13 @@
   // with something already in it is not something you typed.
   const TYPED = 'input:not([type=hidden]):not([type=file]):not([type=radio])'
               + ':not([type=checkbox]), textarea';
+  //
+  // And photographs being added from the panel, or one that was not and is waiting
+  // on the owner: the first to land changes the record, and a reload then would
+  // take away the rest and the row saying why one failed (uploads.js).
   function busy() {
     if (document.querySelector('#lightbox[open]')) return true;
+    if (document.querySelector('.uploads .up:not(.is-done)')) return true;
     const on = document.activeElement;
     if (on && /^(INPUT|TEXTAREA|SELECT)$/.test(on.tagName) && on.type !== 'hidden') {
       return true;
@@ -32,20 +37,28 @@
       .some(el => (el.value || '') !== (el.defaultValue || ''));
   }
 
+  // Photographs still going up: the panel reloads the page itself when they are
+  // all added, and asks again when one is not, so the bar would only be news of
+  // the owner's own uploads.
+  const UPLOADING = '.uploads .up:not(.is-done):not(.is-failed)';
+
   let stale = false;
   async function look() {
-    if (stale || document.visibilityState !== 'visible') return;
-    let now;
-    try {
-      const r = await fetch(`/items/${encodeURIComponent(AID)}/version`,
-                            { cache: 'no-store' });
-      if (!r.ok) return;
-      now = (await r.json()).v;
-    } catch (e) { return; }        // offline, or the server restarting: try later
-    if (!now || now === BUILT) return;
-    stale = true;                  // stop asking; the answer will not change back
+    if (document.visibilityState !== 'visible') return;
+    if (!stale) {
+      let now;
+      try {
+        const r = await fetch(`/items/${encodeURIComponent(AID)}/version`,
+                              { cache: 'no-store' });
+        if (!r.ok) return;
+        now = (await r.json()).v;
+      } catch (e) { return; }      // offline, or the server restarting: try later
+      if (!now || now === BUILT) return;
+      stale = true;                // stop asking; the answer will not change back
+    }
+    if (document.querySelector(UPLOADING)) return;
     if (!busy()) { location.reload(); return; }
-    if (bar) {
+    if (bar && bar.hidden) {
       bar.hidden = false;
       say(bar.querySelector('span').textContent);
     }
@@ -62,6 +75,8 @@
   // The one that does the real work: back from the phone, and it has already run.
   document.addEventListener('visibilitychange', look);
   window.addEventListener('focus', look);
+  // The panel's uploads have finished with one not added (uploads.js).
+  document.addEventListener('rhdb:look', look);
   // And if the page went stale while you were busy, take the first moment you
   // are not -- clicking away from the box you were typing in is that moment.
   document.addEventListener('click', () => {

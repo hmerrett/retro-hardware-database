@@ -24,6 +24,8 @@ from ..assets import (
     _do_photo_revert,
     _do_photo_rotate,
     _do_photo_tuneup,
+    _not_added,
+    add_photos,
     refused,
 )
 from ..common import to_dict
@@ -37,7 +39,6 @@ from ..photos import (
     _delete_image,
     _photo_edit_redirect,
     _purge_photos,
-    _save_photo,
     _set_primary_photo,
     detect_images,
     reference_marks,
@@ -232,10 +233,17 @@ def _page_ctx(request: Request, db: Session, loc: Location) -> dict[str, object]
 
 @router.get("/locations/{aid}", response_class=HTMLResponse, include_in_schema=False)
 def gui_location(
-    aid: str, request: Request, imgerr: int = 0, db: Session = Depends(get_db)
+    aid: str,
+    request: Request,
+    imgerr: int = 0,
+    notadded: str = "",
+    db: Session = Depends(get_db),
 ) -> HTMLResponse:
     loc = _shown_or_404(request, db, aid)
-    ctx = _page_ctx(request, db, loc) | {"imgerr": bool(imgerr)}
+    ctx = _page_ctx(request, db, loc) | {
+        "imgerr": bool(imgerr),
+        "notadded": _not_added(request, notadded),
+    }
     return templates.TemplateResponse(request, "location.html", ctx)
 
 
@@ -280,7 +288,7 @@ async def gui_save_location(aid: str, request: Request, db: Session = Depends(ge
 def _refused_here(request: Request, db: Session, loc: Location, message: str) -> HTMLResponse:
     """The location's page again, saying why what was asked of it was not done --
     for the buttons on it that change what it holds. 400, as a refused form is."""
-    ctx = _page_ctx(request, db, loc) | {"refusal": message, "imgerr": False}
+    ctx = _page_ctx(request, db, loc) | {"refusal": message, "imgerr": False, "notadded": []}
     return templates.TemplateResponse(request, "location.html", ctx, status_code=400)
 
 
@@ -338,22 +346,13 @@ async def gui_location_note(
 
 @router.post("/locations/{aid}/photo", include_in_schema=False)
 async def gui_location_photo(
-    aid: str, photos: list[UploadFile] = File(...), db: Session = Depends(get_db)
-) -> RedirectResponse:
+    aid: str,
+    request: Request,
+    photos: list[UploadFile] = File(...),
+    db: Session = Depends(get_db),
+) -> Response:
     loc = get_or_404(db, Location, aid)
-    first = None
-    n = 0
-    for up in photos:
-        if (up.filename or "").strip():
-            rel = _save_photo(KIND, loc.asset_id, up)
-            n += 1
-            first = first or rel
-    if first and not loc.image:
-        loc.image = first
-    if n:
-        add_log(db, loc.asset_id, f"added {n} photo(s)")
-    db.commit()
-    return RedirectResponse(f"/locations/{loc.asset_id}", status_code=303)
+    return add_photos(request, db, KIND, loc, photos, f"/locations/{loc.asset_id}")
 
 
 @router.post("/locations/{aid}/primary-photo", include_in_schema=False)

@@ -81,9 +81,11 @@ from ..assets import (
     _do_photo_tuneup,
     _machine_from_form,
     _machine_page,
+    _not_added,
     _require_disposed,
     _set_for_sale,
     _work_from_form,
+    add_photos,
     back_to,
     delete_computer,
     item_view,
@@ -107,7 +109,6 @@ from ..photos import (
     _fetch_reference_photo,
     _mark_reference,
     _photo_edit_redirect,
-    _save_photo,
     _set_primary_photo,
     detect_images,
     reference_marks,
@@ -391,6 +392,7 @@ def gui_computer(
     request: Request,
     build: int = 0,
     imgerr: int = 0,
+    notadded: str = "",
     fileerr: int = 0,
     fiterr: int = 0,
     db: Session = Depends(get_db),
@@ -472,6 +474,7 @@ def gui_computer(
             "card_steps": entry.CARD_STEPS,
             "build": bool(build),
             "imgerr": bool(imgerr),
+            "notadded": _not_added(request, notadded),
             "fiterr": bool(fiterr),
             "log": _history(db, aid, kept=told),
             "live_aid": aid,
@@ -732,22 +735,9 @@ async def gui_computer_photo(
     request: Request,
     photos: list[UploadFile] = File(...),
     db: Session = Depends(get_db),
-) -> RedirectResponse:
+) -> Response:
     c = get_or_404(db, Computer, aid)
-    first = None
-    n = 0
-    for up in photos:
-        if (up.filename or "").strip():
-            rel = _save_photo("computers", aid, up)
-            n += 1
-            if first is None:
-                first = rel
-    if first and not c.image:
-        c.image = first
-    if n:
-        add_log(db, aid, f"added {n} photo(s)")
-    db.commit()
-    return back_to(request, f"/computers/{aid}")
+    return add_photos(request, db, "computers", c, photos, f"/computers/{c.asset_id}")
 
 
 @router.post("/computers/{aid}/fetch-image", include_in_schema=False)

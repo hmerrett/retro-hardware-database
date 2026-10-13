@@ -3811,34 +3811,6 @@ class TestDuplication:
         )
 
 
-class TestChoosingPhotos:
-    """Choosing the photos is the whole gesture: they upload on selection, and the
-    button says so in the site's own words rather than the browser's.
-    """
-
-    def test_the_button_is_the_site_s_own(self, client, part):
-        page = client.get(f"/parts/{part()['asset_id']}").text
-        assert '<label class="btn sm filebtn">Add photos' in page
-        # The native input lives inside that label, which is the only way the
-        # browser's own "Choose Files" button and "no file chosen" never appear.
-        assert re.search(
-            r'<label class="btn sm filebtn">Add photos\s*'
-            r'<input type="file"',
-            page,
-        )
-
-    def test_it_uploads_without_a_button_press(self, client, part):
-        page = served(client, client.get(f"/parts/{part()['asset_id']}").text)
-        assert "input.addEventListener('change'" in page
-        assert "requestSubmit" in page
-
-    def test_the_button_is_still_there_for_a_browser_without_scripts(self, client, part):
-        """The submit hides itself from the script above rather than being absent, so
-        the form still works where that script never runs."""
-        page = client.get(f"/parts/{part()['asset_id']}").text
-        assert '<button class="btn sm" type="submit" data-send-go>' in page
-
-
 class TestTheCodeThatPutsAPhoneOnTheItem:
     """An item page ends in a QR of its own URL, because the register is edited at a
     desk and the hardware is photographed on the bench: the camera that takes the
@@ -3888,7 +3860,7 @@ class TestTheCodeThatPutsAPhoneOnTheItem:
                     return
                 cls = dict(attrs).get("class", "").split()
                 self.open.append(tag)
-                if "photo-qr" in cls:
+                if "qrlabel" in cls:
                     self.found = "aside" in self.open
 
             def handle_endtag(self, tag):
@@ -3920,7 +3892,7 @@ class TestTheCodeThatPutsAPhoneOnTheItem:
         aid = part()["asset_id"]
         log_out(client)
         page = client.get(f"/parts/{aid}").text
-        assert 'class="section photo-qr"' not in page  # the block, not the stylesheet
+        assert 'class="qrlabel"' not in page  # the block, not the stylesheet
         assert self.expected("parts", aid) not in page
 
     def test_a_phone_that_arrives_logged_out_is_sent_back_to_the_item(

@@ -189,7 +189,7 @@ class TestTabs:
     def test_the_head_and_the_side_column_stay_put(self, client, items, tab):
         page = tabbed(client, "computers", items["computers"], tab).text
         assert "Lounge PC" in content(page).split('class="itemhead"', 1)[1].split("</h1>", 1)[0]
-        assert side(page)[:2] == ["Photographs", "From your phone"]
+        assert side(page)[0] == "Photographs"
         assert "Label" in side(page)
 
     def test_an_unknown_tab_opens_details(self, client, items):
