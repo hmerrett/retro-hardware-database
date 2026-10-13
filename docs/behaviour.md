@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3018 behaviours, from 92 files.*
+*3036 behaviours, from 93 files.*
 
 
 ## A barcode takes the room the words leave
@@ -2028,6 +2028,45 @@ Regenerate with:
 - a fault outside a page is the plain answer it was
 
 
+## File public switch
+
+*test_file_public_switch.py — 18 behaviours*
+
+
+**On every list**
+
+- each row carries public
+- pressed while the file is published and not otherwise
+- its name starts with its word and says which file  
+  A list of them is a list of buttons all called the same thing otherwise; and the words on show begin the name, so speaking them finds it.
+- it follows button text
+- the owner is given the switch in place of the private mark
+- it is the only form on a row  
+  Everything else done to a file is still done on its own page (ADR-0028).
+
+**Pressing it**
+
+- it publishes a private file and takes a public one back
+- without script it comes back to the same row
+- the list it comes back to keeps its filter
+- on a tabbed item page it comes back to the files tab
+- an items list comes back without a one off message  
+  An item page's address can carry an answer to the last thing sent; the switch comes back to the page and its tab, as every form on it does, and not to that answer again.
+- with script it answers in place  
+  The list does not move: the script asks for the answer rather than a page.
+- the script sends it and turns the button  
+  What no rendered page can show, read off the script the page links.
+- taking it back hides it from a visitor at once  
+  ADR-0009 unchanged: an unpublished file is not found at its address.
+
+**Nobody else has it**
+
+- a viewer sees private and no switch
+- a visitor sees neither
+- a visitor cannot press one
+- the decision is written down
+
+
 ## Files
 
 *test_files.py — 114 behaviours*
@@ -2080,7 +2119,7 @@ Regenerate with:
 
 - it is headed files in its one h1
 - it lists every file newest first with what it is linked to
-- nothing on a row changes anything  
+- nothing on a row changes anything but public  
   A row used to carry six forms.
 - a row opens the files page and its button downloads it
 - units of one model are one chip and all of them on its page
@@ -2088,7 +2127,8 @@ Regenerate with:
 - a kind is offered only when there is another to tell it from
 - unlinked and private are the owners alone
 - the search finds a file by its name its note or what it is linked to
-- the list marks the private ones for the owner
+- the list shows the owner which are private  
+  By the Public switch, not pressed, rather than by a mark (ADR-0042).
 
 **What kind of file it is**
 

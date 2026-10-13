@@ -252,7 +252,7 @@ class TestSendingBringsYouBackToTheTab:
             f[:120]
             for f in posting
             if f"tab={tab}" not in re.search(r"<form\b[^>]*>", f)[0]
-            and not re.search(rf'name="next" value="[^"]*tab={tab}"', f)
+            and not re.search(rf'name="next" value="[^"]*tab={tab}(?:#[^"]*)?"', f)
         ]
         assert lost == []
 

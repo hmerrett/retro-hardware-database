@@ -449,13 +449,15 @@ class TestTheFilesPage:
         assert page.index("new.zip") < page.index("old.zip")
         assert f'<a class="chip" href="/parts/{aid}"' in page
 
-    def test_nothing_on_a_row_changes_anything(self, client, part):
-        """A row used to carry six forms. Everything done to a file is on its page."""
+    def test_nothing_on_a_row_changes_anything_but_public(self, client, part):
+        """A row used to carry six forms. Everything done to a file is on its page,
+        except publishing it, which is on the row too (ADR-0042)."""
         aid = card(part)
         upload(client, "tvga.zip", aid=aid)
         for path in ("/files", f"/parts/{aid}"):
             rows = re.search(r'<ul class="filerows">.*?</ul>', client.get(path).text, re.S)
-            assert rows and "<form" not in rows.group(0), path
+            forms = re.findall(r"<form\b[^>]*>", rows.group(0))
+            assert len(forms) == 1 and "data-pubswitch" in forms[0], path
 
     def test_a_row_opens_the_files_page_and_its_button_downloads_it(self, client, part):
         upload(client, "tvga.zip", aid=card(part))
@@ -516,10 +518,13 @@ class TestTheFilesPage:
         assert ids_on(client, f"/files?q={other}") == {et4000}
         assert ids_on(client, "/files?q=tseng") == {et4000}
 
-    def test_the_list_marks_the_private_ones_for_the_owner(self, client, part):
+    def test_the_list_shows_the_owner_which_are_private(self, client, part):
+        """By the Public switch, not pressed, rather than by a mark (ADR-0042)."""
         upload(client, "receipt.pdf", aid=card(part))
         rows = re.search(r'<ul class="filerows">.*?</ul>', client.get("/files").text, re.S)
-        assert rows and re.search(r'<span class="chip quiet"[^>]*>Private</span>', rows.group(0))
+        assert rows and re.search(
+            r'<button[^>]*aria-pressed="false"[^>]*>Public</button>', rows.group(0)
+        )
 
 
 class TestWhatKindOfFileItIs:

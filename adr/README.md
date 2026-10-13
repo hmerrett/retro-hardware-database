@@ -122,3 +122,8 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   *Accepted* (amends [0037](0037-each-label-is-set-up-for-its-job-and-the-stock-decides-its-shape.md))
 - [0040](0040-a-barcode-takes-the-room-the-words-leave.md) — A barcode takes the room
   the words leave — *Accepted*
+- [0041](0041-a-release-publishes-its-images.md) — A release publishes its images, and an
+  installation pulls them — *Accepted*
+- [0042](0042-a-file-row-carries-its-public-switch.md) — A file's row carries its
+  Public switch, and nothing else — *Accepted* (amends
+  [0028](0028-a-file-is-linked-to-the-things-it-is-for-by-their-ids.md))

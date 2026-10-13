@@ -1289,10 +1289,18 @@
   .filerow > .filetext { grid-area: text; min-width: 0; }
   .filerow > .fmeta { grid-area: meta; }
   .filerow > .btn { grid-area: dl; }
+  /* The Public switch (ADR-0042), for an account that can change files: a column of
+     its own before the download, and only where it is drawn, so a visitor's row has
+     no empty track and gap held open for it. */
+  .filerow:has(> .pubswitch) { grid-template-columns: 44px minmax(0, 1fr) auto auto auto;
+    grid-template-areas: "icon text meta pub dl"; }
+  .filerow > .pubswitch { grid-area: pub; position: relative; z-index: 1; }
   @media (max-width: 640px) {
     .filerow { column-gap: var(--space-3); grid-template-columns: 40px minmax(0, 1fr) auto;
       grid-template-areas: "icon text dl" "icon meta dl"; }
     .filerow > .fmeta { text-align: left; white-space: normal; }
+    .filerow:has(> .pubswitch) { grid-template-columns: 40px minmax(0, 1fr) auto auto;
+      grid-template-areas: "icon text pub dl" "icon meta pub dl"; }
   }
   /* The name is the way to the file's page, stretched over the whole row so the row
      can be tapped anywhere; what else on the row is a link or a title of its own

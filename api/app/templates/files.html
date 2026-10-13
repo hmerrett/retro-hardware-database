@@ -38,7 +38,7 @@
 {% endif %}
 
 {% if files %}
-{{ FR.rows(files, owner) }}
+{{ FR.rows(files, owner, edit=request.state.authed, here=request.url.path ~ ('?' ~ request.url.query if request.url.query else '')) }}
 {% elif counts.all %}
 <p class="muted">Nothing here matches. <a href="/files">Show all</a></p>
 {% else %}

@@ -2,25 +2,27 @@
    to, how big and how old, and a button that downloads it. Expects each file to
    have been through filesdb.with_links.
 
-   Nothing on a row changes anything. That is the whole design of the list: a row
-   used to carry six forms, and on a phone two files filled the screen with boxes
-   while the filename, the thing somebody came for, was the smallest part of it.
-   Everything done to a file is done on its own page, and the row is the way there:
-   its name is the link, stretched over the row, so the whole of it can be tapped.
-   The chips and the download sit above that stretch, and are links of their own.
+   One thing on a row changes anything: Public (ADR-0042). A row used to carry six
+   forms, and on a phone two files filled the screen with boxes while the filename,
+   the thing somebody came for, was the smallest part of it. Everything else done to
+   a file is done on its own page, and the row is the way there: its name is the
+   link, stretched over the row, so the whole of it can be tapped. The chips, the
+   switch and the download sit above that stretch, and are controls of their own.
 
    `chips` is whether to say what each file is linked to -- yes on /files, no in an
-   item's own panel, where the answer is the page it is on. #}
+   item's own panel, where the answer is the page it is on. `edit` is whether this
+   reader may change files, which is who gets the switch; `here` is the page the
+   list is on, which a press without script comes back to. #}
 {% import "_fileicons.html" as FI %}
 {% import "_ui.html" as U with context %}
-{% macro rows(files, authed, chips=true) %}
+{% macro rows(files, authed, chips=true, edit=false, here='') %}
 <ul class="filerows">
   {% for f in files %}
-  <li class="filerow">
+  <li class="filerow" id="file-{{ f.id }}">
     {{ FI.icon(f.what) }}
     <div class="filetext">
       <a class="fname" href="/files/{{ f.id }}">{{ f.filename }}</a>
-      {%- if authed and not f.public %} <span class="chip quiet" title="Kept back from visitors until it is ticked public on its page.">{{ 'Private' | ui }}</span>{% endif %}
+      {%- if authed and not edit and not f.public %} <span class="chip quiet" title="Kept back from visitors until it is published.">{{ 'Private' | ui }}</span>{% endif %}
       {% if f.note %}<div class="fnote">{{ f.note | linked }}</div>{% endif %}
       {% if chips %}
       {% if f.chips %}<div class="filechips">{% for c in f.chips %}<a class="chip" href="{{ c.page }}" title="{{ c.ids | join(', ') }}"><b>{{ c.label }}</b> {{ c.name }}</a>{% endfor %}</div>
@@ -28,6 +30,20 @@
       {% endif %}
     </div>
     <span class="fmeta">{{ f.what.size }}{% if f.created_at %} · {{ log_stamp(f.created_at, authed) }}{% endif %}</span>
+    {% if edit %}
+    {# Always the word Public, pressed while it is so: a word that swapped would leave
+       "Private" saying either what the file is or what pressing does. The form sends
+       the opposite of what is, and app.js sends it in place and turns the button;
+       without script it posts and comes back to this row. The name begins with the
+       word on show and says which file. #}
+    <form class="pubswitch" method="post" action="/files/{{ f.id }}/public" data-pubswitch
+          title="Pressed, visitors see it on the pages of what it is linked to, in the file list and at its own page. Not pressed, it is not found at all.">
+      <input type="hidden" name="next" value="{{ here }}#file-{{ f.id }}">
+      <input type="hidden" name="public" value="{{ '' if f.public else '1' }}">
+      <button class="btn sm{{ ' on' if f.public }}" type="submit" aria-pressed="{{ 'true' if f.public else 'false' }}"
+              aria-label="{{ 'Public' | ui }}, {{ f.filename }}">{{ 'Public' | ui }}</button>
+    </form>
+    {% endif %}
     {# A PDF or a text file is read where it is tapped (ADR-0030, ADR-0035);
        anything else is saved. The button's name says which file, since a list of
        them is a list of buttons all called the same thing otherwise. #}

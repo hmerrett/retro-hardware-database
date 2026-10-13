@@ -1536,6 +1536,39 @@ function combobox(box, list, pick) {
 })();
 
 
+// A file's Public switch on a list (ADR-0042) sends in place, so the list does not
+// move under the press: the answer comes back as JSON, and the button is turned and
+// the form made ready to send the opposite next time. Anything that goes wrong posts
+// the form the ordinary way, which comes back to the same row.
+(function () {
+  for (const form of document.querySelectorAll('form[data-pubswitch]')) {
+    const button = form.querySelector('button');
+    const want = form.elements.namedItem('public');
+    let busy = false;
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (busy) return;
+      busy = true;
+      try {
+        const r = await fetch(form.action, {
+          method: 'POST', body: new FormData(form), credentials: 'same-origin',
+          headers: { Accept: 'application/json' },
+        });
+        if (!r.ok) throw new Error(String(r.status));
+        const on = (await r.json()).public === true;
+        button.setAttribute('aria-pressed', on ? 'true' : 'false');
+        button.classList.toggle('on', on);
+        want.value = on ? '' : '1';
+      } catch (err) {
+        form.submit();
+      } finally {
+        busy = false;
+      }
+    });
+  }
+})();
+
+
 // Photos picked on a create form are held until it is submitted, so the picker
 // has to say what it is holding: the styled button covers the native input that
 // would otherwise name the files itself.
