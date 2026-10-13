@@ -113,3 +113,18 @@ class TestTheBuildIsToldItsCommit:
         told = script.index("RHDB_COMMIT=")
         assert "git rev-parse" in script[told : script.index("\n", told)]
         assert told < script.index("docker compose up -d --build")
+
+    def test_the_images_a_release_publishes_are_told_it(self):
+        """An installation that pulls has no repository to ask either, so the image
+        arrives knowing: the commit the release was tagged on (ADR-0041)."""
+        import yaml
+
+        workflow = yaml.safe_load((ROOT / ".github" / "workflows" / "publish.yml").read_text())
+        build = next(
+            step
+            for step in workflow["jobs"]["build"]["steps"]
+            if step.get("uses", "").startswith("docker/build-push-action@")
+        )
+        told = build["with"]["build-args"]
+        assert "matrix.image == 'api'" in told
+        assert "RHDB_COMMIT={0}" in told and "github.sha" in told

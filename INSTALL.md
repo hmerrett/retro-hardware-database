@@ -14,6 +14,9 @@ If you just want to poke at it on your laptop, skip to
 - **A machine to run it on.** Any Linux box will do. The smallest cloud instances
   are fine — a collection of a few hundred items with photographs is a couple of
   hundred megabytes. 1 GB of RAM is enough; 2 GB is comfortable.
+- **A 64-bit system**: x86-64, or 64-bit ARM, such as a Raspberry Pi running the
+  64-bit Raspberry Pi OS. Each release's images are published for both. 32-bit ARM
+  does not work, because MariaDB publishes no image for it.
 - **Docker and the Compose plugin.** Everything runs in containers, so nothing
   else needs installing: no Python, no database, no web server.
 - **A domain name** you can add a DNS record to, if you want it on the internet
@@ -53,9 +56,15 @@ that actually matters.
 ```sh
 git clone https://github.com/hmerrett/retro-hardware-database.git
 cd retro-hardware-database
+git checkout v0.2.0
 ```
 
-Any directory will do.
+Any directory will do. The last line chooses the release you run: use the newest,
+which `git tag --sort=-v:refname | head -1` names. Each release's app and tool server
+are published as images, so step 5 pulls them and nothing is built on your machine.
+
+To follow the code as it is written instead, stay on `main`. That is built rather
+than pulled, as [step 8](#8-keeping-it-up-to-date) describes.
 
 Your hostname, your credentials and your logo all live outside the repo — in
 `.env`, in `caddy/conf.d/` and in `branding/`, none of which are in git — so
@@ -86,6 +95,7 @@ Now edit `.env`. Every setting, and what it does:
 | `RHDB_BASE_URL` | The public URL of your site. Defaults to `https://$RHDB_DOMAIN`; set it only if they differ. |
 | `RHDB_WATERMARK` | `1` to watermark your own photos with your site logo as they are served, `0` to serve them untouched. The logo is whatever is in `branding/`, or the shipped placeholder. Also a setting on ⋯ → Settings; set here, this wins and the page says so. |
 | `RHDB_PRINT_AGENTS` | Label printers that are not attached to this machine, as `name:key:stock:format` separated by commas. Leave empty unless you are running a print agent — see the manual. |
+| `RHDB_VERSION` | Leave blank. Blank is the release you checked out, whose images step 5 pulls. A number here stays put when the checkout moves on, and the next pull would fetch that release's images for code they were not built from. |
 
 Two of these matter more than they look:
 
@@ -132,17 +142,26 @@ security group or firewall rule in their console as well as on the box itself.
 ## 5. Start it
 
 ```sh
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 ```
 
-The first run pulls the base images, builds the app, starts MariaDB, and creates
-the schema. Give it a minute, then:
+The first line fetches the images: the release's own app and tool server, built for
+your machine's architecture, and MariaDB, Caddy and GoAccess. Nothing is compiled
+or installed on your machine, and on a NAS or a Raspberry Pi that build was the
+slowest part of setting up. The second starts MariaDB, creates the schema and
+starts the rest. Give it a minute, then:
 
 ```sh
 docker compose ps                    # everything should say "running"
 docker compose logs -f api           # the app's own log
 curl -I https://db.example.com/      # should return 200
 ```
+
+On `main`, or a release from before 0.2.0, there are no published images of the code
+you have. Build them from the checkout instead, with `docker compose up -d --build`
+in place of both lines. That is also the answer if `pull` says an image must be
+built from source.
 
 If HTTPS is not working yet, `docker compose logs caddy` says why. The usual
 answers are that DNS has not propagated (`NXDOMAIN`), that the name still points
@@ -272,6 +291,24 @@ override that publishes the test stack's app on another port.
 
 ## 8. Keeping it up to date
 
+How depends on what you checked out in step 2.
+
+**A release** moves to a newer one by checking it out and pulling its images:
+
+```sh
+git fetch --tags
+git checkout v0.3.0
+docker compose pull
+docker compose up -d
+docker image prune -f
+```
+
+Read the release's entry in [CHANGELOG.md](CHANGELOG.md) first: anything an upgrade
+needs doing by hand is written there. **⋯ → Settings → Server** shows the release
+you are running, and the commit it was tagged on.
+
+**The code as it is written**, on `main`, is pulled and built:
+
 ```sh
 git pull --ff-only
 RHDB_COMMIT=$(git rev-parse --short HEAD) docker compose up -d --build
@@ -283,9 +320,15 @@ docker image prune -f
 shows it beside the release number, so you can see whether you are behind. Leave it
 off and the page shows the release alone.
 
+**Not both.** A build is named after the release it belongs to, which is also the
+name of the image that release published. So `docker compose pull` on a checkout
+that builds swaps your build for the release's image, which is older code than you
+were running. If your database was migrated past that release, the app stops at
+start, saying `Can't locate revision`, and `./deploy.sh` builds your code back.
+
 Schema changes ship with the code: the app container runs `alembic upgrade head`
-before it starts, so a `docker compose up -d --build` is the whole upgrade. There
-is no separate migration step to remember.
+before it starts, so pulling or building is the whole upgrade. There is no separate
+migration step to remember.
 
 Two things do **not** update that way:
 
@@ -296,7 +339,15 @@ Two things do **not** update that way:
 - **`.env`.** It is read when a container is created. After editing it, run
   `docker compose up -d` to recreate the containers that use it.
 
-To roll back a bad release:
+To roll back a bad release, check out the one before and pull it:
+
+```sh
+git checkout v0.2.0
+docker compose pull
+docker compose up -d
+```
+
+Following the code, check out the last good commit and build it instead:
 
 ```sh
 git log --oneline -n 10
@@ -305,7 +356,9 @@ docker compose up -d --build
 ```
 
 The database is not rolled back with it. If a migration was the problem,
-`docker compose exec api alembic downgrade -1`.
+`docker compose exec api alembic downgrade -1`. Do that before you go back, while
+the newer app is still running. The older one does not know the newer migrations,
+so it can neither undo them nor start past them.
 
 ## 9. Making it yours
 
@@ -483,6 +536,9 @@ DATABASE_URL=mysql+pymysql://retro:<your DB_PASSWORD>@127.0.0.1:3306/retro \
 | HTTPS fails, HTTP works | `docker compose logs caddy` — almost always DNS, or port 80 blocked. |
 | A 500 from the app | `docker compose logs api` — the traceback is at the end. |
 | The app will not start, database errors | `docker compose logs db`. On a first run the app waits for the database's health check; give it a minute. |
+| `docker compose pull` says an image must be built from source | There are no published images for that release: it is from before 0.2.0, or `RHDB_VERSION` names one that was never published. Check out a newer release (step 2), or build with `docker compose up -d --build`. |
+| `pull` says `no matching manifest for linux/arm/v7` | A 32-bit system. The images are 64-bit only, as MariaDB's are; a Raspberry Pi needs the 64-bit Raspberry Pi OS. |
+| After a pull, the app stops at start: `Can't locate revision` | The database was migrated by newer code than the release you pulled, usually a build of `main`. `./deploy.sh` builds that code back (step 8). |
 | Logged in but no edit buttons | The account is a viewer. `docker compose exec api python -m app.accounts list` says which role each has. |
 | Locked out, every password lost | `docker compose exec api python -m app.accounts password <username>` sets a new one. |
 | The site shows only **Set up** after an upgrade | It has no accounts, and `RHDB_AUTH_USER` / `RHDB_AUTH_PASSWORD` did not reach it on the first start. Use the setup code, or set them and restart. |

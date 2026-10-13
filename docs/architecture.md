@@ -94,7 +94,9 @@ Three kinds of thing live in the register:
                                 a Pydantic model rendered as JSON for `/api/*`
 
 MariaDB and the MCP server sit alongside, also on localhost. The whole stack is
-Docker Compose. **Migrations run at container start** — `entrypoint.sh` runs
+Docker Compose. A release publishes the app's image and the MCP server's to GHCR
+for amd64 and arm64, and an installation pulls them or builds the same images from
+its checkout (ADR-0041). **Migrations run at container start** — `entrypoint.sh` runs
 `alembic upgrade head` before uvicorn — so a deploy that carries a schema change
 applies it on the way up.
 
@@ -275,7 +277,8 @@ Outside `api/`:
 - `tools/` — operator scripts with their own venv: backups, label sheets, imports,
   reports. Not imported by the app.
 - `mcp/` — an MCP server, a separate compose service, so an assistant can read and
-  write the register over HTTP.
+  write the register over HTTP. Its dependencies are locked in `mcp/uv.lock`, as
+  the app's are.
 - `caddy/` — the reverse proxy. `branding/` and `.env` — this installation's own
   identity and secrets, never in git.
 

@@ -55,6 +55,12 @@ Two consequences:
 
 ### 2. Your Mac is arm64 and the nodes are amd64
 
+> From 0.2.0, each release's images are published for amd64 and arm64 at
+> `ghcr.io/hmerrett/retro-hardware-database/api` and `.../mcp` (ADR-0041). A cluster
+> that runs a release can point its deployments at those and skip the rest of this
+> section and the registry in §3. What follows is for running code that is not a
+> release.
+
 Civo's nodes are amd64 Alpine. Building on an Apple Silicon Mac gives you an
 arm64 image that the nodes cannot run, and `--platform linux/amd64` under
 emulation is painfully slow for anything that compiles (Pillow, reportlab).
@@ -66,7 +72,7 @@ No Docker Desktop, no Docker Hub account, no QEMU.
 ```bash
 # Package only what the Dockerfile actually COPYs
 cd api
-tar czf /tmp/api-context.tgz Dockerfile requirements.txt app alembic.ini \
+tar czf /tmp/api-context.tgz Dockerfile pyproject.toml uv.lock app alembic.ini \
     migrations entrypoint.sh fix-volumes.sh
 
 BK=$(kubectl get pod -n rhdb-build -l app=buildkit -o jsonpath='{.items[0].metadata.name}')

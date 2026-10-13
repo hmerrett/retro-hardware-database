@@ -39,6 +39,12 @@ services:
   # root's -- and it changes nothing when nothing is wrong. `docker compose ps -a`
   # shows it as exited, which is what finished looks like for this one.
   api-init:
+    # The image a release publishes (ADR-0041), which `docker compose pull` fetches
+    # so that an installation builds nothing. The build below makes the same image
+    # from this checkout, under the same name, for an installation that builds
+    # instead, as deploy.sh does. The tag is the release this checkout is, which the
+    # suite holds to api/app/__init__.py, unless .env sets RHDB_VERSION to another.
+    image: &api-image ghcr.io/hmerrett/retro-hardware-database/api:${RHDB_VERSION:-0.1.0}
     build: &api-build
       context: ./api
       # The commit, so Settings can say which build is running (MANUAL §19).
@@ -53,6 +59,7 @@ services:
       - files:/app/files
 
   api:
+    image: *api-image
     build: *api-build
     restart: unless-stopped
     environment:
@@ -90,6 +97,8 @@ services:
         condition: service_completed_successfully
 
   mcp:
+    # Published beside the app's, under the same release (see api-init).
+    image: ghcr.io/hmerrett/retro-hardware-database/mcp:${RHDB_VERSION:-0.1.0}
     build: ./mcp
     restart: unless-stopped
     environment:

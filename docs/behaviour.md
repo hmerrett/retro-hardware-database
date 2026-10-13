@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2972 behaviours, from 89 files.*
+*2988 behaviours, from 90 files.*
 
 
 ## A barcode takes the room the words leave
@@ -5218,6 +5218,45 @@ Regenerate with:
 - they are there when a card is edited as well
 
 
+## The published images
+
+*test_the_published_images.py — 15 behaviours*
+
+
+**Compose names the published images**
+
+- each service built here names the image a release publishes  
+  api-init runs the app's image before the app starts, so the two name one image and one pull serves both.
+- unless told otherwise the tag is the release this checkout is  
+  So a checkout of a release's tag pulls that release's images.
+- an installation that builds rather than pulls still can  
+  deploy.sh builds from the checkout, under the same names, so to `docker compose up` a build and a pull are the same image.
+- a new env leaves the release to the checkout  
+  A number copied into .env would stay behind when the checkout moved on, and the next pull would fetch the old release's images for the new code.
+
+**A release publishes them**
+
+- a release tag starts it
+- both images are built for both architectures
+- each architecture is built on its own  
+  Not one runner pretending to be the other: under emulation, the arm64 half of a build takes far longer than the amd64 half.
+- the tags are the release and nothing that floats  
+  0.2.0 and 0.2, and never latest: like every other image in the compose file, it changes when an installation says so.
+- a tag that is not the release the code names publishes nothing  
+  The Settings page names the release from __version__, so an image published under another number would tell its administrator the wrong version.
+- a pull request builds them and pushes nothing  
+  A lockfile or a Dockerfile meets arm64 in review, not on release day.
+- every action is pinned to a commit  
+  This workflow can publish under the project's name, and a tag can be moved under it.
+
+**The tool server is built from its lockfile**
+
+- its dependencies are pinned
+- the tree behind them is locked
+- its image installs the lock and nothing else
+- dependabot keeps it current as it does the apps
+
+
 ## The three steps
 
 *test_the_three_steps.py — 8 behaviours*
@@ -5248,7 +5287,7 @@ Regenerate with:
 
 ## The version that is running
 
-*test_the_version_that_is_running.py — 10 behaviours*
+*test_the_version_that_is_running.py — 11 behaviours*
 
 
 **The server tab says which version**
@@ -5276,6 +5315,8 @@ Regenerate with:
 - compose passes it to both builds of the api  
   api-init builds the same image; told something different, it would be a second build of it.
 - deploy sh tells it
+- the images a release publishes are told it  
+  An installation that pulls has no repository to ask either, so the image arrives knowing: the commit the release was tagged on (ADR-0041).
 
 
 ## Tree

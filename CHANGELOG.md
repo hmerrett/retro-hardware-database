@@ -7,11 +7,31 @@ has to take by hand. Work with no outward face — a router extraction, a lockfi
 a test — stays in the git history, which is where it is useful.
 
 Versions are [semantic](https://semver.org), and the version has one home,
-`api/app/__init__.py`. Upgrading is `./deploy.sh`: migrations run as the app
-starts, so a schema change needs no step of its own. Anything that does need a
-hand is written under the release that needs it.
+`api/app/__init__.py`. `docker-compose.yml` names the published images by it, and
+the suite fails until the two agree. An installation on a release upgrades by
+checking out the next one and pulling its images; one that follows the code as it
+is written upgrades with `./deploy.sh` (INSTALL.md §8). Either way migrations run
+as the app starts, so a schema change needs no step of its own. Anything that does
+need a hand is written under the release that needs it.
 
 ## Unreleased
+
+**Each release is published as images, so an installation no longer builds them.**
+When a release is made, the app and the tool server are built for x86-64 and 64-bit
+ARM and published at `ghcr.io/hmerrett/retro-hardware-database`. Installing one is
+now a checkout of its tag, `docker compose pull` and `docker compose up -d`, and
+nothing is compiled on your machine. On a NAS or a Raspberry Pi, that build was the
+slowest part of setting up. Settings → Server shows a pulled image's release and the
+commit it was tagged on. This is the first release with images, and INSTALL.md now
+walks through installing from them.
+
+**Upgrading:** nothing to do. `./deploy.sh` builds from the code as before, under the
+images' new names, which leaves the images built before this under their old ones;
+`docker image rm retro-hardware-database-api retro-hardware-database-api-init
+retro-hardware-database-mcp` reclaims the space. To move a box that builds onto the
+published images, check out the newest release and pull it (INSTALL.md §8). Do it
+when that release is at least as new as the code the box was running, or the app
+stops at start on a migration it does not know.
 
 **A barcode takes the room the words leave.** The bars on a label used to be a
 fixed band across the bottom, whatever was written above them. Now the words print

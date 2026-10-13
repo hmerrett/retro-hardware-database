@@ -5,6 +5,12 @@ The runbook for a server you have already installed on (see
 docker-compose, which holds a normal git checkout of this repo, so deploying is:
 get the new code onto the box, then rebuild the containers.
 
+This is for a box that follows the code as it is written, on `main`, and builds it.
+A box that runs a release pulls that release's published images instead, and
+upgrades by checking out the next one: [INSTALL.md §8](INSTALL.md#8-keeping-it-up-to-date).
+Do one or the other. A pull on a box that builds replaces its build with the
+release's older image.
+
 Everything about *your* box -- its name, its passwords, its logo, any extra names
 Caddy answers -- is in `.env`, `caddy/conf.d/` and `branding/`, none of which are in
 git. So the commands below are the same wherever it is installed, and where one
