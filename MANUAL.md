@@ -327,7 +327,8 @@ What an item page says by how it looks, it also says in words.
 - **The code under the photographs** is a picture named *Code for this page, to
   add photographs from a phone*.
 - **What happens without you is read out**, without moving you from where you
-  are: *Uploading…* as soon as photographs or files have been chosen, and *This
+  are: each photograph's row as it changes (*Uploading*, *Added*, *Not added* and
+  why), *Uploading…* as soon as files have been chosen, and *This
   record has changed* when the page is waiting for you to
   [reload it](#when-it-changes-while-you-are-looking-at-it).
 
@@ -643,9 +644,9 @@ both columns, and under it the main column holds one tab's panels:
 - **Files** — with how many.
 - **History** — with how many lines.
 
-The head of the page and the side column — the photographs, the code for a phone,
-the label and the disposal box — stay as they are whichever tab is open, so
-**Details** and **Photographs** still start level. Each tab is a link with an
+The head of the page and the side column — the photographs with the code for a
+phone, the label and the disposal box — stay as they are whichever tab is open,
+so **Details** and **Photographs** still start level. Each tab is a link with an
 address of its own, `?tab=files`, so a tab can be bookmarked or sent, and the tabs
 work with JavaScript switched off. Sending anything from the page — a note, a file,
 a job, a photograph — brings you back to the tab you sent it from.
@@ -1489,15 +1490,40 @@ the next because of a photograph's shape. An item nobody has photographed has a
 frame of the same shape, holding the drawing its gallery card wears and the words
 *No photograph yet.*
 
-**Add photos** and choose the files — that is the whole gesture, the upload goes
-as soon as they are picked. Several at once is fine.
+**Adding photographs.** Logged in, the place after the last thumbnail is a tile
+with a plus, **Add photos**; an item with no photograph yet has it under the
+drawing. Press it and choose one photograph or several: they upload as soon as
+they are chosen, with nothing else to press. On a desktop you can drop them onto
+the tile instead. Each gets a row while it goes, with its picture, its name and
+where it is in a word: **Uploading** with a bar, **Added**, or **Not added** and
+why. Where trying again could help — the connection dropped, or the server did not
+answer — the row has **Try again**. A file that is not a photograph is not added,
+and nor is a photograph of a kind the register does not keep: it keeps JPEG, PNG,
+WebP and GIF, and the row says which it was. They go one after another, in the
+order you chose them, and when every one is added the page shows them. If one is
+not added, its row stays and the page offers **Reload** rather than reloading
+under it. If you were logged out in the meantime, the row says to log in again:
+nothing is shown as added that was not.
 
-**From a phone.** Under an item's photographs is a QR code of its own URL, in a
-panel of its own, **From your phone**, shown only when you are logged in (a visitor
-has nothing to upload with) and not on a screen as narrow as a phone's, which is
-already where it leads. Scan it and the phone is on that item, where choosing a
-photo shoots it or picks it from the camera roll. A phone that arrives not logged in is put back on the item after
-logging in, rather than dumped on the gallery.
+Each one added is a line in the history, *added a photo*, and a run of them
+reads *added 3 photos*.
+
+**On a touchscreen**, the tile reads **Choose photos**, for pictures already
+taken, several at once, and **Take photo** stands under the photographs. It opens
+the camera, and the photograph uploads as soon as you keep it: one tap from the
+item's page to the shutter, which is the point of scanning its label to get there.
+
+**From a phone.** Logged in on a desktop, the panel ends in a code of the page's
+own address: *On your phone — scan to open this page there, then Take photo.*
+Scan it and the phone is on that item, with **Take photo** under your thumb. A
+visitor is not shown it, having nothing to upload with, and nor is a screen as
+narrow as a phone's, which is already where it leads. A phone that arrives not
+logged in is put back on the item after logging in, rather than dumped on the
+gallery.
+
+With no script running, the panel is a plain form: choose the photographs and
+press **Upload**. Any that could not be kept are named at the top of the panel
+when the page comes back, and the rest are added.
 
 **In the full-size view**, logged in, a toolbar under the photograph edits it. The
 photographs on the item page carry no buttons of their own: open one, and its tools
