@@ -71,8 +71,10 @@ under this project's name. Dependabot moves the pins, and now watches `mcp/` too
   INSTALL.md says so.
 - 32-bit ARM stays out. It never worked, because MariaDB publishes no image for it.
 - A release moves the version in one more file, `docker-compose.yml`, and the suite
-  fails until it does. GitHub creates a new package private, so after the first
-  release each is made public once, by hand.
+  fails until it does. Nothing about the packages is set by hand: the first publish,
+  `v0.2.0-rc.1`, created both public and linked to this repository. This record
+  first said a new package started private and would be made public once, which
+  that publish showed was not so.
 - The first release with images is 0.2.0. `v0.1.0` has no workflow to build it and
   no compose file that names an image, so it is not backfilled.
 - Revisit if an installation needs another registry, or another architecture.
