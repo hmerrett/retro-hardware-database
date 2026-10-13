@@ -274,11 +274,14 @@ override that publishes the test stack's app on another port.
 
 ```sh
 git pull --ff-only
-docker compose up -d --build
+RHDB_COMMIT=$(git rev-parse --short HEAD) docker compose up -d --build
 docker image prune -f
 ```
 
 `./deploy.sh` does exactly those three things and then tails the app log.
+`RHDB_COMMIT` tells the build which commit it is, and **⋯ → Settings → Server**
+shows it beside the release number, so you can see whether you are behind. Leave it
+off and the page shows the release alone.
 
 Schema changes ship with the code: the app container runs `alembic upgrade head`
 before it starts, so a `docker compose up -d --build` is the whole upgrade. There

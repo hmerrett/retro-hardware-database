@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
 from starlette.datastructures import FormData
 
-from .. import labelpreview, labels, settings
+from .. import __version__, common, labelpreview, labels, settings
 from ..db import get_db
 from ..forms import Posted, posted
 from ..web import templates
@@ -68,6 +68,10 @@ def _page(request: Request, path: str, saved: int) -> Response:
             # something greyed on this tab to explain.
             "pinned_any": any(settings.pinned(d) is not None for d in rows),
             "saved": bool(saved),
+            # Which build this is, at the foot of Server: an administrator's question,
+            # asked where only an administrator is (MANUAL §19).
+            "version": __version__ if section == settings.SERVER else None,
+            "commit": common.BUILD_COMMIT,
             "noindex": True,
         },
     )

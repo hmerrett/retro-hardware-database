@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2962 behaviours, from 88 files.*
+*2972 behaviours, from 89 files.*
 
 
 ## A barcode takes the room the words leave
@@ -5244,6 +5244,38 @@ Regenerate with:
   Two different states that both draw no cards.
 - the steps are the front page and not every empty grid  
   /for-sale draws the same grid from a narrowed list, and an empty one of those is a filter that matched nothing rather than a new installation.
+
+
+## The version that is running
+
+*test_the_version_that_is_running.py — 10 behaviours*
+
+
+**The server tab says which version**
+
+- it names the release and the commit
+- a build not told its commit names the release alone  
+  It has no way to find out, and a guess would be worse than nothing.
+- it is on the server tab and not the others
+
+**Only an administrator sees it**
+
+- a visitor does not
+- a viewer does not
+
+**What counts as A commit**
+
+- a commit hash is shortened and anything else is dropped  
+  Seven characters is what git shows and what a reader compares by eye.
+
+**The build is told its commit**
+
+- the image takes it as a build argument and keeps it
+- it comes after everything it would invalidate  
+  An argument that changes on every build invalidates every layer after it, so it is the last thing the image is given: before it, the dependency tree and the code are cached as they always were.
+- compose passes it to both builds of the api  
+  api-init builds the same image; told something different, it would be a second build of it.
+- deploy sh tells it
 
 
 ## Tree
