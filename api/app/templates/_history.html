@@ -42,7 +42,7 @@
       {#- Ids on the date and the words, so the line's buttons can be named by them:
           a delete on every line called "Delete history entry" says which one it is
           only to somebody who can see where it sits. -#}
-      <dt class="logwhen" id="log-{{ e.id }}-when">{{ log_stamp(e.created_at, request.state.sees_private) }}</dt>
+      <dt id="log-{{ e.id }}-when">{{ log_stamp(e.created_at, request.state.sees_private) }}</dt>
       <dd>
         <div class="logline">
           {# A photograph entry has no words in it: the chip is the whole of the

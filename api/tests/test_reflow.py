@@ -20,10 +20,8 @@ from pathlib import Path
 
 import pytest
 
-STYLESHEET = Path(__file__).parents[1] / "app" / "static" / "app.css"
-# v0.2's tables stack by the `.table.stack` rule, which lives here; a page moved
-# onto it has left app.css, so the two are read together until app.css is gone.
-COMPONENTS = STYLESHEET.parent / "css" / "components.css"
+# The tables stack by the `.table.stack` rule.
+COMPONENTS = Path(__file__).parents[1] / "app" / "static" / "css" / "components.css"
 
 # A 320px phone spends 24 of it on the page's gutters. Four columns would have 74
 # each, which is five characters of a monospace font and a padding either side.
@@ -132,7 +130,7 @@ def pages(ids):
 def test_no_list_is_wider_than_the_phone_it_is_read_on(client, furnished):
     """The invariant, stated once over every page that has a table on it: more
     columns than fit means the table has been given one of the two answers."""
-    css = STYLESHEET.read_text(encoding="utf-8") + COMPONENTS.read_text(encoding="utf-8")
+    css = COMPONENTS.read_text(encoding="utf-8")
     too_wide = []
     for path in pages(furnished):
         page = client.get(path)

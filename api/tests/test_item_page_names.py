@@ -328,12 +328,6 @@ class TestTheBannersAreDifferentKindsOfNews:
         assert b.classes() == {"banner"}
         assert b.text().startswith("Build walk.")
 
-    def test_a_plain_banner_is_drawn_plain(self):
-        """The rule that drew every banner without a tone in the danger colours was
-        0.1's, from before a plain one existed."""
-        css = (APP / "static" / "app.css").read_text()
-        assert not re.search(r"(?m)^\s*\.banner[:\s{]", css)
-
     def test_every_banner_is_one_of_the_design_systems(self):
         """A tone the stylesheet does not draw is drawn as plain, which is how
         `warn` came to be a refusal with nothing to mark it as one."""

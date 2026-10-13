@@ -6296,7 +6296,7 @@ class TestPhotographsOnTheHistory:
         [row] = self.notes(db, aid)
         [rel] = self.shots(db, row.id)
         page = client.get(f"/computers/{aid}").text
-        stamp = page[page.index('<dt class="logwhen"') :]
+        stamp = page[page.index('<dt id="log-') :]
         assert f"/images/{rel}" not in stamp[: stamp.index("</dt>")]
         assert page.index('class="logmsg"') < page.index(f"/images/{rel}")
 

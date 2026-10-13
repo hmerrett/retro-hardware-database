@@ -84,7 +84,7 @@ The theme is **defence in depth**: several cheap layers, none relied on alone.
 - **New markup fits the policy, and the suite says so.** No inline `<script>`
   (a data island carries values instead — `type="application/json"`), no `on*=`
   handler (delegate from a static file, as `data-confirm` and `data-ticksend` do), no
-  `style` attribute and no `<style>` block (a class in `app.css`; a value the
+  `style` attribute and no `<style>` block (a class in `components.css`; a value the
   template works out names a rule generated into `/style/data.css` by
   `datacss.py`), no `javascript:` URL, nothing loaded from another origin. `test_content_security_policy.py`
   walks the rendered pages for each of those, because a violation is silent in

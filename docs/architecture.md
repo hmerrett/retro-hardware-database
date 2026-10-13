@@ -268,7 +268,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 
 Outside `api/`:
 
-- `api/app/templates/` — 39 Jinja2 templates. `api/app/static/` — the stylesheet
+- `api/app/templates/` — the Jinja2 templates. `api/app/static/` — the stylesheets
   and scripts, moved out of `base.html` so they can be cached — and that move is
   what made the content policy in `main.py` possible, there being nothing inline
   left to have to allow.
@@ -364,12 +364,17 @@ breaking one turns CI red rather than merely being wrong.
   speak the environment wins and the page says which variable holds it, because a
   click that the next restart forgets is a fault nobody can find.
   *(ADR-0023, enforced: `test_settings.py`)*
+- **The look is the token files, `components.css`, `utilities.css` and
+  `/style/data.css`.** One vocabulary and no cascade layer: there is no second
+  stylesheet whose rules outrank the design system's, and every class a page writes
+  is one of those files draws or a named script hook. *(ADR-0031, enforced:
+  `test_stylesheet_lint.py`)*
 - **Touch controls are 16px.** iOS zooms the page when it focuses a control whose
   text is smaller, and does not zoom back out. Any rule that sizes a control must
-  be restated in the `@media (pointer: coarse)` block. *(enforced:
+  be restated in a `@media (pointer: coarse)` block of `components.css`. *(enforced:
   `test_stylesheet.py`)*
-- **Action colours clear 4.5:1 in both themes**, computed from the theme
-  variables. *(enforced: `test_stylesheet.py`)*
+- **Every colour pair clears its floor in every preset and mode**, computed from
+  the design data. *(enforced: `test_presets.py`, `test_stylesheet.py`)*
 - **The suite runs on MariaDB and builds its schema from the real migrations.**
   There is no SQLite path to fall back to. *(ADR-0008)*
 - **The models describe the schema the migrations build, and nothing else.**
@@ -388,7 +393,7 @@ breaking one turns CI red rather than merely being wrong.
   steps. `stats.py`, `search.py`, `photos.py`, `common.py` and `projects.py` came
   out that way, and `routers/` holds the rest.
 - **The content policy is `'self'` in every directive**, with no token anywhere:
-  the 69 `style` attributes are classes in `app.css`, and the two whose values are
+  the 69 `style` attributes are classes in the stylesheets, and the two whose values are
   data — a bezel's swatch, a bar's length — name rules generated into
   `/style/data.css` (ADR-0021, ADR-0022). A new kind of data-valued rule goes in
   `datacss.py`; `test_content_security_policy.py` is what stops it going into the

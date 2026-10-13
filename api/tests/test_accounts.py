@@ -492,7 +492,9 @@ class TestAClosedSite:
         log_out(client)
         assert client.get("/images/parts/x.jpg", follow_redirects=False).status_code == 303
 
-    @pytest.mark.parametrize("path", ["/login", "/healthz", "/static/app.css", "/robots.txt"])
+    @pytest.mark.parametrize(
+        "path", ["/login", "/healthz", "/static/css/components.css", "/robots.txt"]
+    )
     def test_what_has_to_stay_open_does(self, client, path):
         close_the_site(client)
         log_out(client)

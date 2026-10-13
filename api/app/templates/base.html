@@ -62,7 +62,6 @@
    Always linked -- it also carries the faces the accent picker is drawn with, which
    are wanted whether or not an accent has been chosen. #}
 <link rel="stylesheet" href="/style/accent.css?v={{ accent_ver() }}">
-<link rel="stylesheet" href="/static/app.css?v={{ css_ver }}">
 <link rel="stylesheet" href="/static/css/components.css?v={{ components_ver }}">
 <link rel="stylesheet" href="/static/css/utilities.css?v={{ utilities_ver }}">
 <link rel="stylesheet" href="/style/data.css?v={{ data_css_ver }}">
@@ -103,9 +102,7 @@
     and its gutters come from. Its width is the page's own decision, stated in the
     width block: ` wide` for the lists and forms, nothing for a page you read, and
     test_page_width.py lists every page as one or the other so a new one is decided
-    rather than defaulted. A page on the v0.2 components adds v2 through main_class,
-    which the 0.1 rules in app.css that share its class names stand back from. That
-    half is transitional: it goes with app.css, and the width outlives it. #}
+    rather than defaulted. #}
 {#- What this page is called by the way back of a page opened from it (MANUAL §2,
     "The way back"): Browse, a tag, Might sell. A page that names nothing -- a form,
     Settings -- is not somewhere a way back leads. backtitle is what a tag stands for,
@@ -113,7 +110,7 @@
     page states its name in a block of its own like its title. -#}
 {% if false %}{% block backname %}{% endblock %}{% block backtitle %}{% endblock %}{% endif -%}
 {% set _bn = self.backname() | trim %}{% set _bt = self.backtitle() | trim -%}
-<main id="main" tabindex="-1" class="page{% block width %}{% endblock %}{% block main_class %}{% endblock %}"
+<main id="main" tabindex="-1" class="page{% block width %}{% endblock %}"
   {%- if _bn %} data-backname="{{ _bn }}"{% endif %}{% if _bt %} data-backtitle="{{ _bt }}"{% endif %}>{% block content %}{% endblock %}</main>
 {% if _nav == 'side' %}</div></div>{% endif %}
 

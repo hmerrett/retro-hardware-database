@@ -19,7 +19,6 @@ from test_projects import make as make_project
 from test_settings import save
 
 COMPONENTS = Path(__file__).parents[1] / "app" / "static" / "css" / "components.css"
-STYLESHEET = Path(__file__).parents[1] / "app" / "static" / "app.css"
 
 
 def suggest(client, q):
@@ -303,7 +302,7 @@ class TestOnAPhone:
         assert re.search(r'class="[^"]*\bsuggest\b', tag), tag
 
     def test_no_rule_is_left_for_the_old_list(self):
-        text = re.sub(r"/\*.*?\*/", "", STYLESHEET.read_text(encoding="utf-8"), flags=re.S)
+        text = re.sub(r"/\*.*?\*/", "", COMPONENTS.read_text(encoding="utf-8"), flags=re.S)
         assert "#suggest" not in text
 
     def test_the_list_spans_the_width_under_the_banner(self):

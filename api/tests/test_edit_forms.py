@@ -64,7 +64,7 @@ class TestTheLayout:
     def test_every_form_is_on_the_v2_components(self, client, forms, which):
         page = client.get(forms[which]).text
         # A form is one of the wide pages (MANUAL: "On a wide screen").
-        assert '<main id="main" tabindex="-1" class="page wide v2">' in page
+        assert '<main id="main" tabindex="-1" class="page wide">' in page
         assert '<form class="editform"' in page
         assert re.search(r'<fieldset class="fieldset"[ >]', form_of(page))
 

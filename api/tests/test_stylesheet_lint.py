@@ -15,7 +15,6 @@ import pytest
 CSS = Path(__file__).parents[1] / "app" / "static" / "css"
 COMPONENTS = CSS / "components.css"
 UTILITIES = CSS / "utilities.css"
-LEGACY = CSS.parent / "app.css"
 
 # The CSS named colours, less `transparent` and `currentcolor`, which name no hue.
 NAMED = frozenset(
@@ -176,70 +175,109 @@ def test_the_one_wordless_band_is_still_there():
     assert WORDLESS_BAND - painted == set()
 
 
-@pytest.mark.parametrize("path", [COMPONENTS, UTILITIES], ids=lambda p: p.name)
-def test_while_app_css_is_here_it_outranks_the_new_stylesheets(path):
-    """The templates move over a group at a time, and until a group has moved its
-    0.1 rules have to win wherever a class name is shared -- .btn, .panel and fifty
-    more. A cascade layer does that whatever the specificity; this holds the
-    stylesheets inside it until app.css is deleted, when the layer comes off."""
-    if not LEGACY.exists():
-        pytest.skip("app.css has gone, and the layer with it")
-    body = text(path).strip()
-    assert body.startswith("@layer v2 {") and body.endswith("}")
-
-
-# What app.css is held to while it lasts. These go with it.
 APP = CSS.parent.parent
 TEMPLATES = APP / "templates"
 
 
-def test_every_page_is_drawn_with_the_v0_2_components():
-    """A page not marked v2 is drawn by app.css's 0.1 rules, which is what keeps them
-    here. With every page across, those rules have nothing left to draw."""
-    on_0_1 = sorted(
-        t.name
-        for t in TEMPLATES.glob("*.html")
-        if '{% extends "base.html" %}' in (body := t.read_text(encoding="utf-8"))
-        and "{% block main_class %} v2{% endblock %}" not in body
-    )
-    assert on_0_1 == [], "these pages are still drawn by app.css"
+def test_the_design_system_is_the_whole_of_the_styling():
+    """The look is the token files, components.css, utilities.css and the generated
+    /style/data.css: one vocabulary, and no second stylesheet outranking it. app.css
+    held 0.1's rules while the pages moved over, and the v0.2 files sat in a cascade
+    layer beneath it so that its rules won wherever a class name was shared."""
+    assert not (CSS.parent / "app.css").exists()
+    linked = "".join(t.read_text(encoding="utf-8") for t in TEMPLATES.rglob("*.html"))
+    assert "app.css" not in linked
+    assert "main_class" not in linked
+    for path in (COMPONENTS, UTILITIES):
+        assert "@layer" not in text(path), f"{path.name} is still inside a layer"
 
 
-def test_app_css_keeps_no_rule_for_a_page_on_0_1():
-    if not LEGACY.exists():
-        pytest.skip("app.css has gone")
-    assert "main:not(.v2)" not in text(LEGACY)
+# Classes that draw nothing on purpose, each a name a rule could be written for and
+# is not. Most are how a script finds its element; the rest are states the
+# stylesheet has nothing to say about.
+HOOKS = {
+    # app.js: the full-size view's tool forms, the share, reload and theme buttons,
+    # and every button that opens the scanner.
+    "lb-act",
+    "js-share",
+    "js-reload",
+    "js-theme",
+    "scan-open",
+    # part-form.js: the questions a kind of part asks, shown for that kind alone.
+    "ask",
+    # storage.js: the words of the audit's panel, rewritten with each scan.
+    "words",
+    # The figures' coverage line, which test_api.py reads the counts out of.
+    "cover",
+    # The audit's panel before anything is scanned, which is the panel as drawn.
+    "tone-idle",
+    # The tab an item page is on. Only Details changes anything (the photographs
+    # come with it on a phone); the others are said so a rule could ask.
+    "on-files",
+    "on-history",
+    "on-work",
+}
 
 
-def test_app_css_draws_no_class_that_nothing_writes():
-    """A rule for a class no template, script or module names is a rule nobody can
-    see, and one more thing to read past on the way to deleting the file. The
-    search is loose -- the class's name anywhere in the source -- so it can only
-    miss a dead rule, never call a live one dead."""
-    if not LEGACY.exists():
-        pytest.skip("app.css has gone")
-    heads = "".join(re.findall(r"([^{}]+)\{", text(LEGACY)))
-    drawn = set(re.findall(r"\.(-?[a-zA-Z_][\w-]*)", heads))
-    source = "\n".join(
-        p.read_text(encoding="utf-8")
-        for pattern in ("*.html", "*.js", "*.py")
-        for p in APP.rglob(pattern)
-        if "vendor" not in p.parts
-    )
-    unwritten = sorted(
-        c for c in drawn if not re.search(rf"(?<![\w-]){re.escape(c)}(?![\w-])", source)
-    )
-    assert unwritten == [], "app.css draws these, and nothing writes them"
+def written_classes(page: str) -> set[str]:
+    return {c for value in re.findall(r'\sclass="([^"]*)"', page) for c in value.split()}
 
 
-def test_app_css_draws_nothing():
-    """Everything it drew is in the design system now: the buttons outside <main>,
-    the photo column, the history line, the scanner, the page-wide rules. What is left
-    is the 0.1 colour names the contrast tests are still written on, and no rule
-    that styles anything."""
-    if not LEGACY.exists():
-        pytest.skip("app.css has gone")
-    heads = [" ".join(h.split()) for h in re.findall(r"([^{}]+)\{", text(LEGACY))]
-    assert heads == [":root"]
-    names = [p for _, p, _ in declarations(LEGACY)]
-    assert names and all(p.startswith("--") for p in names), names
+def literal_classes(template: str) -> set[str]:
+    """The classes a template writes in words, outside any `{{ }}` or `{% %}`: the
+    ones a page might not render on the day the suite looks."""
+    found = set()
+    for value in re.findall(r'\sclass="([^"]*)"', template):
+        # A name built round an expression -- `tone-{{ t }}` -- is the page's to say.
+        bare = re.sub(r"\{\{.*?\}\}|\{%.*?%\}", "\0", value)
+        found |= {c for c in bare.split() if re.fullmatch(r"-?[a-zA-Z_][\w-]*", c)}
+    return found
+
+
+def script_classes() -> set[str]:
+    """What the scripts put on an element by name: classList calls and className."""
+    found = set()
+    for path in (APP / "static").glob("*.js"):
+        js = path.read_text(encoding="utf-8")
+        for args in re.findall(r"classList\.(?:add|remove|toggle|contains)\(([^)]*)\)", js):
+            found |= set(re.findall(r"['\"]([\w-]+)['\"]", args))
+        for value in re.findall(r"className\s*=\s*['\"]([^'\"]*)['\"]", js):
+            found |= set(value.split())
+        for value in re.findall(r'class="([^"$]*)"', js):
+            found |= set(value.split())
+    # `'tone-' + said.tone` is a name the script finishes with a value.
+    return {c for c in found if not c.endswith("-")}
+
+
+def drawn_classes() -> set[str]:
+    from app.datacss import DATA_CSS
+
+    sheets = text(COMPONENTS) + text(UTILITIES) + DATA_CSS
+    heads = "".join(re.findall(r"([^{}]+)\{", sheets))
+    return set(re.findall(r"\.(-?[a-zA-Z_][\w-]*)", heads))
+
+
+def test_every_class_a_template_writes_is_drawn_or_is_a_hook(client, a_page_of_everything):
+    """A class nothing draws is a promise the page makes and the stylesheet does not
+    keep: `.flex` and `.srow` were written into the file pages and drew nothing,
+    because the rules they named had been 0.1's and gone with its stylesheet. Read
+    from the pages as rendered, from what the templates write in words, and from
+    what the scripts add."""
+    written = set()
+    for path in a_page_of_everything:
+        written |= written_classes(client.get(path).text)
+    for template in TEMPLATES.rglob("*.html"):
+        written |= literal_classes(template.read_text(encoding="utf-8"))
+    written |= script_classes()
+    undrawn = sorted(written - drawn_classes() - HOOKS)
+    assert undrawn == [], f"these classes are written and nothing draws them: {undrawn}"
+
+
+def test_every_hook_is_still_written(client, a_page_of_everything):
+    """A hook nothing writes any more is a hole left open for the next one."""
+    written = set()
+    for path in a_page_of_everything:
+        written |= written_classes(client.get(path).text)
+    for template in TEMPLATES.rglob("*.html"):
+        written |= literal_classes(template.read_text(encoding="utf-8"))
+    assert HOOKS - written - script_classes() == set()

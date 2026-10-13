@@ -21,7 +21,8 @@ from app.auth import _RateLimiter
 from app.models import Computer
 from conftest import PASSWORD, account, log_out
 
-STYLESHEET = Path(__file__).parents[1] / "app" / "static" / "app.css"
+CSS = Path(__file__).parents[1] / "app" / "static" / "css"
+STYLESHEETS = (CSS / "components.css", CSS / "utilities.css")
 
 
 def signed_out(client, monkeypatch, user="admin"):
@@ -235,9 +236,9 @@ class TestWhatTheStylesheetNoLongerCarries:
         "rule", [".danger-box", ".detach-box", ".confirm-url", ".login-box", ".crumbnav", ".lede"]
     )
     def test_the_rule_these_pages_were_the_last_users_of_is_gone(self, rule):
-        """0.1's app.css shrinks by what each migrated group stops using; a rule left
-        behind is a rule that has to be reasoned about at the end of the phase."""
-        css = STYLESHEET.read_text(encoding="utf-8")
+        """0.1's app.css shrank by what each migrated group stopped using, and is gone;
+        none of them came back in the design system's files."""
+        css = "".join(path.read_text(encoding="utf-8") for path in STYLESHEETS)
         assert rule not in css
 
 

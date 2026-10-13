@@ -1,9 +1,0 @@
-  /* The 0.1 names for the colours, which are tokens in css/tokens.css (ADR-0031).
-     Nothing draws with them any more: they are here for the contrast tests written
-     on them, and go with this file. */
-  :root {
-    --bg: var(--surface); --fg: var(--text); --muted: var(--text-muted);
-    --btn: var(--surface-sunken); --btn-hover: var(--surface-hover); --chip: var(--surface-sunken);
-    --fill: var(--accent-fill); --track: var(--accent-track); --primary-fg: var(--on-accent);
-    --danger-hover: var(--danger-wash);
-  }
