@@ -51,8 +51,9 @@ images on amd64 and arm64 runners and publishes them to
    moves to `X.Y.Z`, the image tags in `docker-compose.yml` move with it (the suite
    fails until they do), and the CHANGELOG's *Unreleased* becomes `## X.Y.Z`.
 2. **Merge it, then tag the merge commit** `vX.Y.Z` and push the tag.
-3. **Once, after the first release:** GitHub creates a new package private, so make
-   `api` and `mcp` public on each package's settings page.
+
+Nothing about the packages is set by hand. The first publish, `v0.2.0-rc.1`, created
+both public and linked to this repository, so a release is the tag and nothing else.
 
 A release candidate is tagged `vX.Y.Z-rc.N` on a commit whose `__version__` is
 already `X.Y.Z`, and is published under that tag alone. A pull request that changes
