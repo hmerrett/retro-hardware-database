@@ -15,7 +15,7 @@
 {% macro row(where, links=true) -%}
 {%- if where %}
 <div><dt>Location</dt><dd>
-  <span class="path">{% for tag, name in where.steps %}{% if links %}<a href="/locations/{{ tag }}">{{ name }}</a>{% else %}{{ name }}{% endif %}{% if not loop.last %}<span class="sep" aria-hidden="true"> → </span>{% endif %}{% endfor %}</span>
+  <span>{% for tag, name in where.steps %}{% if links %}<a href="/locations/{{ tag }}">{{ name }}</a>{% else %}{{ name }}{% endif %}{% if not loop.last %}<span class="sep" aria-hidden="true"> → </span>{% endif %}{% endfor %}</span>
   {%- if where.whose %} <span class="meta">— where <a href="/{{ where.kind }}/{{ where.whose }}">{{ where.whose }}</a> is</span>{% endif %}
   {%- if where.notes or where.photo %}
   <span class="wherenote">

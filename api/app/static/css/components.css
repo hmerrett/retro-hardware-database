@@ -2,16 +2,11 @@
    tokens.css and presets/*.css and nothing else. No colour is stated here, so the
    contrast tests read the token files alone; test_stylesheet_lint.py holds this
    file to that, to the spacing and type scales, and holds utilities.css to layout.
-
-   Everything is inside the layer `v2` while app.css is still here. Unlayered
-   rules outrank layered ones whatever their specificity, so where a class name
-   is shared with 0.1 -- .btn, .panel, .card and fifty more -- app.css's rule
-   wins until the templates that use it move over and it is deleted. The layer
-   comes off with app.css.
+   With the token files, utilities.css and the generated /style/data.css, this is
+   the whole of the styling: one vocabulary, and nothing outranking it.
 
    The sections are numbered as in the design system's reference stylesheet. Its
    first, what a preset may change besides colour, is in the token files. */
-@layer v2 {
   /* ---- 2. Base ------------------------------------------------------------ */
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
@@ -1471,4 +1466,3 @@
   .reportpart:first-child h4 { margin-top: 0; }
   .reportpart ul { margin: 0; padding-left: var(--space-6); }
   .reportpart li { padding: var(--space-1) 0; overflow-wrap: anywhere; }
-}

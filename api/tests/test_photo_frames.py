@@ -2,15 +2,13 @@
 (MANUAL §10, "In the panel").
 
 No rendered page says how tall a box is drawn, so these read the stylesheets, as the
-contrast tests do: the rules for the two frames in components.css, and nothing left
-in app.css that would outrank them -- it is unlayered, so any rule of 0.1's naming
-either frame wins over the design system's whatever the order."""
+contrast tests do: the rules for the two frames in components.css."""
 
 import re
 
 from conftest import content
 from test_item_page_controls import _png
-from test_stylesheet_lint import COMPONENTS, LEGACY, text
+from test_stylesheet_lint import COMPONENTS, text
 
 
 def rule(css: str, selector: str) -> str:
@@ -58,12 +56,6 @@ class TestNoPhotographHasTheSameFrame:
         page = content(client.get(f"/computers/{aid}").text)
         empty = page.split('class="nophoto"', 1)[1].split("</div>", 1)[0]
         assert 'class="ph"' in empty and "No photograph yet." in empty
-
-
-def test_nothing_of_0_1_s_outranks_either_frame():
-    legacy = text(LEGACY)
-    assert not re.search(r"\.photo-main\b", legacy)
-    assert not re.search(r"\.nophoto\b", legacy)
 
 
 def test_the_page_draws_the_photograph_in_the_frame(client, computer):

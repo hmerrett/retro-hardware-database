@@ -4,7 +4,7 @@ Two things on these pages are drawn from values the templates work out as they
 render: the swatch for a bezel of a given shade and a given degree of yellowing,
 and the length of a bar on the statistics page. Both were `style` attributes until
 the content policy stopped allowing any (ADR-0022), and neither can be written by
-hand in app.css -- one is mixed in Python from the colour vocabulary, and the
+hand in components.css -- one is mixed in Python from the colour vocabulary, and the
 other is one rule per length a bar can be.
 
 So they are generated here, once at import, and served as an ordinary stylesheet

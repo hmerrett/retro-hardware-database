@@ -65,7 +65,7 @@ class TestANewInstallation:
         assert fresh_client.get("/healthz").status_code == 200
 
     def test_the_setup_page_is_drawn_with_its_stylesheet(self, fresh_client):
-        assert fresh_client.get("/static/app.css").status_code == 200
+        assert fresh_client.get("/static/css/components.css").status_code == 200
 
     def test_set_up_asks_for_the_code_a_username_and_the_password_twice(self, fresh_client):
         page = fresh_client.get("/setup").text

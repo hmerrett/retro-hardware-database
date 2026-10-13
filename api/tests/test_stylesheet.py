@@ -1,4 +1,4 @@
-"""Behaviour carried by the shared stylesheet rather than by one rendered page.
+"""Behaviour carried by the stylesheets rather than by one rendered page.
 
 Two invariants that a read-through keeps missing. Both are checked against the
 declarations themselves because that is where the behaviour lives: no page can be
@@ -6,23 +6,25 @@ asked what size iOS thinks its search box is, or what contrast a button's text
 has against its own background.
 """
 
+import json
 import re
 from pathlib import Path
 
 import pytest
 
-STYLESHEET = Path(__file__).parents[1] / "app" / "static" / "app.css"
-COMPONENTS = STYLESHEET.parent / "css" / "components.css"
-# Where the colours now live: generated from the design data (ADR-0031). app.css
-# keeps the 0.1 names as aliases onto these while the templates move over.
-TOKENS = Path(__file__).parents[1] / "app" / "static" / "css" / "tokens.css"
+APP = Path(__file__).parents[1] / "app"
+COMPONENTS = APP / "static" / "css" / "components.css"
+# Where the colours live: generated from the design data (ADR-0031).
+TOKENS = APP / "static" / "css" / "tokens.css"
+PALETTES = json.loads((APP / "design" / "palettes.json").read_text(encoding="utf-8"))
+THEMES = sorted(PALETTES["themes"])
 
 # A file picker shows a button, not text you type into, so its deliberate
 # `font-size: 0` is not a control that can zoom the page.
 NOT_TYPED_INTO = re.compile(r"input\[type=file\]")
 
 
-def css(path: Path = STYLESHEET) -> str:
+def css(path: Path = COMPONENTS) -> str:
     """A stylesheet with its comments removed, which otherwise match as rules."""
     return re.sub(r"/\*.*?\*/", "", path.read_text(encoding="utf-8"), flags=re.S)
 
@@ -96,33 +98,6 @@ def tokens_css() -> str:
     return re.sub(r"/\*.*?\*/", "", TOKENS.read_text(encoding="utf-8"), flags=re.S)
 
 
-def theme_variables(name: str) -> dict[str, str]:
-    """One theme's custom properties, as values: `light`, or `dark` as the toggle sets it.
-
-    The colours are the default preset's, from tokens.css; the dark ones replace
-    the light where the toggle says so. app.css's 0.1 names are aliases onto them
-    (`--bg: var(--surface)`), and an alias says nothing about contrast until it is
-    followed to the colour it names -- so every `var()` is resolved here, the way
-    the browser resolves it on the same element.
-
-    Dark is stated twice, for the toggle and for `prefers-color-scheme`; this reads
-    the toggle's block and the test below holds the other to it.
-    """
-    values = declarations(tokens_css(), ":root")
-    if name == "dark":
-        values.update(declarations(tokens_css(), ':root[data-theme="dark"]'))
-    values.update(declarations(css(), ":root"))
-
-    def resolve(value: str, depth: int = 0) -> str:
-        found = re.fullmatch(r"var\((--[\w-]+)\)", value.strip())
-        if not found:
-            return value
-        assert depth < 16 and found.group(1) in values, f"{value} names no token"
-        return resolve(values[found.group(1)], depth + 1)
-
-    return {key: resolve(value) for key, value in values.items()}
-
-
 def luminance(colour: str) -> float:
     """Relative luminance of a `#rgb`/`#rrggbb` colour, per WCAG 2."""
     digits = colour.strip().lstrip("#")
@@ -143,22 +118,22 @@ def contrast(one: str, two: str) -> float:
     return (lighter + 0.05) / (darker + 0.05)
 
 
-@pytest.mark.parametrize("theme", ["light", "dark"])
+@pytest.mark.parametrize("theme", THEMES)
 def test_a_primary_button_reads_against_its_own_fill(theme):
     """The dark theme's accent is a light blue, chosen to carry on a dark page.
     White text on it came to 2.4:1 -- readable to whoever picked the colour and
-    to nobody at arm's length on a phone. The pair has to hold in both themes."""
-    variables = theme_variables(theme)
-    ratio = contrast(variables["--primary-fg"], variables["--accent"])
+    to nobody at arm's length on a phone. The pair has to hold in every look."""
+    colours = PALETTES["themes"][theme]
+    ratio = contrast(colours["on-accent"], colours["accent-fill"])
     assert ratio >= 4.5, f"primary button text on its fill is {ratio:.1f}:1 in {theme}"
 
 
-@pytest.mark.parametrize("theme", ["light", "dark"])
+@pytest.mark.parametrize("theme", THEMES)
 def test_a_danger_control_reads_against_the_page(theme):
     """The register's warning colour is a brown picked for a white page; on the
     dark one it fell to 3.7:1 against the background it sits on."""
-    variables = theme_variables(theme)
-    ratio = contrast(variables["--danger"], variables["--bg"])
+    colours = PALETTES["themes"][theme]
+    ratio = contrast(colours["danger"], colours["surface"])
     assert ratio >= 4.5, f"danger text on the page is {ratio:.1f}:1 in {theme}"
 
 
@@ -179,20 +154,36 @@ def test_the_two_dark_theme_blocks_agree():
     assert by_preference == declarations(tokens_css(), ':root[data-theme="dark"]')
 
 
+# The accent fills that carry no words: a bar's length, an upload's progress, the
+# preset picker's drawing of an accent, and the swatch beside an accent's name.
+WORDLESS_FILLS = {".bars .fill", ".up .meter > i", ".mini .a", ".accents .demo .dot"}
+
+
 def test_an_accent_fill_states_the_text_colour_on_it():
     """A rule that fills something with the accent and leaves the foreground to be
     inherited gets whatever the surrounding rule set, which in the lightbox was a
     fixed white -- unreadable once the dark theme made the accent a pale blue. The
     fill and the text on it are one decision and belong in one rule."""
     silent = [
-        head
+        " ".join(head.split())
         for head, body in rules(css())
-        if re.search(r"background(-color)?\s*:[^;]*var\(--accent\)", body)
+        if re.search(r"background(-color)?\s*:[^;]*var\(--accent(?:-fill)?\)", body)
         and not re.search(r"(?:^|[;\s])color\s*:", body)
+        and " ".join(head.split()) not in WORDLESS_FILLS
     ]
     assert silent == [], (
         "these rules fill with the accent but do not say what colour the text on it is"
     )
+
+
+def test_every_wordless_fill_is_still_there():
+    """An exception nothing needs any more is a hole left open for the next one."""
+    filled = {
+        " ".join(head.split())
+        for head, body in rules(css())
+        if re.search(r"background(-color)?\s*:[^;]*var\(--accent(?:-fill)?\)", body)
+    }
+    assert WORDLESS_FILLS - filled == set()
 
 
 def over(foreground: str, background: str) -> str:
@@ -215,47 +206,16 @@ def over(foreground: str, background: str) -> str:
     return "#%02x%02x%02x" % tuple(mixed)
 
 
-@pytest.mark.parametrize("theme", ["light", "dark"])
+@pytest.mark.parametrize("theme", THEMES)
 def test_a_warning_banner_can_be_read(theme):
     """A banner carries the words of a disposal, a rejected form or a refused login
     in the page's own foreground colour. Its wash is faint by design, so what has
-    to hold is the reading against the wash as painted, not against the page."""
-    variables = theme_variables(theme)
-    painted = over(variables["--danger-wash"], variables["--bg"])
-    ratio = contrast(variables["--fg"], painted)
-    assert ratio >= 4.5, f"banner text is {ratio:.1f}:1 on its own wash in {theme}"
-
-
-# Every colour the stylesheet states as something words are written in, against the
-# page they are written on. `--primary-fg` is not here because it is never on the
-# page: it is the text on an accent fill, and has a test of its own above.
-TEXT_COLOURS = ["--fg", "--muted", "--accent", "--danger"]
-
-# Every colour the stylesheet states as something words are written *on*. The text
-# on all of them is `--fg`, inherited, so the pair is that against the composite --
-# `#ffffff16` says nothing about a reading until `over` resolves it against the page.
-SURFACES = ["--bg", "--btn", "--btn-hover", "--chip", "--band", "--danger-wash"]
-
-
-@pytest.mark.parametrize("theme", ["light", "dark"])
-@pytest.mark.parametrize("token", TEXT_COLOURS)
-def test_every_colour_words_are_written_in_reads_against_the_page(theme, token):
-    """The three pairs tested before this were the three that had already been
-    reported broken. ADR-0014 asks for the rest of them, since a pair nobody has
-    computed is a pair nobody knows about -- the muted grey is 12px and carries
-    the hints, the dates and half the figures on the statistics page."""
-    variables = theme_variables(theme)
-    ratio = contrast(variables[token], variables["--bg"])
-    assert ratio >= 4.5, f"{token} on the page is {ratio:.1f}:1 in {theme}"
-
-
-@pytest.mark.parametrize("theme", ["light", "dark"])
-@pytest.mark.parametrize("token", SURFACES)
-def test_every_surface_words_are_written_on_holds_them(theme, token):
-    """A chip, a button, a panel's title band: each is a translucent black or
-    white over the page, and the text on every one of them is the inherited
-    `--fg`. Composited first, because `#ffffff16` on its own says nothing."""
-    variables = theme_variables(theme)
-    surface = over(variables[token], variables["--bg"])
-    ratio = contrast(variables["--fg"], surface)
-    assert ratio >= 4.5, f"the page's text on {token} is {ratio:.1f}:1 in {theme}"
+    to hold is the reading against the wash as painted, not against the page. The
+    rest of the pairs are test_presets.py's, in every look."""
+    colours = PALETTES["themes"][theme]
+    for wash in ("warning-wash", "danger-wash"):
+        painted = (
+            over(colours[wash], colours["surface"]) if len(colours[wash]) == 9 else colours[wash]
+        )
+        ratio = contrast(colours["text"], painted)
+        assert ratio >= 4.5, f"banner text is {ratio:.1f}:1 on {wash} in {theme}"

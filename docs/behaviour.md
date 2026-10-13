@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2910 behaviours, from 87 files.*
+*2903 behaviours, from 87 files.*
 
 
 ## A barcode takes the room the words leave
@@ -2406,7 +2406,7 @@ Regenerate with:
 
 ## Item page names
 
-*test_item_page_names.py — 22 behaviours*
+*test_item_page_names.py — 21 behaviours*
 
 
 **A photograph is named for what it shows**
@@ -2448,8 +2448,6 @@ Regenerate with:
 - disposed is a warning
 - with restore and delete at its right
 - build walk is plain
-- a plain banner is drawn plain  
-  The rule that drew every banner without a tone in the danger colours was 0.1's, from before a plain one existed.
 - every banner is one of the design systems  
   A tone the stylesheet does not draw is drawn as plain, which is how `warn` came to be a refusal with nothing to mark it as one.
 - a fetch that found nothing is a warning at the top of the panel
@@ -2862,7 +2860,7 @@ Regenerate with:
 **What the stylesheet no longer carries**
 
 - the rule these pages were the last users of is gone  
-  0.1's app.css shrinks by what each migrated group stops using; a rule left behind is a rule that has to be reasoned about at the end of the phase.
+  0.1's app.css shrank by what each migrated group stopped using, and is gone; none of them came back in the design system's files.
 - the catalogue still names the spectrum  
   The detach page reads the catalogue, so these tests assume it is there.
 
@@ -3414,7 +3412,7 @@ Regenerate with:
 *test_page_width.py — 17 behaviours*
 
 - every page is drawn in the page column  
-  Every page's `<main>` is the design's page column -- one class attribute, and it names `page` -- on the pages still drawn with 0.1's components as much as on those moved onto v0.2's.
+  Every page's `<main>` is the design's page column -- one class attribute, and it names `page`.
 - no stylesheet gives the page a width or gutter of its own  
   The width of a page and its gutters are `.page`'s alone.
 - the banner s flash is placed by the page under it  
@@ -3452,7 +3450,7 @@ Regenerate with:
 
 ## Photo frames
 
-*test_photo_frames.py — 8 behaviours*
+*test_photo_frames.py — 7 behaviours*
 
 
 **The photograph is framed4 by3**
@@ -3468,7 +3466,6 @@ Regenerate with:
 - holding the cards drawing at the cards size  
   The design system's card draws its picture at 46% of the frame.
 - and the words
-- nothing of 0 1 s outranks either frame
 - the page draws the photograph in the frame
 
 
@@ -4860,7 +4857,7 @@ Regenerate with:
 
 ## Stylesheet
 
-*test_stylesheet.py — 9 behaviours*
+*test_stylesheet.py — 8 behaviours*
 
 - every control given its own size is listed for touch  
   iOS zooms the page when it focuses a control whose text is under 16px, and does not zoom back out.
@@ -4874,17 +4871,15 @@ Regenerate with:
   Dark is declared twice: for the system preference and for the explicit toggle.
 - an accent fill states the text colour on it  
   A rule that fills something with the accent and leaves the foreground to be inherited gets whatever the surrounding rule set, which in the lightbox was a fixed white -- unreadable once the dark theme made the accent a pale blue.
+- every wordless fill is still there  
+  An exception nothing needs any more is a hole left open for the next one.
 - a warning banner can be read  
   A banner carries the words of a disposal, a rejected form or a refused login in the page's own foreground colour.
-- every colour words are written in reads against the page  
-  The three pairs tested before this were the three that had already been reported broken.
-- every surface words are written on holds them  
-  A chip, a button, a panel's title band: each is a translucent black or white over the page, and the text on every one of them is the inherited `--fg`.
 
 
 ## Stylesheet lint
 
-*test_stylesheet_lint.py — 11 behaviours*
+*test_stylesheet_lint.py — 9 behaviours*
 
 - no colour is stated outside the token files  
   A colour written into a component is one no preset can change and no contrast test reads.
@@ -4898,15 +4893,12 @@ Regenerate with:
   A v0.2 band may be dark -- black in Rubber Key, brown in Breadbin -- and only `band-text` and `band-muted` are held to it.
 - the one wordless band is still there  
   An exception nothing needs any more is a hole left open for the next one.
-- while app css is here it outranks the new stylesheets  
-  The templates move over a group at a time, and until a group has moved its 0.1 rules have to win wherever a class name is shared -- .btn, .panel and fifty more.
-- every page is drawn with the v0 2 components  
-  A page not marked v2 is drawn by app.css's 0.1 rules, which is what keeps them here.
-- app css keeps no rule for a page on 0 1
-- app css draws no class that nothing writes  
-  A rule for a class no template, script or module names is a rule nobody can see, and one more thing to read past on the way to deleting the file.
-- app css draws nothing  
-  Everything it drew is in the design system now: the buttons outside <main>, the photo column, the history line, the scanner, the page-wide rules.
+- the design system is the whole of the styling  
+  The look is the token files, components.css, utilities.css and the generated /style/data.css: one vocabulary, and no second stylesheet outranking it.
+- every class a template writes is drawn or is a hook  
+  A class nothing draws is a promise the page makes and the stylesheet does not keep: `.flex` and `.srow` were written into the file pages and drew nothing, because the rules they named had been 0.1's and gone with its stylesheet.
+- every hook is still written  
+  A hook nothing writes any more is a hole left open for the next one.
 
 
 ## The agent on the other machine
@@ -5052,7 +5044,7 @@ Regenerate with:
 
 ## The photo editor
 
-*test_the_photo_editor.py — 39 behaviours*
+*test_the_photo_editor.py — 37 behaviours*
 
 
 **The markup**
@@ -5089,9 +5081,6 @@ Regenerate with:
 
 - each handle is a 24px target
 - apply crop is the primary on the scrim without a fill
-- no 0 1 rule draws the big view
-- no 0 1 button rule reaches the big view  
-  The view is outside `<main>`, so 0.1's buttons -- kept off v0.2 pages by `:not(main.v2 *)` -- reached it, and being unlayered they outranked the scrim's own: a pale fill under pale words.
 - apply and cancel are wide on a phone
 - delete reads as the destructive one  
   Colour is what says this tool is not like its neighbours, in the scrim's own danger shade: the page's is unreadable on the dark.

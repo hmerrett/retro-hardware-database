@@ -135,7 +135,6 @@ templates.env.filters["ui"] = _ui_filter
 SITE_CARD = ("/static/og-image.png", 1200, 630)
 
 templates.env.globals["icon_ver"] = _file_ver(branded("favicon.ico"))
-templates.env.globals["css_ver"] = _file_ver(STATIC_DIR / "app.css")
 # The design tokens every page's colours come from (ADR-0031), stamped the same way.
 templates.env.globals["tokens_ver"] = _file_ver(STATIC_DIR / "css" / "tokens.css")
 # The components that paint with them, and the layout helpers beside them.

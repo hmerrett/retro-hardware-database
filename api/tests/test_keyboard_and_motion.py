@@ -19,9 +19,8 @@ from conftest import log_out
 
 TEMPLATES = Path(__file__).parents[1] / "app" / "templates"
 BASE = TEMPLATES / "base.html"
-STYLESHEET = Path(__file__).parents[1] / "app" / "static" / "app.css"
 # Where the phone's bar and the chrome around it now live (ADR-0031).
-COMPONENTS = STYLESHEET.parent / "css" / "components.css"
+COMPONENTS = Path(__file__).parents[1] / "app" / "static" / "css" / "components.css"
 
 FOCUSABLE = re.compile(r"<(?:a\s[^>]*href=|button\b|input\b|select\b|textarea\b|summary\b)", re.I)
 HEADING_CELL = re.compile(r"<th(\s[^>]*)?>")
@@ -363,15 +362,11 @@ def test_nothing_hides_where_the_keyboard_is():
     rule that does suppress it, deliberately: the skip link lands on `<main>`, and
     a ring drawn round the whole page says nothing -- the eye should be following
     the link. Anything else turning an outline off is the thing this asserts
-    against, and has to justify itself here first. The v0.2 stylesheets are read
-    with app.css, since a suppression in either reaches every page."""
+    against, and has to justify itself here first. Both stylesheets are read, since
+    a suppression in either reaches every page."""
     css = "\n".join(
         path.read_text(encoding="utf-8")
-        for path in (
-            STYLESHEET,
-            STYLESHEET.parent / "css" / "components.css",
-            STYLESHEET.parent / "css" / "utilities.css",
-        )
+        for path in (COMPONENTS, COMPONENTS.parent / "utilities.css")
     )
     allowed = "main:focus"
     suppressed = [

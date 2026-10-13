@@ -251,7 +251,7 @@ def _text_ver(content: str | bytes) -> str:
 # tight policy and is not one.
 #
 # `style-src` is now `'self'` as well: the 69 style attributes and the two <style>
-# blocks the token was there for have gone into app.css as classes, and the two
+# blocks the token was there for have gone into the stylesheets as classes, and the two
 # whose values were data into the generated stylesheet at /style/data.css
 # (ADR-0022). A test walks the rendered pages for a style attribute rather than
 # trusting this comment.

@@ -18,7 +18,6 @@ from conftest import log_out
 
 CSS = Path(__file__).parents[1] / "app" / "static" / "css"
 COMPONENTS = CSS / "components.css"
-LEGACY = CSS.parent / "app.css"
 TEMPLATES = Path(__file__).parents[1] / "app" / "templates"
 
 # What a browser sends: the error page is drawn only for a reader that asked for HTML.
@@ -327,12 +326,11 @@ class TestHowItFoldsWithTheWidth:
         }
         assert len(re.findall(r"<span>\w+</span>", bar)) == 4
         assert shapes == {"<svg/><span></span>"}, shapes
-        for sheet in (stylesheet(), LEGACY.read_text(encoding="utf-8") if LEGACY.exists() else ""):
-            assert not [
-                head
-                for head in re.findall(r"([^{}@;]+)\{", sheet)
-                if "tabbar" in head and "scan" in head
-            ]
+        assert not [
+            head
+            for head in re.findall(r"([^{}@;]+)\{", stylesheet())
+            if "tabbar" in head and "scan" in head
+        ]
 
     def test_the_bar_is_nowhere_but_a_phone(self):
         assert "display: none" in rule(".tabbar", stylesheet())

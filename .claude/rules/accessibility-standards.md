@@ -10,30 +10,32 @@ bug report.
 
 ## Enforced by the suite
 
-These are tests, not intentions. `api/tests/test_stylesheet.py` reads the
-stylesheet's own declarations, because no rendered page can be asked what
-contrast a button has against its own fill.
+These are tests, not intentions. `api/tests/test_stylesheet.py` and
+`api/tests/test_presets.py` read the stylesheets' own declarations and the design
+data they are generated from, because no rendered page can be asked what contrast
+a button has against its own fill.
 
 - **4.5:1 on text**, computed with WCAG 2 relative luminance and asserted **in
-  both themes**, over every pair the stylesheet states: each colour words are
-  written in against the page, each surface they are written on — a chip, a
-  button, a panel's band — composited first, since `#ffffff16` says nothing until
-  it is resolved against what is behind it, and the three that were reported
-  broken (primary buttons on their fill, danger controls, warning banners). A new
-  colour is a new row in one of those lists, not a glance in a browser: the dark
+  every preset, light and dark**, over every pair the design uses: each colour
+  words are written in against each ground it is written on, a translucent one
+  composited first, since `#000000d8` says nothing until it is resolved against
+  what is behind it (`test_presets.PAIRS`); and the three that were reported broken
+  (primary buttons on their fill, danger controls, warning banners) named on their
+  own. A new colour is a new row in that list, not a glance in a browser: the dark
   theme's accent is a pale blue and reads very differently from the light one's.
-- **A rule that fills with `--accent` states the text colour on it.** Leaving the
-  foreground to be inherited is what broke the lightbox: it picked up a fixed
+- **A rule that fills with `--accent-fill` states the text colour on it.** Leaving
+  the foreground to be inherited is what broke the lightbox: it picked up a fixed
   white that the dark theme's paler accent could not carry. The fill and the text
-  on it are one decision and belong in one rule.
+  on it are one decision and belong in one rule. A fill that carries no words -- a
+  bar, a meter, a swatch -- is named in the test.
 - **The two dark-theme blocks agree.** Dark values are stated twice — once for
   `prefers-color-scheme`, once for `[data-theme="dark"]` — and a reader can land
   on either.
-- **Every control that is given its own size is listed in the
-  `@media (pointer: coarse)` block.** iOS zooms the page when it focuses a
-  control whose text is under 16px and does not zoom back out. A rule naming a
-  control through a class outranks the bare `input`, so it has to be restated
-  there.
+- **Every control that is given its own size is listed in a
+  `@media (pointer: coarse)` block** of `components.css`, and so is a bare
+  `input`, `select` and `textarea`. iOS zooms the page when it focuses a control
+  whose text is under 16px and does not zoom back out. A rule naming a control
+  through a class outranks the bare element, so it has to be restated there.
 
 `api/tests/test_keyboard_and_motion.py` holds the three that no rendered page
 surfaces on its own, and reads the markup and the stylesheet the same way.

@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% import "_ui.html" as U with context %}
 {% block title %}Audit — {{ site_name() }}{% endblock %}
-{% block main_class %} v2{% endblock %}
 {% block content %}
 {# The audit (MANUAL §14, "Audit"): a phone in one hand and a handheld scanner in the
    other, or the phone's camera on its own. A prompt in large type says what to do
@@ -11,7 +10,7 @@
    a whole tag without waiting for Enter, asks at the start of a round how it is
    being scanned, keeps the focus, and beeps. #}
 <div class="pagehead"><h1 class="heading">Audit</h1></div>
-<div class="storage" id="storage" data-started="{{ '1' if started else '' }}">
+<div id="storage" data-started="{{ '1' if started else '' }}">
   {# The question a round starts with, which the script shows: with no script there
      is the box and nothing to choose. Camera is offered only where there is one to
      open, which is what scan-open waits to find out (app.js), and opens it. #}

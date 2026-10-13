@@ -18,7 +18,6 @@ from test_item_page_names import Node, Tree
 
 APP = Path(__file__).resolve().parents[1] / "app"
 COMPONENTS = APP / "static" / "css" / "components.css"
-LEGACY = APP / "static" / "app.css"
 
 
 def css(path: Path) -> str:
@@ -259,16 +258,6 @@ class TestTheStylesheet:
         assert "color: var(--on-scrim)" in body
         assert "border: 2px solid var(--on-scrim)" in body
         assert "font-weight: 600" in body
-
-    def test_no_0_1_rule_draws_the_big_view(self):
-        legacy = css(LEGACY)
-        assert "#lightbox" not in legacy and "#lb-crop" not in legacy
-
-    def test_no_0_1_button_rule_reaches_the_big_view(self):
-        """The view is outside `<main>`, so 0.1's buttons -- kept off v0.2 pages by
-        `:not(main.v2 *)` -- reached it, and being unlayered they outranked the scrim's
-        own: a pale fill under pale words. None of them is left."""
-        assert re.findall(r"([^{}]*\.btn[^{}]*)\{", css(LEGACY)) == []
 
     def test_apply_and_cancel_are_wide_on_a_phone(self):
         assert re.search(

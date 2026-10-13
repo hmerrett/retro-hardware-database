@@ -23,7 +23,7 @@
 {%- for t in tasks %}
 <li{% if t.done %} class="done"{% endif %}>
   {%- if authed %}
-  <form class="tick" method="post" action="/projects/{{ t.project_id }}/task/{{ t.id }}/toggle" data-ticksend>
+  <form method="post" action="/projects/{{ t.project_id }}/task/{{ t.id }}/toggle" data-ticksend>
     <input type="hidden" name="set" value="1">
     {%- if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
     <input type="checkbox" name="done" value="1"{{ ' checked' if t.done else '' }} aria-label="Done: {{ t.text }}">

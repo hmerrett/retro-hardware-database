@@ -17,7 +17,7 @@ import re
 from html.parser import HTMLParser
 from pathlib import Path
 
-from test_stylesheet_lint import COMPONENTS, LEGACY, UTILITIES, declarations, text
+from test_stylesheet_lint import COMPONENTS, UTILITIES, declarations, text
 
 APP = Path(__file__).parents[1] / "app"
 TEMPLATES = APP / "templates"
@@ -44,7 +44,7 @@ class Mains(HTMLParser):
 
 def subjects(head: str) -> list[str]:
     """What each selector in a rule's head styles: its last compound, read outside any
-    brackets -- `main` in `main:not(.v2)`, `.panel` in `main:not(.v2) .panel`."""
+    brackets -- `main` in `main:not(.wide)`, `.panel` in `main:not(.wide) .panel`."""
     found, depth, last, current = [], 0, "", ""
     for ch in head + ",":
         depth += (ch == "(") - (ch == ")")
@@ -60,21 +60,20 @@ def subjects(head: str) -> list[str]:
 
 def test_every_page_is_drawn_in_the_page_column(client, a_page_of_everything):
     """Every page's `<main>` is the design's page column -- one class attribute, and
-    it names `page` -- on the pages still drawn with 0.1's components as much as on
-    those moved onto v0.2's. base.html is the one template that writes a `<main>`, and a
+    it names `page`. base.html is the one template that writes a `<main>`, and a
     page adds to its classes by name alone, so the pages walked here stand for the rest."""
     templates = {
         str(t.relative_to(TEMPLATES)): t.read_text(encoding="utf-8")
         for t in TEMPLATES.rglob("*.html")
     }
     assert [name for name, text in templates.items() if "<main" in text] == ["base.html"]
-    # base.html writes what a page adds inside its own class attribute, after `page`. A
-    # page that wrote `class="v2"` there would open a second attribute in the middle of
-    # the first, and the browser would read neither as it was meant.
+    # base.html writes the width block inside its own class attribute, after `page`. A
+    # page that wrote `class="wide"` there would open a second attribute in the middle
+    # of the first, and the browser would read neither as it was meant.
     added = {
         name: extra
         for name, text in templates.items()
-        for extra in re.findall(r"{% block main_class %}(.*?){% endblock %}", text)
+        for extra in re.findall(r"{% block width %}(.*?){% endblock %}", text)
         if not re.fullmatch(r"( [\w-]+)*", extra)
     }
     assert added == {}
@@ -330,12 +329,13 @@ def test_what_you_read_keeps_a_measure():
 
 def test_no_box_on_a_page_grows_past_the_measure():
     assert (".page :is(.input, .select)", "max-width", "var(--measure)") in declarations(COMPONENTS)
+    # A bare box may be held to its column, never let past the measure.
     unscoped = [
-        sel
-        for sel, prop, v in declarations(LEGACY)
+        (sel, v)
+        for sel, prop, v in declarations(COMPONENTS)
         if prop == "max-width" and re.fullmatch(r"(select|input|textarea)", sel.strip())
     ]
-    assert unscoped == []
+    assert all(v == "100%" for _, v in unscoped), unscoped
 
 
 def test_the_banner_stands_on_the_wide_page_s_edges():

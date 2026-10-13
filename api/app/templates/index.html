@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ page_title | default(site_name(), true) }}{% endblock %}
 {% block width %} wide{% endblock %}
-{% block main_class %} v2{% endblock %}
 {# Browse by any other name -- Might sell, the items behind a figure -- is called
    what its heading calls it. #}
 {% block backname %}{{ heading | default('Browse') }}{% endblock %}
