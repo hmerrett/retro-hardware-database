@@ -8,6 +8,8 @@ works on the author's box, and is never looked at again.
 
 from pathlib import Path
 
+import pytest
+
 ENTRYPOINT = (Path(__file__).resolve().parent.parent / "entrypoint.sh").read_text()
 
 
@@ -130,6 +132,51 @@ class TestTheMcpServerDoesNotRunAsRoot:
     def test_it_owns_none_of_its_own_code(self):
         """It writes nothing, so nothing in the image is given to it."""
         assert "chown" not in self.MCP_DOCKERFILE
+
+
+def _build_contexts():
+    """Every directory a compose file in the repository builds an image from."""
+    import yaml
+
+    contexts = set()
+    for compose in ROOT.glob("**/docker-compose*.yml"):
+        if ".venv" in compose.parts or "node_modules" in compose.parts:
+            continue
+        for service in (yaml.safe_load(compose.read_text()).get("services") or {}).values():
+            build = service.get("build")
+            if build is not None:
+                where = build if isinstance(build, str) else build.get("context", ".")
+                contexts.add((compose.parent / where).resolve())
+    return sorted(contexts)
+
+
+class TestABuildSendsOnlyWhatItNeeds:
+    """A build hands its whole context to the daemon before it reads a line of the
+    Dockerfile, so what a context holds is what a build sends -- whether or not
+    anything copies it. Docker reads the .dockerignore at the root of the context
+    and no other, which is why each one has its own rather than the repository
+    having one: no build here starts at the repository's root.
+    """
+
+    def test_every_build_context_has_a_dockerignore(self):
+        contexts = _build_contexts()
+        assert {c.name for c in contexts} >= {"api", "mcp", "backup"}
+        assert [c for c in contexts if not (c / ".dockerignore").is_file()] == []
+
+    @pytest.mark.parametrize("name", ["backup", "mcp"])
+    def test_a_small_context_sends_only_what_its_image_copies(self, name):
+        """Each names what it sends, rather than what it leaves out, because what
+        lands beside it is not known. On the machine it runs on, the backup's
+        directory holds its .env, the key that reaches the server, the repository
+        password and, by default, the whole restic repository and a mirror of every
+        photograph: none of it belongs in a build, and a rebuild that sends the
+        last two takes all evening."""
+        context = ROOT / name
+        lines = (context / ".dockerignore").read_text().splitlines()
+        ignore = [ln.strip() for ln in lines if ln.strip() and not ln.startswith("#")]
+        copies = [i.split()[0] for i in _instructions((context / "Dockerfile").read_text(), "COPY")]
+        assert ignore[0] == "*"
+        assert sorted(line[1:] for line in ignore if line.startswith("!")) == sorted(copies)
 
 
 class TestTheDevelopmentOverride:

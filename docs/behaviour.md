@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2952 behaviours, from 88 files.*
+*2954 behaviours, from 88 files.*
 
 
 ## A barcode takes the room the words leave
@@ -1684,7 +1684,7 @@ Regenerate with:
 
 ## Deployment
 
-*test_deployment.py — 17 behaviours*
+*test_deployment.py — 19 behaviours*
 
 
 **The api trusts its proxy**
@@ -1713,6 +1713,12 @@ Regenerate with:
   A fixed uid means the same thing from one build to the next, as api's does.
 - it owns none of its own code  
   It writes nothing, so nothing in the image is given to it.
+
+**A build sends only what it needs**
+
+- every build context has a dockerignore
+- a small context sends only what its image copies  
+  Each names what it sends, rather than what it leaves out, because what lands beside it is not known.
 
 **The development override**
 

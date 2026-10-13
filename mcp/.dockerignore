@@ -1,0 +1,5 @@
+# Everything but what the image copies, so a cache or a virtual environment left
+# here is never sent to the daemon.
+*
+!requirements.txt
+!server.py
