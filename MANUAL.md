@@ -2042,7 +2042,9 @@ up again on its own. A project written about today is still in the draw, only
 rarely: what you worked on this morning is a fair answer to what to do this
 afternoon.
 
-**Shuffle**, at the foot of the panel, draws again. It never hands back the project
+**Shuffle**, at the right of the panel's title, draws again. It stays where it is
+whatever comes up — with three photographs or none, one job or five — so it can be
+pressed again and again without being looked for. It never hands back the project
 already on screen unless that is the only one in hand, so pressing it always
 changes something when there is anything to change it to. The new suggestion
 replaces the old one in place and the list below stays where it was; without
