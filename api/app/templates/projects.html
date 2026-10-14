@@ -43,7 +43,11 @@
    pass over: outside the panel, because a live region has to be on the page before
    the words it announces arrive in it. #}
 <p class="sr-only" id="today-said" aria-live="polite"></p>
-{% call PN.panel('Something to do today', cls='today') %}
+{#- In the band rather than under the project: under it, it moved across with the
+    photographs and down with the jobs, and had to be found again before every press. -#}
+{% set shuffle %}<a class="btn sm" href="/projects?instead_of={{ suggestion.p.asset_id | urlencode }}" data-shuffle
+   title="Another project, never the one shown while there is anything else in hand. Reloading the page draws again too.">{{ 'Shuffle' | ui }}</a>{% endset %}
+{% call PN.panel('Something to do today', cls='today', actions=shuffle) %}
   {% if suggestion.photos %}
   <div class="shots">
     {% for shot in suggestion.photos %}
@@ -91,8 +95,6 @@
     {% else %}
     <p class="hint">No jobs yet.</p>
     {% endif %}
-    <p title="Another project, never the one shown while there is anything else in hand. Reloading the page draws again too.">
-      <a class="btn sm" href="/projects?instead_of={{ suggestion.p.asset_id | urlencode }}" data-shuffle>{{ 'Shuffle' | ui }}</a></p>
   </div>
 {% endcall %}
 <script defer src="/static/today.js?v={{ js_ver['today.js'] }}"></script>

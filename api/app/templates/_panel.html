@@ -20,12 +20,17 @@
    is hidden at the width where the phone reading it is already here.
 
    `id` is for a panel a link lands on: the history's Notes, Changes and All reload
-   the page, and the history is at the foot of it. #}
-{% macro panel(title, meta='', flush=false, cls='', id='') %}
+   the page, and the history is at the foot of it.
+
+   `actions` is a control for the panel as a whole, drawn at the right of the band:
+   somewhere that does not move with what the panel happens to hold, which Shuffle on
+   Something to do today needs, being pressed over and over. #}
+{% macro panel(title, meta='', flush=false, cls='', id='', actions='') %}
 <section class="panel{{ ' ' ~ cls if cls else '' }}"{% if id %} id="{{ id }}"{% endif %}>
   <header>
     <h3>{{ title }}</h3>
     {% if meta != '' and meta is not none %}<span class="meta">{{ meta }}</span>{% endif %}
+    {% if actions %}<span class="grow"></span>{{ actions }}{% endif %}
   </header>
   {% if flush %}{{ caller() }}{% else %}<div class="pbody">{{ caller() }}</div>{% endif %}
 </section>

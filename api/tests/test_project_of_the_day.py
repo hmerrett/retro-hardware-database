@@ -210,6 +210,32 @@ class TestShuffle:
         for _ in range(20):
             assert shown(client.get(f"/projects?instead_of={first}").text) == second
 
+    def test_it_stands_in_the_title_band_not_under_the_project(self, client, db):
+        """Under the project it moved with every draw -- across with the number of
+        photographs, down with the number of jobs -- so it had to be found again
+        before it could be pressed again. The band is the same whatever is drawn."""
+        pid = make(client, "Recap the +2A")
+        for n in range(4):
+            client.post(f"/api/projects/{pid}/tasks", json={"text": f"job {n}"})
+        p = panel(client.get("/projects").text)
+        band = re.search(r"<header[^>]*>(.*?)</header>", p, re.S).group(1)
+        body = re.search(r'<div class="pbody">.*', p, re.S).group(0)
+        assert "data-shuffle" in band
+        assert "data-shuffle" not in body
+        # After the title, so it is read as the panel's control rather than its name.
+        assert band.index("Something to do today") < band.index("data-shuffle")
+
+    def test_its_focus_ring_is_drawn_in_the_bands_own_ink(self):
+        """The ring is --focus everywhere else, and on a band it can all but vanish:
+        #0000cd on rubberkey's black, #40318d on breadbin's brown. The band's text
+        colour is held to 4.5:1 against the band in every preset (test_presets.PAIRS),
+        so a ring drawn in it is seen wherever the band is -- the lightbox's answer
+        to its scrim, for the same reason."""
+        sheet = (main.STATIC_DIR / "css" / "components.css").read_text()
+        assert re.search(
+            r"\.panel > header :focus-visible \{ outline-color: var\(--band-text\); \}", sheet
+        )
+
     def test_with_only_one_in_hand_it_comes_back(self, client):
         """Nothing else to offer is not a reason to offer nothing."""
         only = make(client, "Recap the +2A")
@@ -258,3 +284,11 @@ class TestShuffle:
         script = (main.STATIC_DIR / "today.js").read_text()
         assert "[data-shuffle]" in script
         assert ".today" in script
+
+    def test_with_script_shuffle_is_handed_the_next_draw_to_send_away(self, client):
+        """Shuffle is not swapped with the body, being outside it, so its address is
+        taken from the page that was fetched: otherwise the second press would ask to
+        leave out the first project rather than the one on screen."""
+        script = (main.STATIC_DIR / "today.js").read_text()
+        assert re.search(r"\.today \[data-shuffle\]'\)", script), "reads the new draw's Shuffle"
+        assert "go.setAttribute('href'" in script
