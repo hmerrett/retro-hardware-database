@@ -34,13 +34,13 @@ def task(client, pid, text, about=""):
 
 
 def panel_titles(page: str) -> list[str]:
-    return re.findall(r'<section class="panel[^"]*">\s*<header>\s*<h3>([^<]+)</h3>', page)
+    return re.findall(r'<section class="panel[^"]*"[^>]*>\s*<header>\s*<h3>([^<]+)</h3>', page)
 
 
 def panel(page: str, title: str) -> str:
     """The markup of the panel with this title, up to the next panel or the page's end."""
     m = re.search(
-        rf"<section class=\"panel[^\"]*\">\s*<header>\s*<h3>{re.escape(title)}</h3>", page
+        rf"<section class=\"panel[^\"]*\"[^>]*>\s*<header>\s*<h3>{re.escape(title)}</h3>", page
     )
     if not m:
         return ""
