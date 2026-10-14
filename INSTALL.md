@@ -60,8 +60,10 @@ git checkout v0.2.0
 ```
 
 Any directory will do. The last line chooses the release you run: use the newest,
-which `git tag --sort=-v:refname | head -1` names. Each release's app and tool server
-are published as images, so step 5 pulls them and nothing is built on your machine.
+which `git tag --sort=-v:refname | grep -v rc | head -1` names. That leaves out
+release candidates, such as `v0.2.0-rc.1`, which are for testing a release before it
+is made. Each release's app and tool server are published as images, so step 5 pulls
+them and nothing is built on your machine.
 
 To follow the code as it is written instead, stay on `main`. That is built rather
 than pulled, as [step 8](#8-keeping-it-up-to-date) describes.
