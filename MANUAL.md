@@ -642,7 +642,7 @@ both columns, and under it the main column holds one tab's panels:
 - **Work** — the projects it is part of and its jobs, with how many are done.
   Not there for a visitor when the item is part of no project they may see.
 - **Files** — with how many.
-- **History** — with how many lines.
+- **History** — with how many lines, notes and changes together.
 
 The head of the page and the side column — the photographs with the code for a
 phone, the label and Status — stay as they are whichever tab is open,
@@ -2011,7 +2011,8 @@ unticked.
 
 A project keeps a history exactly as a computer or a part does, at the foot of its
 page: the same note bar, the same photographs hung on entries, the same folding of
-a run of identical actions into one line. See [section 15](#15-history) — there is
+a run of identical actions into one line, the same **Notes**, **Changes** and
+**All**. See [section 15](#15-history) — there is
 nothing different to learn.
 
 That is not a coincidence of design so much as the whole of it. A project is given
@@ -2930,6 +2931,39 @@ nothing.
 notes; everything else is an automatic change record. Photographs go in from the
 same box, and neither half needs the other: words on their own, photographs on
 their own, or both together.
+
+### Reading it
+
+**A line at the top says how long it has been here.** On a computer or a part,
+the History panel opens with when it was acquired, where from, and how long it has
+been held: *Acquired 2024-05-18 from Club swap meet · held 2 years 4 months*. For
+something disposed of, the time held runs to the day it went, and with no date of
+disposal there is no figure rather than one counted to today. With no acquired date
+the line says only where it came from, and with neither it is not there: the day
+the register was told about something is not the day it arrived, and the line does
+not pretend it is. Both halves are the **Source** and **Acquired date** the Details
+panel already shows, so a visitor reads the line too.
+
+**Notes first.** Under the note box are three links: **Notes**, **Changes** and
+**All**. Notes are what you put there yourself — the notes you wrote and the
+photographs you added as entries of their own. Changes are what the register wrote
+as you worked: edits, photographs added to the gallery, links, moves, disposals.
+All is both, newest first, as the history always read. The panel opens on Notes,
+unless the thing has no notes yet, in which case it opens on All rather than on an
+empty panel above forty changes. Pressing **Notes** there says *No notes yet.*
+
+Each of the three is a link with an address of its own, so it works with no
+JavaScript and can be sent to somebody. On a tabbed page it stays on the History
+tab, and adding a note, attaching a photograph or deleting a line comes back to the
+one you were reading.
+
+**The latest 20, then Show all.** A long history shows its twenty most recent lines
+and a **Show all** button saying how many there are: *Show all 41*. A run folded
+into one line counts as one line, here as everywhere.
+
+A project and a location have the same three links and the same twenty lines. The
+line at the top is a computer's or a part's, since neither of the others is
+acquired.
 
 ### Photographs on an entry
 

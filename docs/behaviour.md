@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3036 behaviours, from 93 files.*
+*3069 behaviours, from 94 files.*
 
 
 ## A barcode takes the room the words leave
@@ -4124,6 +4124,60 @@ Regenerate with:
 - reset clears a key
 - login blocks after too many failures
 - a good login clears the count
+
+
+## Reading the history
+
+*test_reading_the_history.py — 33 behaviours*
+
+
+**How long it has been here**
+
+- the line says when it was acquired where from and how long held
+- a visitor reads the line too
+- for something disposed of the time held runs to the day it went
+- with no date of disposal there is no figure
+- with no acquired date the line says only where it came from
+- with an acquired date and no source the line leaves the source out
+- with neither the line is not there
+- a project and a location have no such line
+
+**Held for**
+
+- years and months as a person would say them
+- a date after the end gives no figure
+
+**Notes first**
+
+- the panel opens on notes and the photographs added as entries
+- changes are what the register wrote
+- all is both newest first
+- with no notes yet it opens on all
+- pressing notes there says no notes yet
+- an address naming no view opens as the bare one does
+- each view is a link of its own
+- a visitor has the same three
+- on a tabbed page the links stay on the history tab
+- the history tab counts every line whichever view is open
+
+**Coming back to the view you were reading**
+
+- the note box sends the view and comes back to it
+- a tabbed page keeps both the tab and the view
+- deleting a line comes back to the view it was deleted from
+- attaching a photograph sends the view too
+- an address cannot be made to carry anything else back
+- a project and a location come back to the view as well
+
+**The latest twenty**
+
+- a long history shows twenty lines and show all
+- show all shows them all
+- twenty or fewer has no show all
+- a folded run counts as one line
+- the twenty are counted in the view being read
+- on a tabbed page show all stays on the tab
+- a project and a location show twenty too
 
 
 ## Reflow

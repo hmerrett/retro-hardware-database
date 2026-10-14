@@ -14,9 +14,22 @@
 {% import "_icons.html" as I %}
 {% import "_panel.html" as PN %}
 {% import "_ui.html" as U with context %}
-{% call PN.panel('History') %}
+{#- Notes, Changes or All, and the latest twenty of it (MANUAL §15, "Reading it").
+    `hq` is what every form in the panel adds to its address, the tab and the view
+    together, so an answer comes back to the lines it was sent from; `vq` starts a
+    link to another view, on the same tab. -#}
+{% set hv = history_view(log, request.query_params) %}
+{% set hq = tabq ~ (('&' if tabq else '?') ~ hv.q if hv.q else '') %}
+{% set vq = tabq ~ '&' if tabq else '?' %}
+{% call PN.panel('History', id='history') %}
+  {#- When it came and how long it has stayed, from the two facts Details already
+      shows. A computer's or a part's: nothing else is acquired. -#}
+  {% set got = acquired_line(item) if kind in ('computers', 'parts') else none %}
+  {% if got %}
+  <p class="ptimeline">{% if got.acquired %}<b>Acquired {{ got.acquired }}</b>{% if got.source %} from {{ got.source }}{% endif %}{% if got.held %} · held {{ got.held }}{% endif %}{% else %}From {{ got.source }}{% endif %}</p>
+  {% endif %}
   {% if request.state.authed %}
-  <form method="post" action="/{{ kind }}/{{ item.asset_id }}/note{{ tabq }}" class="addrow labelled mt-0"
+  <form method="post" action="/{{ kind }}/{{ item.asset_id }}/note{{ hq }}" class="addrow labelled mt-0"
         enctype="multipart/form-data" title="A note, photographs, or both — photographs on their own are an entry too.">
     {# Not required any more: photographs on their own are an entry, so the way
        to file one is to choose it and press the button. #}
@@ -35,9 +48,15 @@
     {{ U.button('Add note', type='submit') }}
   </form>
   {% endif %}
-  {% if log %}
+  {#- Links, not a script's tabs: each view is an address, and works with none. -#}
+  <nav class="logviews" aria-label="Which entries">
+    {%- for key, words in [('notes', 'Notes'), ('changes', 'Changes'), ('all', 'All')] %}
+    <a href="{{ vq }}log={{ key }}#history"{% if key == hv.view %} aria-current="page"{% endif %}>{{ words | ui }}</a>
+    {%- endfor %}
+  </nav>
+  {% if hv.lines %}
   <dl class="kv log{{ ' timed' if request.state.sees_private else '' }}">
-    {% for e in log %}
+    {% for e in hv.lines %}
     <div{% if e.kind == 'move' %} data-kind="move"{% endif %}>
       {#- Ids on the date and the words, so the line's buttons can be named by them:
           a delete on every line called "Delete history entry" says which one it is
@@ -62,7 +81,7 @@
              out as one sentence, and there is no one of them a photograph would
              belong to. #}
           {% if request.state.authed and e.count == 1 %}
-          <form method="post" action="/items/{{ item.asset_id }}/log/{{ e.id }}/photo{{ tabq }}"
+          <form method="post" action="/items/{{ item.asset_id }}/log/{{ e.id }}/photo{{ hq }}"
                 enctype="multipart/form-data" class="logadd" data-autosend>
             <label class="btn sm icon filebtn" title="Attach a photograph to this entry">
               {{ I.ico('camera') }}
@@ -81,7 +100,7 @@
              written to the history about it -- the same rule an entry losing a
              photograph follows. #}
           {% if request.state.authed %}
-          <form method="post" action="/items/{{ item.asset_id }}/log/delete{{ tabq }}"
+          <form method="post" action="/items/{{ item.asset_id }}/log/delete{{ hq }}"
                 {# A single-quoted string inside the attribute, as the photo
                    deletes do. `tojson` is for a script block: it leaves double
                    quotes alone, which inside a double-quoted attribute ends it. #}
@@ -118,5 +137,10 @@
     </div>
     {% endfor %}
   </dl>
+  {%- if hv.lines | length < hv.total %}
+  <p class="logmore">{{ U.button('Show all ' ~ hv.total, size='sm', href=vq ~ 'log=' ~ hv.view ~ '&full=1#history') }}</p>
+  {%- endif %}
+  {% elif hv.view == 'notes' and log %}<p class="muted flush">No notes yet.</p>
+  {% elif hv.view == 'changes' and log %}<p class="muted flush">No changes yet.</p>
   {% else %}<p class="muted flush">No history yet.</p>{% endif %}
 {% endcall %}

@@ -148,6 +148,7 @@
     .btn.icon.sm { width: 36px; }
     .check input, .tickbox input[type=checkbox] { width: 22px; height: 22px; }
     .viewswitch a { font-size: 16px; min-height: calc(36px - 2 * var(--border-w)); }
+    .logviews a { display: inline-flex; align-items: center; font-size: 16px; min-height: var(--tap); }
     /* Take photo runs the width of the panel, under the thumb; the tile beside it reads
        Choose photos. */
     .takephoto { flex-basis: 100%; }
@@ -216,6 +217,16 @@
   .logshots { display: flex; flex-wrap: wrap; gap: var(--space-3); margin: var(--space-3) 0 var(--space-1); }
   .logshots img { width: 120px; height: 88px; object-fit: cover;
     border: var(--border-w) solid var(--line); border-radius: var(--radius-sm); }
+  /* When it came and how long it has stayed: a sentence over the panel, not a row of
+     the list under it. */
+  .ptimeline { margin: 0 0 var(--space-4); }
+  /* Notes, Changes and All: links, the one open marked by its weight and a rule under
+     it, not by colour alone. Quieter than the tab strip, being a view of one panel. */
+  .logviews { display: flex; flex-wrap: wrap; gap: var(--space-4); margin: 0 0 var(--space-4); font-size: 13px; }
+  .logviews a { color: var(--text); text-decoration: none; padding-bottom: 2px; }
+  .logviews a:hover { text-decoration: underline; }
+  .logviews a[aria-current="page"] { font-weight: 600; box-shadow: inset 0 -2px 0 var(--accent); }
+  .logmore { margin: var(--space-4) 0 0; }
   /* On a phone the stamp beside each entry left the words two to a line. Above it,
      the entry has the width of the screen; its line is still a row, so the buttons
      keep their column at its right-hand end. */
@@ -826,7 +837,7 @@
   .addrow > .field.short { flex: 0 1 170px; }
   .addrow > .field > :is(.input, .select) { max-width: none; }
   /* The history's note row is above the entries it adds to, and apart from them. */
-  .addrow + .kv.log { margin-top: var(--space-5); }
+  .addrow + .logviews { margin-top: var(--space-5); }
   .models { columns: 3 320px; column-gap: var(--space-6); }
   .models section { break-inside: avoid; margin-bottom: var(--space-5); }
   .models h2 { font-size: 14px; font-weight: 600; margin-bottom: var(--space-2); }

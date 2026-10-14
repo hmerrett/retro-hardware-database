@@ -49,7 +49,7 @@ from .common import folder_images, to_dict
 from .disposal import STATUSES, set_status
 from .disposal import inside as _inside
 from .forms import Posted, Refusal, _parse_date, posted
-from .history import add_log, photos_added
+from .history import add_log, photos_added, view_said
 from .models import (
     AssetChip,
     AssetVariant,
@@ -802,8 +802,8 @@ def keep_item_layout(request: Request, response: Response) -> None:
 
 
 def with_tab(request: Request, page: str, **said: str | int) -> str:
-    """`page`, back on the tab the form was sent from and saying what the answer
-    says (`imgerr=1`). A form on a tabbed page posts to its address with `?tab=`, so
+    """`page`, back on the tab (and the history's view) the form was sent from and
+    saying what the answer says (`imgerr=1`). A form on a tabbed page posts to its address with `?tab=`, so
     the tab is read from there rather than from a field every handler would have to
     read; anything that is not one of the four is dropped, so the address cannot be
     made to carry something else back."""
@@ -811,6 +811,8 @@ def with_tab(request: Request, page: str, **said: str | int) -> str:
     tab = request.query_params.get("tab", "")
     if tab in ITEM_TABS:
         q["tab"] = tab
+    # And the history's view, for a form in that panel: back to Changes, not Notes.
+    q.update(view_said(request.query_params))
     q.update(said)
     return page + ("?" + urlencode(q) if q else "")
 
