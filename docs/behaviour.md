@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3069 behaviours, from 94 files.*
+*3072 behaviours, from 94 files.*
 
 
 ## A barcode takes the room the words leave
@@ -3762,7 +3762,7 @@ Regenerate with:
 
 ## Project of the day
 
-*test_project_of_the_day.py — 25 behaviours*
+*test_project_of_the_day.py — 28 behaviours*
 
 
 **Whether there is one**
@@ -3805,6 +3805,10 @@ Regenerate with:
   A link and not a button, so it works with no script at all: following it is the reload, and the reload is the draw.
 - it never hands back the one on screen  
   Weighted, the same project could come up twice running, and a Shuffle that changes nothing reads as a Shuffle that is broken.
+- it stands in the title band not under the project  
+  Under the project it moved with every draw -- across with the number of photographs, down with the number of jobs -- so it had to be found again before it could be pressed again.
+- its focus ring is drawn in the bands own ink  
+  The ring is --focus everywhere else, and on a band it can all but vanish: #0000cd on rubberkey's black, #40318d on breadbin's brown.
 - with only one in hand it comes back  
   Nothing else to offer is not a reason to offer nothing.
 - a visitor has it too
@@ -3814,6 +3818,8 @@ Regenerate with:
 - it follows the button text setting
 - with script it swaps the panel in place  
   The page loads the script that fetches the next draw and puts it where the last one was, so the list below does not move and the place on the page is kept.
+- with script shuffle is handed the next draw to send away  
+  Shuffle is not swapped with the body, being outside it, so its address is taken from the page that was fetched: otherwise the second press would ask to leave out the first project rather than the one on screen.
 
 
 ## Project pages

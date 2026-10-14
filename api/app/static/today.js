@@ -2,7 +2,8 @@
 // without this: Shuffle is a link, and following it reloads the page with another
 // draw. What this adds is that only the panel changes -- the list below it stays
 // where it was, and so does the place you were reading -- and that a keyboard is
-// left on Shuffle, ready to press again.
+// left on Shuffle, ready to press again. Shuffle is in the panel's band, outside
+// what is swapped, so it is handed the new draw's address rather than replaced.
 (function () {
   'use strict';
   const said = document.getElementById('today-said');
@@ -19,14 +20,17 @@
     try {
       const r = await fetch(go.href, { cache: 'no-store', credentials: 'same-origin' });
       if (!r.ok) throw new Error(r.status);
-      const next = new DOMParser().parseFromString(await r.text(), 'text/html')
-        .querySelector('.today .pbody');
+      const page = new DOMParser().parseFromString(await r.text(), 'text/html');
+      const next = page.querySelector('.today .pbody');
+      const nextGo = page.querySelector('.today [data-shuffle]');
       // Nothing in hand any more -- the last one was finished in another tab, say.
       // The page has something to say about that, so let it say it.
-      if (!next) throw new Error('no suggestion');
+      if (!next || !nextGo) throw new Error('no suggestion');
       body.replaceChildren(...next.childNodes);
-      const again = body.querySelector('[data-shuffle]');
-      if (again) again.focus();
+      // The attribute, not .href: a parsed page's links resolve against nothing.
+      go.setAttribute('href', nextGo.getAttribute('href'));
+      // A click on a link does not focus it in every browser.
+      go.focus();
       const name = body.querySelector('h4');
       if (said && name) said.textContent = name.textContent.trim();
     } catch (err) {
