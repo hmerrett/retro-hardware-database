@@ -11,9 +11,11 @@ is defined there.
 """
 
 import re
-from collections.abc import Sequence
-from datetime import UTC, datetime, timedelta
+from collections.abc import Mapping, Sequence
+from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
+from typing import TypedDict
+from urllib.parse import urlencode
 
 from sqlalchemy.orm import Session
 
@@ -43,6 +45,12 @@ PHOTO_ENTRY = "photo"
 MOVE_ENTRY = "move"
 CHECK_ENTRY = "check"
 KEPT_ENTRIES = frozenset({MOVE_ENTRY, CHECK_ENTRY})
+
+# What the owner put there, as against what the register wrote as they worked: the
+# Notes a history opens on (MANUAL §15, "Reading it"). A photograph added as an entry
+# of its own is a thing said about the machine as much as a sentence is.
+NOTE_ENTRY = "note"
+WRITTEN = frozenset({NOTE_ENTRY, PHOTO_ENTRY})
 
 
 def add_log(
@@ -149,7 +157,7 @@ def _fold_log(
             last is not None
             and not mine
             and not last.photos
-            and e.kind != "note"
+            and e.kind != NOTE_ENTRY
             and last.kind == e.kind
             and last.message == e.message
             and last.created_at
@@ -212,6 +220,115 @@ def log_stamp(created_at: datetime | None, authed: bool) -> str:
 
 
 templates.env.globals["log_stamp"] = log_stamp
+
+
+# --- reading it ----------------------------------------------------------------
+# Notes, Changes or All, and the latest twenty of whichever (MANUAL §15). Links the
+# server answers, `?log=changes`, `&full=1`, so they work with no script and a view
+# is an address -- the shape the item page's tabs already have.
+
+LOG_VIEWS = ("notes", "changes", "all")
+LATEST = 20
+
+
+def view_said(asked: Mapping[str, str]) -> dict[str, str]:
+    """The view an address named, as a form carries it back to the page it came from.
+    Only the words the panel's own links write: anything else in the address is
+    dropped, so it cannot be made to carry something else back."""
+    out: dict[str, str] = {}
+    if asked.get("log", "") in LOG_VIEWS:
+        out["log"] = asked["log"]
+    if asked.get("full") == "1":
+        out["full"] = "1"
+    return out
+
+
+class HistoryView(TypedDict):
+    # notes, changes or all: the one open.
+    view: str
+    # What the panel draws: the view's lines, the latest twenty unless `full`.
+    lines: list[SimpleNamespace]
+    # How many lines the view has, all told, for Show all.
+    total: int
+    full: bool
+    # What a form in the panel adds to its address: "log=changes&full=1", or "".
+    q: str
+
+
+def history_view(lines: Sequence[SimpleNamespace], asked: Mapping[str, str]) -> HistoryView:
+    """The folded history, as the view the address asked for shows it.
+
+    With none asked for it opens on Notes, unless there are none -- then All, rather
+    than an empty panel above forty changes. Only an address that does not say: one
+    that asks for Notes is shown Notes, and told there are none. Counted after the
+    fold, so a run of ten is one of the twenty."""
+    said = view_said(asked)
+    view = said.get("log") or ("notes" if any(e.kind in WRITTEN for e in lines) else "all")
+    picked = [e for e in lines if view == "all" or (e.kind in WRITTEN) == (view == "notes")]
+    full = "full" in said
+    return {
+        "view": view,
+        "lines": picked if full else picked[:LATEST],
+        "total": len(picked),
+        "full": full,
+        "q": urlencode(said),
+    }
+
+
+templates.env.globals["history_view"] = history_view
+
+
+def held_for(start: date, end: date) -> str | None:
+    """How long something was held, in the years and months a person would say: "2
+    years 4 months", "1 year", "less than a month". A month is not up until its day
+    comes round again. None for a start after the end, which is a date typed wrong
+    rather than a length of time."""
+    if start > end:
+        return None
+    months = (end.year - start.year) * 12 + end.month - start.month - (end.day < start.day)
+    if months < 1:
+        return "less than a month"
+    years, months = divmod(months, 12)
+    words = [
+        f"{n} {unit}{'s' if n != 1 else ''}"
+        for n, unit in ((years, "year"), (months, "month"))
+        if n
+    ]
+    return " ".join(words)
+
+
+class Acquired(TypedDict):
+    acquired: date | None
+    source: str
+    # How long it has been held, or None where that cannot be said.
+    held: str | None
+
+
+def acquired_line(item: Mapping[str, object], today: date | None = None) -> Acquired | None:
+    """The line at the top of a computer's or a part's history: when it was acquired,
+    where from, how long it has been held. Both halves are what the Details panel shows
+    already, so it is everybody's.
+
+    Held to the day it went for something disposed of, and not at all when that day is
+    not known: counting a thing that has gone to today would be a figure for how long
+    ago it was bought. No acquired date is no figure either -- the day the register was
+    told about something is not the day it arrived. Neither half is no line."""
+    acquired = item.get("acquired_date")
+    acquired = acquired if isinstance(acquired, date) else None
+    source = str(item.get("source") or "").strip()
+    if acquired is None and not source:
+        return None
+    held = None
+    if acquired is not None:
+        if item.get("disposed"):
+            went = item.get("disposed_at")
+            held = held_for(acquired, went) if isinstance(went, date) else None
+        else:
+            held = held_for(acquired, today or date.today())
+    return {"acquired": acquired, "source": source, "held": held}
+
+
+templates.env.globals["acquired_line"] = acquired_line
 
 
 def _short(v: object, limit: int = 80) -> str:

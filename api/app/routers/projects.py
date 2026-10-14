@@ -42,6 +42,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .. import cards, entry, filesdb, labels, printing, projects, tree
+from ..assets import back_to
 from ..common import _visible, folder_images, to_dict
 from ..db import get_db
 from ..forms import Posted, Refusal, _coerce, _field_diffs, _parse_date, posted, refusals
@@ -802,7 +803,7 @@ async def gui_project_note(
     is why _history.html needed nothing said to it about projects."""
     get_or_404(db, Project, aid)
     _note_with_photos(db, aid, await posted(request))
-    return RedirectResponse(f"/projects/{aid}", status_code=303)
+    return back_to(request, f"/projects/{aid}")
 
 
 @router.post("/projects/{aid}/delete", include_in_schema=False)

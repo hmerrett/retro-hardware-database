@@ -17,9 +17,12 @@
    whatever else it has -- a toolbar, a form -- in a `pbody` of its own.
 
    `cls` is for a panel the stylesheet has something else to say about -- the QR code
-   is hidden at the width where the phone reading it is already here. #}
-{% macro panel(title, meta='', flush=false, cls='') %}
-<section class="panel{{ ' ' ~ cls if cls else '' }}">
+   is hidden at the width where the phone reading it is already here.
+
+   `id` is for a panel a link lands on: the history's Notes, Changes and All reload
+   the page, and the history is at the foot of it. #}
+{% macro panel(title, meta='', flush=false, cls='', id='') %}
+<section class="panel{{ ' ' ~ cls if cls else '' }}"{% if id %} id="{{ id }}"{% endif %}>
   <header>
     <h3>{{ title }}</h3>
     {% if meta != '' and meta is not none %}<span class="meta">{{ meta }}</span>{% endif %}

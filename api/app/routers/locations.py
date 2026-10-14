@@ -26,6 +26,7 @@ from ..assets import (
     _do_photo_tuneup,
     _not_added,
     add_photos,
+    back_to,
     refused,
 )
 from ..common import to_dict
@@ -338,7 +339,7 @@ async def gui_location_note(
 ) -> RedirectResponse:
     get_or_404(db, Location, aid)
     _note_with_photos(db, aid, await posted(request))
-    return RedirectResponse(f"/locations/{aid}", status_code=303)
+    return back_to(request, f"/locations/{aid}")
 
 
 # --- photographs, the shape the item pages' have --------------------------------
