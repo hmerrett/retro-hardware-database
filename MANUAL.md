@@ -762,6 +762,26 @@ Field by field:
 | **Project** | Which project those jobs go on. Left at *new project*, they raise a new one about this machine; pick a project already going and the machine joins that instead. |
 | **Photographs** | Only on the new-machine form — there is no tag to file them under until it is saved. Afterwards they upload from the machine's own page. |
 
+### A second of a model you already have
+
+On a new machine, a maker and model you already have — typed, or filled in by
+picking a catalogue model — puts a line under the Identity section: *RH-K7Q2 is
+the same model — start from it*, naming one of the machines you have of it, one
+still in the collection where there is one. **The same model** means what it does
+for files: the catalogue's model where it names one, and otherwise the same maker
+and model as written, case and spacing aside.
+
+Following it opens the form again filled in from that machine, with what
+[Duplicate](#duplicating) copies: the name, year, chassis, CPU, operating system,
+memory, drives, condition, summary and the rest, and the catalogue model. Nothing
+that belongs to the one machine comes with it — no serial number, source, acquired
+date, notes, location, photographs, history, board issue, chips or parts. The form
+says at its top which machine it was copied from, and nothing is saved until you
+press **Save**, so it can be corrected first. That is the difference between this
+and Duplicate, which makes the copy at once.
+
+A part's form makes the same offer for a part (see [Adding a part](#9-adding-a-part)).
+
 ### When a save is refused
 
 A few boxes take only one shape of answer, and a save with anything else in them
@@ -1282,6 +1302,14 @@ leaves it behind along with the photographs and the provenance. It is worth the
 typing where nothing else tells two things apart: which of two identical SIMMs
 came out of which machine, or whether the drive back from a repair is the drive
 that went. It is searchable like every other field.
+
+**A second of a part you already have.** On a new part, a maker and model already
+recorded on a part puts a line under the Identity section — *RH-PVX8 is the same
+make and model — start from it* — and sets the type to that part's. Following it
+opens the form filled in from that part, with what the duplicate button copies:
+the type, year and the whole of the specifications. Nothing is saved until you
+press **Save**. A machine's form makes the same offer for a machine (see
+[a second of a model you already have](#a-second-of-a-model-you-already-have)).
 
 **Location** is where the part is kept, with its **Visible** tick beside it. A
 part fitted in something has neither: it is wherever that thing is — the board it
