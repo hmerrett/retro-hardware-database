@@ -37,6 +37,9 @@
                      ('s-description', 'Description', []), ('s-work', 'Work needed', [])]
                     + ([('s-photos', 'Photographs', [])] if new else []) %}
   {{ U.form_sections(sections, errors | default([])) }}
+  {% if from_computer %}
+  <p class="hint" title="The serial number, source, acquired date, notes, location, photographs, board issue and chips are not carried over.">Copied from <a href="/computers/{{ from_computer }}">{{ from_computer }}</a>.</p>
+  {% endif %}
   {% for name, values in DL.items() %}
   <datalist id="dl_{{ name }}">{% for v in values %}<option value="{{ v }}">{% endfor %}</datalist>
   {% endfor %}
@@ -69,6 +72,12 @@
         {{ fld('topbench', 'TopBench score', "its TopBench (DOS benchmark) score. Leave blank until it has been run.", type='number') }}
       </div>
     </div>
+    {% if new %}
+    {#- A second of a model already held, offered as a link to start from it
+        (computer-form.js). In a live region, because it appears while somebody is
+        typing in a box above it and is otherwise news only to the eye. -#}
+    <div aria-live="polite"><p class="hint" id="samemake" hidden></p></div>
+    {% endif %}
   </fieldset>
 
   <fieldset class="fieldset" id="s-memory">
@@ -203,4 +212,8 @@
 {% endif %}
 {{ C.script(bezel_swatches, yellowing) }}
 {{ M.script(machine_catalogue, machine_saved, machine_widths) }}
+{% if new %}
+<script type="application/json" id="computer-form-data">{{ {'same': same_models} | tojson }}</script>
+<script defer src="/static/computer-form.js?v={{ js_ver['computer-form.js'] }}"></script>
+{% endif %}
 {% endblock %}

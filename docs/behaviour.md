@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3072 behaviours, from 94 files.*
+*3087 behaviours, from 95 files.*
 
 
 ## A barcode takes the room the words leave
@@ -162,6 +162,34 @@ Regenerate with:
   Rather than printing the wrong size on a printer somebody is not watching.
 - a key is not a password and a password is not a key  
   The two doors do not open each other: the owner's credentials are not an agent's key, and an agent's key is not the owner's credentials.
+
+
+## A second of a model
+
+*test_a_second_of_a_model.py — 15 behaviours*
+
+
+**The offer**
+
+- the new form knows each model held by maker and model
+- case and spacing make no difference
+- a catalogue model is known by its key
+- one still in the collection is offered before one that has gone
+- a machine with no maker or no model is not a model to offer
+- the line is under the identity and said aloud when it appears
+- an existing machines form makes no offer
+- the script follows the catalogue picker as well as typing  
+  Picking a catalogue model fills the maker and model in by script, which fires no input event: the offer has to listen to the picker too.
+
+**Starting from it**
+
+- the form is filled in with what duplicate copies
+- nothing of the one machine comes with it
+- the catalogue model comes and the board issue and chips do not
+- it is a new machines form and says where it was copied from
+- nothing is saved until save
+- saving it makes a second machine and leaves the first alone
+- a tag that is not a machine opens the plain form
 
 
 ## Accent

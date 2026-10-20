@@ -48,8 +48,9 @@ from ..pages import _datalists
 # --- the GUI's delete, with its safety net ----------------------------------
 
 from collections.abc import Sequence
+from typing import TypedDict
 
-from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Response, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -100,7 +101,7 @@ from ..disposal import inside
 from ..forms import Posted, _coerce, _field_diffs, posted, refusals, year_hint
 from ..history import _history, add_log
 from ..ids import next_asset_id
-from ..models import Computer, Part, StoredFile
+from ..models import AssetVariant, Computer, Part, StoredFile
 from ..pages import _answers_given, _note_with_photos
 from ..photos import (
     _chosen_photos,
@@ -150,16 +151,34 @@ def _board_out_of(db: Session, c: Computer) -> machinedb.Identity:
 
 
 def _computer_form_ctx(
-    c: Computer | None, title: str, db: Session | None = None
+    c: Computer | None, title: str, db: Session | None = None, like: Computer | None = None
 ) -> dict[str, object]:
-    mods, chips = ramdb.read(db, c) if (c is not None and db is not None) else ([], [])
-    free = c.installed_ram_note if c else ""
-    if c is not None and not (mods or chips) and not free and c.installed_ram_kb:
-        free = entry.fmt_kb(c.installed_ram_kb)
-    drives = drivedb.read(db, c) if (c is not None and db is not None) else []
+    """The machine's form: editing `c`, or a new machine when it is None. `like` starts
+    a new one from a machine already held (MANUAL §5, "A second of a model you already
+    have"): what Duplicate copies, read off it, and the rest of the form a new
+    machine's -- no location, no board parts, no board issue or chips."""
+    # Where the memory, the drives and the catalogue model are read from.
+    build = c if c is not None else like
+    mods, chips = ramdb.read(db, build) if (build is not None and db is not None) else ([], [])
+    free = build.installed_ram_note if build else ""
+    if build is not None and not (mods or chips) and not free and build.installed_ram_kb:
+        free = entry.fmt_kb(build.installed_ram_kb)
+    drives = drivedb.read(db, build) if (build is not None and db is not None) else []
     blanks = max(2, MAX_DRIVE_ROWS - len(drives))
+    machine = _machine_ctx(build, db)
+    if like is not None:
+        # The rule machinedb.duplicated_from keeps: the same model is the same model,
+        # but the board issue, the style and the chips are found by opening this one.
+        saved = machine["machine_saved"]
+        key = saved["model_key"] if isinstance(saved, dict) else ""
+        machine["machine_saved"] = dict(machinedb.BLANK) | {"model_key": key}
     return {
-        "c": c,
+        # A transient copy for a new machine started from another, never added to the
+        # session: the fields duplicating copies, and none of that one machine's own.
+        "c": c if like is None else Computer(**_duplicated_fields(like)),
+        "from_computer": like.asset_id if like is not None else "",
+        # What a new machine could start from, for the line under the identity.
+        "same_models": _same_models(db) if c is None and db is not None else None,
         # Whether the form makes a machine or edits one. Not simply "no c": a refused
         # new machine comes back drawn from the row its save wrote and rolled back.
         "new": c is None,
@@ -177,7 +196,7 @@ def _computer_form_ctx(
         "drive_media": drivedb.MEDIA,
         "drive_speeds": drivedb.SPEEDS,
         **_bezel_ctx(),
-        **_machine_ctx(c, db),
+        **machine,
         # The projects in hand, for the work box at the foot of the form.
         "work_projects": projects.open_projects(db) if db is not None else [],
         "dl": _datalists(db, computer=True) if db is not None else {},
@@ -191,6 +210,53 @@ def _computer_form_ctx(
         "location_tick": c.location_public if c is not None else settings.on("public_locations"),
         **_boardparts_ctx(db, c),
     }
+
+
+def _duplicated_fields(src: Computer) -> dict[str, object]:
+    """What a second machine of this one's model takes from it: what Duplicate copies
+    and the new machine's form starts from alike, so the two cannot drift apart."""
+    return {
+        k: getattr(src, k)
+        for k in COMPUTER_FIELDS
+        if k not in DUP_EXCLUDE and k not in DERIVED_FIELDS
+    }
+
+
+class SameModels(TypedDict):
+    # {catalogue key: asset id}, and {folded "maker|model": asset id}.
+    catalogue: dict[str, str]
+    named: dict[str, str]
+
+
+def _same_models(db: Session) -> SameModels:
+    """One machine of each model held, for a new machine to offer to start from (MANUAL
+    §5). Keyed both ways the register calls two things one model, as the files' "the
+    other 4 Polpo PicoGUS" are (filesdb._identity): by the catalogue's key, and by the
+    maker and model folded. A named key wants both halves -- "Custom build" alone, or
+    a model with no maker, is not a model anybody has two of.
+
+    One still in the collection where there is one, so the offer is not to copy
+    something sold years ago while its twin is on the shelf; otherwise the first by
+    tag, so the same machine is offered every time."""
+    keys = dict(
+        db.query(AssetVariant.asset_id, AssetVariant.model_key)
+        .join(Computer, Computer.asset_id == AssetVariant.asset_id)
+        .tuples()
+        .all()
+    )
+    out: SameModels = {"catalogue": {}, "named": {}}
+    rows = (
+        db.query(Computer.asset_id, Computer.manufacturer, Computer.model)
+        .order_by(Computer.disposed, Computer.asset_id)
+        .tuples()
+    )
+    for aid, maker, model in rows:
+        key = (keys.get(aid) or "").strip()
+        if key:
+            out["catalogue"].setdefault(key, aid)
+        if filesdb.fold(maker) and filesdb.fold(model):
+            out["named"].setdefault(filesdb.named_key(maker, model), aid)
+    return out
 
 
 def _detach_ctx(db: Session, c: Computer, v: machinedb.Identity) -> dict[str, object]:
@@ -337,12 +403,21 @@ SHAPED = ("year", "topbench", "acquired_date")
 
 
 @router.get("/computers/new", response_class=HTMLResponse, include_in_schema=False)
-def gui_new_computer(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
-    # With a session, because the catalogue's pickers offer what other machines have
-    # already been found to have as well as what the catalogue names -- and the form
-    # for a machine being entered for the first time is where that matters most.
+def gui_new_computer(
+    request: Request,
+    db: Session = Depends(get_db),
+    source: str = Query("", alias="from"),
+) -> HTMLResponse:
+    """The new machine's form. `from` starts it filled in from a machine already held,
+    as the new part's form does from a part: what Duplicate copies, with nothing saved
+    until Save, which is the difference between the two.
+
+    With a session, because the catalogue's pickers offer what other machines have
+    already been found to have as well as what the catalogue names -- and the form for
+    a machine being entered for the first time is where that matters most."""
+    like = db.get(Computer, source.strip().upper()) if source.strip() else None
     return templates.TemplateResponse(
-        request, "computer_form.html", _computer_form_ctx(None, "New computer", db)
+        request, "computer_form.html", _computer_form_ctx(None, "New computer", db, like=like)
     )
 
 
@@ -857,12 +932,7 @@ def gui_duplicate_computer(aid: str, db: Session = Depends(get_db)) -> RedirectR
     board issue and the chips do not, because those are found by opening this
     machine rather than the one it was copied from."""
     src = get_or_404(db, Computer, aid)
-    data = {
-        k: getattr(src, k)
-        for k in COMPUTER_FIELDS
-        if k not in DUP_EXCLUDE and k not in DERIVED_FIELDS
-    }
-    obj = Computer(asset_id=next_asset_id(db), **data)
+    obj = Computer(asset_id=next_asset_id(db), **_duplicated_fields(src))
     db.add(obj)
     db.flush()
     mods, chips = ramdb.read(db, src)
