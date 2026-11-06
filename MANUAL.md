@@ -4204,7 +4204,9 @@ read it. A report carried on a floppy from a machine with no network can be
 copied into the folder by hand, and is sent like any other.
 
 `--check`, `--once` and the unit file `tools/survey-agent.service` work as the
-[print agent's](#print_agentpy) do.
+[print agent's](#print_agentpy) do. One thing differs: the agent moves files the
+machines wrote, so it runs as the user that owns the folder, and the unit names
+that folder a second time, in `ReadWritePaths`, as the one place it may write.
 
 ### import_report.py
 

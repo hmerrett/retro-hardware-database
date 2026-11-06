@@ -367,6 +367,16 @@ def test_the_unit_and_the_script_agree_on_what_is_set(agent):
         assert f"Environment={name}=" in unit, f"the agent reads {name} and the unit never sets it"
 
 
+def test_the_unit_lets_it_write_in_the_folder_it_watches_and_nowhere_else(agent):
+    """It moves what the machines left and writes beside it. Under ProtectSystem=strict
+    a folder left out of ReadWritePaths is read-only, and every report would fail to
+    move after it was sent."""
+    unit = (TOOLS / "survey-agent.service").read_text()
+    (watched,) = re.findall(r"^Environment=RHDB_SURVEY_DIR=(.+)$", unit, re.M)
+    assert re.findall(r"^ReadWritePaths=(.+)$", unit, re.M) == [watched]
+    assert "ProtectSystem=strict" in unit
+
+
 def test_the_unit_names_what_the_manual_names(agent):
     unit = (TOOLS / "survey-agent.service").read_text()
     for name in ("RHDB_API", "RHDB_SURVEY_AGENT", "RHDB_SURVEY_KEY", "RHDB_SURVEY_DIR"):

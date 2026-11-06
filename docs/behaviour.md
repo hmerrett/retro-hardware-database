@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3269 behaviours, from 98 files.*
+*3270 behaviours, from 98 files.*
 
 
 ## A barcode takes the room the words leave
@@ -5647,7 +5647,7 @@ Regenerate with:
 
 ## The survey agent
 
-*test_the_survey_agent.py — 25 behaviours*
+*test_the_survey_agent.py — 26 behaviours*
 
 - a question is answered beside it  
   The machine asks before it tests anything, so that a machine the register knows is named on its screen and nothing is asked of whoever is there.
@@ -5688,6 +5688,8 @@ Regenerate with:
 - the service file matches the script it starts
 - the unit and the script agree on what is set  
   A variable in the unit that the script ignores, or one the script needs and the unit leaves out, is a service that does nothing and says nothing.
+- the unit lets it write in the folder it watches and nowhere else  
+  It moves what the machines left and writes beside it.
 - the unit names what the manual names
 
 
