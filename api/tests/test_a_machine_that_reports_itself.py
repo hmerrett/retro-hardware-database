@@ -190,6 +190,14 @@ class TestAQuestionBeforeTheTests:
         assert machine["asset_id"] in receipt
         assert "1 thing" in receipt and "waiting" in receipt
 
+    def test_the_answer_names_a_machine_with_no_name_by_its_tag_once(self, client):
+        """A machine made at the machine has nothing to be called yet but its tag, and
+        a screen reading "RH-9Q0D RH-9Q0D" looks like a fault."""
+        r = send(client, report(TAG="NEW"))
+        assert r.status_code == 200, r.text
+        (made,) = r.json()["surveys"]
+        assert r.json()["receipt"].splitlines()[0] == made["machine"]
+
 
 # --- which machine it is ---------------------------------------------------------
 
@@ -1062,6 +1070,16 @@ class TestInTheHistory:
         survey(client, TAG=machine["asset_id"], taken="2026-11-01T09:30:00", DATE="01/01/1980")
         (line,) = lines(client, machine["asset_id"], "survey")
         assert line["created_at"].startswith("2026-11-01T09:30")
+
+    def test_a_machine_a_survey_made_was_made_before_it_was_surveyed(self, client):
+        """Its history reads in the order it happened: made, then surveyed. The survey
+        line is dated when the survey was taken, so the line that made it is too."""
+        made = survey(client, TAG="NEW", taken="2026-11-01T09:30:00")
+        log = lines(client, made["machine"])
+        kinds = [e["kind"] for e in log]
+        assert kinds.index("survey") < kinds.index("created"), kinds
+        created = next(e for e in log if e["kind"] == "created")
+        assert created["created_at"].startswith("2026-11-01T09:30")
 
     def test_the_line_says_every_test_passed_and_what_was_filled_in(self, client, computer):
         machine = computer()

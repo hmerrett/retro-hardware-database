@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3267 behaviours, from 98 files.*
+*3269 behaviours, from 98 files.*
 
 
 ## A barcode takes the room the words leave
@@ -166,7 +166,7 @@ Regenerate with:
 
 ## A machine that reports itself
 
-*test_a_machine_that_reports_itself.py — 122 behaviours*
+*test_a_machine_that_reports_itself.py — 124 behaviours*
 
 
 **What it takes**
@@ -193,6 +193,8 @@ Regenerate with:
   A question is not a survey.
 - the answer to a survey names the machine and what is waiting  
   It comes back to the machine's screen, so whoever is there knows it went and whether anything needs them.
+- the answer names a machine with no name by its tag once  
+  A machine made at the machine has nothing to be called yet but its tag, and a screen reading "RH-9Q0D RH-9Q0D" looks like a fault.
 
 **Which machine it is**
 
@@ -335,6 +337,8 @@ Regenerate with:
 - each survey writes one line marked survey
 - the line is dated when the survey was taken  
   By the agent's clock, since a machine's own is often wrong.
+- a machine a survey made was made before it was surveyed  
+  Its history reads in the order it happened: made, then surveyed.
 - the line says every test passed and what was filled in
 - the line says how many tests failed and which
 - a soaks line says how long it ran

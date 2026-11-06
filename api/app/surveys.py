@@ -870,7 +870,11 @@ def settle(
         made = Computer(asset_id=next_asset_id(db))
         db.add(made)
         db.flush()
-        add_log(db, made.asset_id, "created by a survey", "created")
+        made_line = add_log(db, made.asset_id, "created by a survey", "created")
+        # Dated with the survey, as the survey's own line is, so the history reads in the
+        # order it happened: made, then surveyed.
+        if made_line is not None and made_line.created_at is not None:
+            made_line.created_at = min(made_line.created_at, s.taken)
         done.made.append(("computer", made.asset_id))
         machine = made.asset_id
         t = tree.load(db)
@@ -1588,6 +1592,9 @@ def receipt(db: Session, made: list[Survey]) -> str:
             name = (
                 entry.display_name(to_dict(subject)) if isinstance(subject, Computer | Part) else ""
             )
+            # A machine with nothing to be called but its tag is named by the tag once.
+            if name.strip().upper() == s.machine.upper():
+                name = ""
             lines.append(f"{s.machine} {name}".strip())
         else:
             lines.append("Not filed yet: which machine this is waits on the Surveys page.")
