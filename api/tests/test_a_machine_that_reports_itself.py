@@ -108,17 +108,20 @@ class TestWhatItTakes:
     def test_a_wrong_key_is_refused(self, client):
         assert send(client, report(), key="not-a-key").status_code == 401
 
-    def test_the_agents_key_opens_nothing_else(self, client, computer):
+    def test_the_agents_key_opens_its_own_door_and_nothing_else(self, client, computer):
         """Asked by somebody holding only the key: the suite's client is otherwise
         signed in as an administrator, and everything would answer."""
         machine = computer()
         log_out(client)
         head = {"Authorization": "Bearer key-one"}
+        assert send(client, report()).status_code == 200
         assert client.get("/api/computers", headers=head).status_code == 401
         assert client.get(f"/api/computers/{machine['asset_id']}", headers=head).status_code == 401
         assert client.post("/api/computers", json={"model": "X"}, headers=head).status_code == 401
         assert client.get("/api/surveys", headers=head).status_code == 401
-        assert client.get("/surveys", headers=head).status_code != 200
+        # Not followed: the login page a visitor is sent to answers 200 itself.
+        page = client.get("/surveys", headers=head, follow_redirects=False)
+        assert page.status_code == 303 and page.headers["location"].startswith("/login")
 
     def test_a_tag_a_survey_makes_has_its_label_printed_on_the_agents_printer(
         self, client, monkeypatch
