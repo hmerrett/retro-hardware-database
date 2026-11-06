@@ -105,7 +105,8 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
 - [0034](0034-a-location-is-a-record-in-the-register.md) — A location is a record
   in the register — *Accepted* (supersedes
   [0027](0027-a-remembered-vocabulary-is-deleted-when-it-is-turned-off.md); amended
-  by [0036](0036-where-a-thing-is-is-one-tree.md))
+  by [0036](0036-where-a-thing-is-is-one-tree.md) and
+  [0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md))
 - [0035](0035-a-text-file-is-read-as-a-page-of-the-register.md) — A text file is
   read as a page of the register — *Accepted* (amends
   [0030](0030-a-pdf-is-read-in-the-browser.md))
@@ -127,3 +128,6 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
 - [0042](0042-a-file-row-carries-its-public-switch.md) — A file's row carries its
   Public switch, and nothing else — *Accepted* (amends
   [0028](0028-a-file-is-linked-to-the-things-it-is-for-by-their-ids.md))
+- [0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md) — A
+  survey gives everything it finds one of three answers — *Proposed* (amends
+  [0034](0034-a-location-is-a-record-in-the-register.md))

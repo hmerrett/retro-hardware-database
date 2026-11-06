@@ -1,0 +1,131 @@
+"""Reports, sent the way the survey agent sends them. Not a test.
+
+Shared by the tests of surveys (MANUAL §23, ADR-0043): a report as a survey
+program writes one, the agent's two calls with its own key, and the owner's
+answers on a survey's page. Every helper checks the status it was given, so a
+route that is not there yet fails here, plainly, rather than as a dictionary
+that happens to have the length a test was counting.
+"""
+
+AGENTS = "bench:key-one,attic:key-two:workshop-pi"
+PRINTERS = "workshop-pi:key-print:dymo-11355:pdf"
+
+MAC = "00:00:C0:12:34:56"
+
+# An IDE disk as ATA IDENTIFY describes it, and the card the survey ran through.
+DISK = {
+    "DISK1_MODEL": "QUANTUM FIREBALL1080A",
+    "DISK1_SERIAL": "QX123",
+    "DISK1_KB": "1056768",
+    "DISK1_CHS": "2097/16/63",
+    "DISK1_TYPE": "ATA",
+}
+NIC = {"NIC_MAC": MAC, "NIC_DRIVER": "NE2000"}
+
+# The keys every report carries, whatever else it says. A test passes None to
+# take one out.
+BASE = {
+    "TOOL": "DIAG",
+    "VERSION": "1.0",
+    "DATE": "11/06/2026",
+    "TIME": "09:30:00",
+    "MODE": "ONCE",
+    "RESULT": "PASS",
+    "TESTS": "1",
+    "PASSED": "1",
+    "TEST_CPU": "PASS",
+}
+
+# A ROM as a survey copies one: the option ROM signature, then the words in it.
+BIOS_ROM = (
+    b"\x55\xaa\x80"
+    + b"Award Modular BIOS v4.51PG, An Energy Star Ally\0"
+    + b"Copyright (C) 1984-98, Award Software, Inc.\0"
+    + b"\0" * 200
+)
+VGA_ROM = b"\x55\xaa\x40" + b"Tseng Labs ET4000 VGA BIOS Version 8.00\0" + b"\0" * 200
+BOOT_ROM = b"\x55\xaa\x20" + b"netboot 0.8.1 NE2000 boot ROM\0" + b"\0" * 200
+
+
+def report(**keys: str | None) -> str:
+    """A report: words for the person reading it, then the [RHDB] section, one
+    KEY=VALUE to a line, in DOS's line endings."""
+    fields = BASE | keys
+    lines = ["DIAG 1.0  hardware report", "", "[RHDB]"]
+    lines += [f"{k}={v}" for k, v in fields.items() if v is not None]
+    return "\r\n".join(lines) + "\r\n"
+
+
+def send(client, text, key="key-one", roms=(), taken=None):
+    """What the agent does with a report it has found: the report, the ROMs named
+    in it, and when it first saw the file, by its own clock."""
+    files = [("report", ("RH0001.TXT", text.encode("cp437"), "text/plain"))]
+    files += [("roms", (name, data, "application/octet-stream")) for name, data in roms]
+    return client.post(
+        "/api/survey/agent/surveys",
+        files=files,
+        data={"taken": taken} if taken else {},
+        headers={"Authorization": f"Bearer {key}"},
+    )
+
+
+def survey(client, roms=(), taken=None, key="key-one", **keys) -> dict:
+    """Send one report and read back the survey it made."""
+    r = send(client, report(**keys), key=key, roms=roms, taken=taken)
+    assert r.status_code == 200, r.text
+    (made,) = r.json()["surveys"]
+    return read(client, made["id"])
+
+
+def read(client, sid) -> dict:
+    r = client.get(f"/api/surveys/{sid}")
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def ask(client, key="key-one", **keys) -> dict[str, str]:
+    """The agent's other call: a machine's question, before its tests run, and the
+    register's answer, as the KEY=VALUE lines the agent writes beside it."""
+    body = "\r\n".join(["[RHDB]"] + [f"{k}={v}" for k, v in keys.items()]) + "\r\n"
+    r = client.post(
+        "/api/survey/agent/ask",
+        content=body.encode("cp437"),
+        headers={"Authorization": f"Bearer {key}", "content-type": "text/plain"},
+    )
+    assert r.status_code == 200, r.text
+    return dict(line.split("=", 1) for line in r.text.splitlines() if "=" in line)
+
+
+def finding(made: dict, thing: str) -> dict:
+    """One thing a survey found, by the name its report gave it (`DISK1`, `NIC`)."""
+    found = [f for f in made["findings"] if f["thing"] == thing]
+    assert len(found) == 1, f"{thing} is not among {[f['thing'] for f in made['findings']]}"
+    return found[0]
+
+
+def answer(client, made: dict, thing: str, how: str, **extra):
+    """An answer given on the survey's page: `new`, `link` (with a `tag`),
+    `bench` (with a `bench`), `machine` or `out`."""
+    return client.post(
+        f"/surveys/{made['id']}/answer",
+        data={"thing": thing, "answer": how} | extra,
+        follow_redirects=False,
+    )
+
+
+def get(client, kind: str, aid: str) -> dict:
+    r = client.get(f"/api/{kind}/{aid}")
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def parts_in(client, aid: str) -> list[dict]:
+    r = client.get(f"/api/parts?computer_id={aid}")
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def location(client, name: str, kind: str, parent: str | None = None) -> dict:
+    r = client.post("/api/locations", json={"name": name, "kind": kind, "parent": parent})
+    assert r.status_code == 200, r.text
+    return r.json()
