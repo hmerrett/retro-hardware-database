@@ -16,6 +16,23 @@ need a hand is written under the release that needs it.
 
 ## Unreleased
 
+**A machine can report itself.** A survey program run on the machine (tinydiag, from
+a network drive or a floppy) writes down what it finds: processor, memory, BIOS,
+disks, network and video cards, ROMs, and how its tests went. The survey agent, a
+small program on the server beside the machines, sends that to the register. The
+register works out which machine it is from the tag typed at the machine, a disk's
+serial number or a card's Ethernet address. It fills in what the record is missing,
+records every serial number and address it is shown, and marks the machine Working
+when every test passed. Anything it cannot place waits on the new Surveys page for
+an answer: part of the machine, a part of its own, or left out. A card kept on a
+bench is never fitted in the machines it tests.
+
+**Upgrading:** nothing to do unless you want surveys. Give an agent a key in
+`RHDB_SURVEY_AGENTS` in `.env`, run `tools/survey_agent.py` where the machines'
+reports are written, and set your bench's location kind to Bench (the manual's
+*Surveys* has the whole of it). Ethernet addresses are shown only to people signed
+in.
+
 **Each release is published as images, so an installation no longer builds them.**
 When a release is made, the app and the tool server are built for x86-64 and 64-bit
 ARM and published at `ghcr.io/hmerrett/retro-hardware-database`. Installing one is

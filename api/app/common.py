@@ -64,7 +64,7 @@ NOT_A_MAKER = {"unknown", "generic", "various", "noname", "no name", "n/a", "-",
 # so does not belong in here, because the answer would depend on when the set was
 # read. Those are added on top of this one, per reader, by search._hidden_columns
 # (ADR-0027) -- which is the question this set is one answer to.
-OWNER_ONLY = frozenset({"for_sale"})
+OWNER_ONLY = frozenset({"for_sale", "ethernet_address"})
 
 
 # Disposed items are records of things that have gone. A figure about the collection

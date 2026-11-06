@@ -27,6 +27,7 @@ is only ever data -- see `save`.
 
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 import secrets
@@ -432,6 +433,44 @@ def save(
         note=(note or "").strip()[:NOTE_MAX],
         public=bool(public),
         created_at=datetime.now(timezone.utc).replace(tzinfo=None),
+    )
+    db.add(row)
+    db.flush()
+    return row
+
+
+def keep(db: Session, filename: str, data: bytes, note: str) -> StoredFile | None:
+    """Keep bytes nobody uploaded -- a ROM a survey copied -- as a private file, or
+    hand back the file already holding the same bytes, so that a ROM read again, from
+    this machine or another of the same model, is one file (ADR-0043). None for no
+    bytes; ValueError over MAX_BYTES, as an upload.
+
+    Private whatever New files are public says: that setting starts an upload box
+    ticked, and nobody ticked anything here. A BIOS is somebody's copyright, and
+    publishing one should be a decision."""
+    if not data:
+        return None
+    if len(data) > MAX_BYTES:
+        raise ValueError(f"{filename} is over {MAX_BYTES // (1024 * 1024)} {MIB}")
+    digest = hashlib.sha256(data).hexdigest()
+    found = db.query(StoredFile).filter(StoredFile.digest == digest).first()
+    if found is not None:
+        return found
+    name = Path(filename or "").name or "ROM.BIN"
+    suffix = Path(name).suffix
+    if not _SAFE_SUFFIX.match(suffix):
+        suffix = ""
+    FILES_DIR.mkdir(parents=True, exist_ok=True)
+    stored = f"{secrets.token_hex(16)}{suffix.lower()}"
+    (FILES_DIR / stored).write_bytes(data)
+    row = StoredFile(
+        stored=stored,
+        filename=name[:255],
+        size=len(data),
+        note=(note or "").strip()[:NOTE_MAX],
+        public=False,
+        created_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        digest=digest,
     )
     db.add(row)
     db.flush()

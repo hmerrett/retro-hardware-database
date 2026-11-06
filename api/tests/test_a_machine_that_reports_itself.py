@@ -1,0 +1,1204 @@
+"""A machine that reports itself (MANUAL §23, ADR-0043).
+
+Started with a survey program, a machine tests itself and writes a report of what
+it is made of. An agent beside it sends the report, and the register files it.
+Everything a survey finds gets one of three answers: it is left out, it is part
+of the machine, or it is a part of its own. The machine itself is one the register
+has, or a new one. Every serial number and Ethernet address is recorded whatever
+its answer, so nothing is new twice.
+
+These are the manual's promises, one to a test and in the manual's order. Reports
+are sent the way the agent sends them, through its own door with its own key, and
+what became of them is read back through the API, as anything else is.
+"""
+
+import pytest
+
+from conftest import log_out
+from survey_reports import (
+    AGENTS,
+    BIOS_ROM,
+    BOOT_ROM,
+    DISK,
+    MAC,
+    NIC,
+    PRINTERS,
+    VGA_ROM,
+    answer,
+    ask,
+    finding,
+    get,
+    location,
+    parts_in,
+    read,
+    report,
+    send,
+    survey,
+)
+
+
+@pytest.fixture(autouse=True)
+def agents(monkeypatch):
+    """Two agents, as the environment names them. The second prints the labels of
+    the tags its surveys make on the workshop's printer."""
+    monkeypatch.setenv("RHDB_SURVEY_AGENTS", AGENTS)
+
+
+@pytest.fixture
+def with_disk(computer, part):
+    """A machine with an IDE disk fitted in it, the disk's serial number on file."""
+
+    def make(serial="QX123", **fields):
+        machine = computer(**fields)
+        disk = part(
+            type="storage",
+            manufacturer="Quantum",
+            model="Fireball 1080AT",
+            serial=serial,
+            computer_id=machine["asset_id"],
+            specs="Kind: Hard disk | Interface: IDE",
+        )
+        return machine, disk
+
+    return make
+
+
+@pytest.fixture
+def bench_card(client, computer, part):
+    """A network card kept on the bench, its address recorded the way it is the
+    first time: its tag typed at the machine it was started from."""
+
+    def make(name="Bench 1"):
+        bench = location(client, name, "bench")
+        card = part(
+            type="network", manufacturer="UMC", model="UM9003AF", location=bench["asset_id"]
+        )
+        first = computer()
+        survey(client, TAG=first["asset_id"], NIC_ANSWER=card["asset_id"], **NIC)
+        return card, bench
+
+    return make
+
+
+def computers(client) -> list[dict]:
+    r = client.get("/api/computers")
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def all_parts(client) -> list[dict]:
+    r = client.get("/api/parts")
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+# --- what it takes ---------------------------------------------------------------
+
+
+class TestWhatItTakes:
+    def test_with_no_agent_named_the_register_takes_no_surveys(self, client, computer, monkeypatch):
+        """Not an empty list: the feature does not exist until a key has been written
+        down in the environment, as with the print agent."""
+        monkeypatch.delenv("RHDB_SURVEY_AGENTS")
+        machine = computer()
+        r = send(client, report(TAG=machine["asset_id"], CPU="80286", CPUKHZ="12000"))
+        assert r.status_code == 401, r.text
+        assert not get(client, "computers", machine["asset_id"])["cpu"]
+
+    def test_a_wrong_key_is_refused(self, client):
+        assert send(client, report(), key="not-a-key").status_code == 401
+
+    def test_the_agents_key_opens_its_own_door_and_nothing_else(self, client, computer):
+        """Asked by somebody holding only the key: the suite's client is otherwise
+        signed in as an administrator, and everything would answer."""
+        machine = computer()
+        log_out(client)
+        head = {"Authorization": "Bearer key-one"}
+        assert send(client, report()).status_code == 200
+        assert client.get("/api/computers", headers=head).status_code == 401
+        assert client.get(f"/api/computers/{machine['asset_id']}", headers=head).status_code == 401
+        assert client.post("/api/computers", json={"model": "X"}, headers=head).status_code == 401
+        assert client.get("/api/surveys", headers=head).status_code == 401
+        # Not followed: the login page a visitor is sent to answers 200 itself.
+        page = client.get("/surveys", headers=head, follow_redirects=False)
+        assert page.status_code == 303 and page.headers["location"].startswith("/login")
+
+    def test_a_tag_a_survey_makes_has_its_label_printed_on_the_agents_printer(
+        self, client, monkeypatch
+    ):
+        """So a new machine's label is waiting by the time it is switched off."""
+        monkeypatch.setenv("RHDB_PRINT_AGENTS", PRINTERS)
+        made = survey(client, key="key-two", TAG="NEW")
+        jobs = client.get("/api/print/jobs").json()
+        assert [(j["agent"], j["asset_id"]) for j in jobs] == [("workshop-pi", made["machine"])]
+
+    def test_an_agent_named_without_a_printer_prints_nothing(self, client, monkeypatch):
+        monkeypatch.setenv("RHDB_PRINT_AGENTS", PRINTERS)
+        survey(client, key="key-one", TAG="NEW")
+        assert client.get("/api/print/jobs").json() == []
+
+
+# --- at the machine: the question before the tests ----------------------------------
+
+
+class TestAQuestionBeforeTheTests:
+    def test_a_machine_the_register_recognises_is_named(self, client, with_disk):
+        machine, _ = with_disk()
+        assert ask(client, DISK1_SERIAL="QX123")["TAG"] == machine["asset_id"]
+
+    def test_each_thing_found_is_given_the_answer_already_held(self, client, with_disk):
+        _, disk = with_disk()
+        assert ask(client, DISK1_SERIAL="QX123")["DISK1_ANSWER"] == disk["asset_id"]
+
+    def test_a_card_kept_on_a_bench_is_answered_as_the_benchs(self, client, bench_card):
+        card, _ = bench_card()
+        assert ask(client, **NIC)["NIC_ANSWER"] == f"{card['asset_id']} BENCH"
+
+    def test_something_left_out_is_answered_out(self, client, computer):
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], DISK1_ANSWER="OUT", **DISK)
+        assert ask(client, DISK1_SERIAL="QX123")["DISK1_ANSWER"] == "OUT"
+
+    def test_a_question_carrying_the_tag_is_answered_for_that_machine(self, client, computer):
+        """A thing with no serial number is known only in the machine it was answered
+        in, so the answer for it needs the machine, which the person may have just
+        typed."""
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], VIDEO="VGA", VIDEO_ANSWER="OUT")
+        assert ask(client, TAG=machine["asset_id"], VIDEO="VGA")["VIDEO_ANSWER"] == "OUT"
+        assert "VIDEO_ANSWER" not in ask(client, VIDEO="VGA")
+
+    def test_something_never_seen_has_no_answer(self, client):
+        answered = ask(client, DISK1_SERIAL="NEVER-SEEN")
+        assert "DISK1_ANSWER" not in answered and "TAG" not in answered
+
+    def test_asking_records_nothing(self, client):
+        """A question is not a survey. Its serial numbers are recorded when the
+        survey that carries them arrives."""
+        ask(client, DISK1_SERIAL="QX999")
+        seen = client.get("/surveys/seen")
+        assert seen.status_code == 200, seen.text
+        assert "QX999" not in seen.text
+
+    def test_the_answer_to_a_survey_names_the_machine_and_what_is_waiting(self, client, computer):
+        """It comes back to the machine's screen, so whoever is there knows it went
+        and whether anything needs them."""
+        machine = computer()
+        r = send(client, report(TAG=machine["asset_id"], **DISK))
+        assert r.status_code == 200, r.text
+        receipt = r.json()["receipt"]
+        assert machine["asset_id"] in receipt
+        assert "1 thing" in receipt and "waiting" in receipt
+
+    def test_the_answer_names_a_machine_with_no_name_by_its_tag_once(self, client):
+        """A machine made at the machine has nothing to be called yet but its tag, and
+        a screen reading "RH-9Q0D RH-9Q0D" looks like a fault."""
+        r = send(client, report(TAG="NEW"))
+        assert r.status_code == 200, r.text
+        (made,) = r.json()["surveys"]
+        assert r.json()["receipt"].splitlines()[0] == made["machine"]
+
+
+# --- which machine it is ---------------------------------------------------------
+
+
+class TestWhichMachineItIs:
+    def test_the_tag_typed_at_the_machine_files_the_survey_there(self, client, computer):
+        machine = computer()
+        made = survey(client, TAG=machine["asset_id"])
+        assert made["machine"] == machine["asset_id"]
+        assert made["how"] == "typed"
+
+    def test_a_motherboards_tag_files_the_survey_against_the_board(self, client, part):
+        """A bare board on the bench, tested before it goes back in a case."""
+        board = part(type="motherboard")
+        assert survey(client, TAG=board["asset_id"])["machine"] == board["asset_id"]
+
+    def test_a_motherboard_fitted_in_a_machine_stands_for_the_machine(self, client, computer, part):
+        machine = computer()
+        board = part(type="motherboard", computer_id=machine["asset_id"])
+        assert survey(client, TAG=board["asset_id"])["machine"] == machine["asset_id"]
+
+    def test_n_at_the_machine_makes_a_new_computer(self, client):
+        before = len(computers(client))
+        made = survey(client, TAG="NEW", CPU="80286", CPUKHZ="12000")
+        assert made["how"] == "new"
+        assert len(computers(client)) == before + 1
+        assert get(client, "computers", made["machine"])["cpu"] == "80286-12"
+
+    def test_a_new_computer_has_no_name_until_somebody_gives_it_one(self, client):
+        """So it is called by its tag, as any machine with nothing filled in is."""
+        made = get(client, "computers", survey(client, TAG="NEW")["machine"])
+        assert (made["name"], made["manufacturer"], made["model"]) == ("", "", "")
+
+    def test_a_machine_is_recognised_by_a_hard_disk_fitted_in_it(self, client, with_disk):
+        machine, disk = with_disk()
+        made = survey(client, **DISK)
+        assert made["machine"] == machine["asset_id"]
+        assert (made["how"], made["by"]) == ("recognised", disk["asset_id"])
+
+    def test_a_machine_is_recognised_by_its_network_card(self, client, computer):
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], NIC_ANSWER="NEW", **NIC)
+        assert survey(client, **NIC)["machine"] == machine["asset_id"]
+
+    def test_a_machine_is_recognised_by_a_network_chip_recorded_as_part_of_it(
+        self, client, computer
+    ):
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], NIC_ANSWER="MACHINE", **NIC)
+        assert survey(client, **NIC)["machine"] == machine["asset_id"]
+
+    def test_a_machine_is_recognised_by_the_serial_number_its_bios_keeps(self, client, computer):
+        machine = computer(serial="7XK2Q11")
+        assert survey(client, SYSTEM_SERIAL="7XK2Q11")["machine"] == machine["asset_id"]
+
+    def test_a_board_serial_number_recognises_the_machine_the_board_is_fitted_in(
+        self, client, computer, part
+    ):
+        machine = computer()
+        part(type="motherboard", serial="BRD-7", computer_id=machine["asset_id"])
+        assert survey(client, BOARD_SERIAL="BRD-7")["machine"] == machine["asset_id"]
+
+    def test_with_nothing_to_go_on_a_survey_waits_for_a_machine(self, client):
+        made = survey(client, CPU="80286", CPUKHZ="12000", **DISK)
+        assert made["machine"] is None
+        assert made["waiting"] == "machine"
+
+    def test_a_tag_that_disagrees_with_what_is_inside_waits_and_does_nothing(
+        self, client, computer, with_disk
+    ):
+        typed = computer()
+        with_disk()
+        made = survey(client, TAG=typed["asset_id"], CPU="80286", CPUKHZ="12000", **DISK)
+        assert made["waiting"] == "machine"
+        assert not get(client, "computers", typed["asset_id"])["cpu"]
+
+    def test_n_that_disagrees_with_what_is_inside_waits_and_makes_nothing(self, client, with_disk):
+        with_disk()
+        before = len(computers(client))
+        assert survey(client, TAG="NEW", **DISK)["waiting"] == "machine"
+        assert len(computers(client)) == before
+
+    def test_insides_that_point_at_two_machines_wait(self, client, computer, with_disk):
+        with_disk()
+        computer(serial="7XK2Q11")
+        assert survey(client, SYSTEM_SERIAL="7XK2Q11", **DISK)["waiting"] == "machine"
+
+    @pytest.mark.parametrize("what", ["part", "location", "project", "disposed"])
+    def test_a_tag_that_is_not_a_machine_or_a_motherboard_waits(self, client, computer, part, what):
+        if what == "part":
+            tag = part(type="video")["asset_id"]
+        elif what == "location":
+            tag = location(client, "Shelf 2", "shelf")["asset_id"]
+        elif what == "project":
+            tag = client.post("/api/projects", json={"name": "Recap"}).json()["asset_id"]
+        else:
+            tag = computer()["asset_id"]
+            r = client.patch(f"/api/computers/{tag}", json={"disposed": True})
+            assert r.status_code == 200, r.text
+        assert survey(client, TAG=tag)["waiting"] == "machine"
+
+    def test_a_tag_the_register_never_issued_makes_nothing(self, client):
+        """The register issues every tag, so a tag it never issued is a typing
+        mistake, never a new record."""
+        before = len(computers(client))
+        assert survey(client, TAG="RH-ZZZZ")["waiting"] == "machine"
+        assert len(computers(client)) == before
+        assert client.get("/api/computers/RH-ZZZZ").status_code == 404
+
+    def test_a_card_kept_on_a_bench_never_says_which_machine_this_is(self, client, bench_card):
+        bench_card()
+        assert survey(client, **NIC)["waiting"] == "machine"
+
+
+# --- what it does with what it finds -----------------------------------------------
+
+
+class TestWhatItDoesWithWhatItFinds:
+    def test_what_is_always_part_of_the_machine_is_never_asked_about(self, client, computer):
+        machine = computer()
+        made = survey(
+            client,
+            TAG=machine["asset_id"],
+            CPU="80286",
+            CPUKHZ="12000",
+            RAMKB="640",
+            OS="MS-DOS 6.22",
+            FLOPPY1="1.44M",
+        )
+        assert made["waiting"] is None
+        for thing in ("CPU", "MEMORY", "OS", "FLOPPY1"):
+            assert finding(made, thing)["answer"] == "machine"
+
+    def test_a_hard_disk_cannot_be_part_of_the_machine(self, client, computer):
+        """The register keeps a hard disk as a part of its own, so a disk answered as
+        part of the machine has not been answered."""
+        machine = computer()
+        made = survey(client, TAG=machine["asset_id"], DISK1_ANSWER="MACHINE", **DISK)
+        assert finding(made, "DISK1")["answer"] is None
+        assert made["waiting"] == "answer"
+        assert answer(client, made, "DISK1", "machine").status_code == 400
+
+    def test_a_card_may_be_part_of_the_machine(self, client, computer, part):
+        machine = computer()
+        board = part(type="motherboard", computer_id=machine["asset_id"])
+        made = survey(client, TAG=machine["asset_id"], VIDEO="VGA", VIDEO_ANSWER="MACHINE")
+        assert finding(made, "VIDEO")["answer"] == "machine"
+        assert "Onboard video" in get(client, "parts", board["asset_id"])["specs"]
+
+    def test_an_answer_is_remembered_for_the_same_thing_in_the_same_machine(self, client, computer):
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], VIDEO="VGA", VIDEO_ANSWER="OUT")
+        again = survey(client, TAG=machine["asset_id"], VIDEO="VGA")
+        assert finding(again, "VIDEO")["answer"] == "out"
+        assert again["waiting"] is None
+
+    def test_a_thing_with_a_serial_number_is_known_wherever_it_turns_up(self, client, computer):
+        first, second = computer(), computer()
+        survey(client, TAG=first["asset_id"], DISK1_ANSWER="OUT", **DISK)
+        elsewhere = survey(client, TAG=second["asset_id"], **DISK)
+        assert finding(elsewhere, "DISK1")["answer"] == "out"
+        assert elsewhere["waiting"] is None
+
+    def test_a_thing_with_no_serial_number_is_known_only_in_the_machine_it_was_answered_in(
+        self, client, computer
+    ):
+        """A VGA card in one machine says nothing about the VGA card in another."""
+        first, second = computer(), computer()
+        survey(client, TAG=first["asset_id"], VIDEO="VGA", VIDEO_ANSWER="OUT")
+        elsewhere = survey(client, TAG=second["asset_id"], VIDEO="VGA")
+        assert finding(elsewhere, "VIDEO")["answer"] is None
+        assert elsewhere["waiting"] == "answer"
+
+    def test_two_of_the_same_in_one_machine_are_counted(self, client, computer):
+        """The survey cannot tell which is which, so the second is the new one."""
+        machine = computer()
+        nic = "10EC:8029 0200"
+        survey(client, TAG=machine["asset_id"], PCI1=nic, PCI1_ANSWER="NEW")
+        again = survey(client, TAG=machine["asset_id"], PCI1=nic, PCI2=nic)
+        answers = sorted(str(finding(again, t)["answer"]) for t in ("PCI1", "PCI2"))
+        assert answers == ["None", "part"]
+        assert again["waiting"] == "answer"
+
+    def test_an_answer_that_no_longer_holds_is_asked_again(self, client, computer, part):
+        machine = computer()
+        card = part(type="video", model="ET4000", computer_id=machine["asset_id"])
+        survey(client, TAG=machine["asset_id"], VIDEO="VGA", VIDEO_ANSWER=card["asset_id"])
+        r = client.patch(f"/api/parts/{card['asset_id']}", json={"computer_id": None})
+        assert r.status_code == 200, r.text
+        again = survey(client, TAG=machine["asset_id"], VIDEO="VGA")
+        assert finding(again, "VIDEO")["answer"] is None
+
+    def test_what_the_register_expected_and_did_not_find_is_listed_and_left(
+        self, client, with_disk
+    ):
+        """A disk recorded in the machine that did not answer when the others did. It
+        is there to be looked at: nothing is moved, and nothing is deleted."""
+        machine, disk = with_disk()
+        made = survey(
+            client,
+            TAG=machine["asset_id"],
+            DISK1_MODEL="CONNER CP30254",
+            DISK1_SERIAL="CN-OTHER",
+            DISK1_TYPE="ATA",
+        )
+        assert disk["asset_id"] in made["missing"]
+        assert get(client, "parts", disk["asset_id"])["computer_id"] == machine["asset_id"]
+
+
+# --- serial numbers and addresses --------------------------------------------------
+
+
+class TestSerialNumbersAndAddresses:
+    def test_every_serial_number_and_address_is_recorded_whatever_its_answer(
+        self, client, computer
+    ):
+        survey(client, TAG=computer()["asset_id"], **DISK, **NIC)
+        seen = client.get("/surveys/seen")
+        assert seen.status_code == 200, seen.text
+        assert "QX123" in seen.text and MAC in seen.text
+
+    def test_a_disk_left_out_stays_left_out_until_its_answer_is_changed(self, client, computer):
+        machine = computer()
+        first = survey(client, TAG=machine["asset_id"], DISK1_ANSWER="OUT", **DISK)
+        assert answer(client, first, "DISK1", "new").status_code == 303
+        again = survey(client, TAG=machine["asset_id"], **DISK)
+        assert finding(again, "DISK1")["answer"] == "part"
+
+    def test_a_part_of_its_own_carries_its_serial_number(self, client, computer):
+        made = survey(client, TAG=computer()["asset_id"], DISK1_ANSWER="NEW", **DISK)
+        assert get(client, "parts", finding(made, "DISK1")["part"])["serial"] == "QX123"
+
+    def test_a_network_card_carries_its_address(self, client, computer):
+        made = survey(client, TAG=computer()["asset_id"], NIC_ANSWER="NEW", **NIC)
+        assert get(client, "parts", finding(made, "NIC")["part"])["ethernet_address"] == MAC
+
+    def test_an_address_that_is_part_of_the_machine_makes_no_part(self, client, computer):
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], NIC_ANSWER="MACHINE", **NIC)
+        assert parts_in(client, machine["asset_id"]) == []
+
+
+# --- part of the machine -----------------------------------------------------------
+
+
+class TestPartOfTheMachine:
+    def test_the_processor_is_written_the_way_the_form_asks_for_it(self, client, computer):
+        machine = computer()
+        survey(
+            client, TAG=machine["asset_id"], CPU="486DX2", CPUVENDOR="GenuineIntel", CPUKHZ="66667"
+        )
+        assert get(client, "computers", machine["asset_id"])["cpu"] == "Intel 486DX2-66"
+
+    def test_a_chip_too_old_to_say_who_made_it_is_written_without_a_maker(self, client, computer):
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], CPU="80286", CPUKHZ="12000")
+        assert get(client, "computers", machine["asset_id"])["cpu"] == "80286-12"
+
+    def test_the_speed_written_is_the_speed_measured(self, client, computer):
+        """So a machine surveyed with its turbo switched off is written at its slower
+        speed."""
+        machine = computer()
+        survey(
+            client, TAG=machine["asset_id"], CPU="486DX2", CPUVENDOR="GenuineIntel", CPUKHZ="8000"
+        )
+        assert get(client, "computers", machine["asset_id"])["cpu"] == "Intel 486DX2-8"
+
+    def test_the_coprocessor_goes_in_the_catalogues_fpu_socket(self, client, computer):
+        machine = computer(machine={"model_key": "ibm-5150"})
+        survey(client, TAG=machine["asset_id"], FPU="8087")
+        chips = get(client, "computers", machine["asset_id"])["machine"]["chips"]
+        assert chips["fpu"] == "Intel 8087"
+
+    def test_without_a_socket_the_coprocessor_goes_on_the_motherboard(self, client, computer, part):
+        machine = computer()
+        board = part(type="motherboard", computer_id=machine["asset_id"])
+        survey(client, TAG=machine["asset_id"], FPU="80387")
+        assert "80387" in get(client, "parts", board["asset_id"])["specs"]
+
+    def test_memory_is_written_as_a_plain_total_when_nothing_is_recorded(self, client, computer):
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], RAMKB="640", EXTKB="0")
+        assert get(client, "computers", machine["asset_id"])["installed_ram"] == "640 KiB"
+
+    @pytest.mark.parametrize(("ext", "total"), [("384", "1 MiB"), ("3072", "4 MiB")])
+    def test_above_a_mebibyte_memory_is_rounded_up_to_whole_mebibytes(
+        self, client, computer, ext, total
+    ):
+        """Because an AT's BIOS leaves out the 384 KiB under its ROMs."""
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], RAMKB="640", EXTKB=ext)
+        assert get(client, "computers", machine["asset_id"])["installed_ram"] == total
+
+    def test_memory_already_recorded_is_left_alone_and_the_difference_shown(self, client, computer):
+        machine = computer(installed_ram="640KiB")
+        made = survey(client, TAG=machine["asset_id"], RAMKB="512", EXTKB="0")
+        assert get(client, "computers", machine["asset_id"])["installed_ram"] == "640 KiB"
+        assert {"field": "installed_ram", "recorded": "640 KiB", "found": "512 KiB"} in made[
+            "differs"
+        ]
+
+    def test_the_operating_system_on_the_first_hard_disk_is_written(self, client, computer):
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], OS="MS-DOS 6.22")
+        assert get(client, "computers", machine["asset_id"])["os"] == "MS-DOS 6.22"
+
+    def test_what_a_later_pcs_bios_says_fills_its_maker_model_and_serial_number(
+        self, client, computer
+    ):
+        machine = computer(manufacturer="", model="")
+        survey(
+            client,
+            TAG=machine["asset_id"],
+            SYSTEM_MAKER="Dell Computer Corporation",
+            SYSTEM_MODEL="OptiPlex GXi",
+            SYSTEM_SERIAL="7XK2Q11",
+        )
+        got = get(client, "computers", machine["asset_id"])
+        assert got["model"] == "OptiPlex GXi"
+        assert got["serial"] == "7XK2Q11"
+        assert "Dell" in got["manufacturer"]
+
+    def test_a_placeholder_from_the_bios_says_nothing(self, client, computer):
+        machine = computer(manufacturer="", model="")
+        survey(
+            client,
+            TAG=machine["asset_id"],
+            SYSTEM_MODEL="System Product Name",
+            SYSTEM_SERIAL="To be filled by O.E.M.",
+        )
+        got = get(client, "computers", machine["asset_id"])
+        assert (got["model"], got["serial"]) == ("", "")
+
+    def test_drives_are_written_when_the_machine_has_none(self, client, computer):
+        machine = computer()
+        survey(
+            client,
+            TAG=machine["asset_id"],
+            FLOPPY1="1.44M",
+            FLOPPY2="1.2M",
+            DISK3_MODEL="MITSUMI CRMC-FX001D",
+            DISK3_TYPE="ATAPI",
+        )
+        drives = get(client, "computers", machine["asset_id"])["drives"]
+        assert "1.44MB" in drives and "1.2MB" in drives and "CRMC-FX001D" in drives
+
+    def test_drives_already_recorded_are_left_alone(self, client, computer):
+        machine = computer(drives='5.25" 360K floppy')
+        before = get(client, "computers", machine["asset_id"])["drives"]
+        survey(client, TAG=machine["asset_id"], FLOPPY1="1.44M")
+        assert get(client, "computers", machine["asset_id"])["drives"] == before
+
+    def test_the_bios_goes_in_the_catalogues_bios_socket(self, client, computer):
+        machine = computer(machine={"model_key": "ibm-5150"})
+        survey(client, TAG=machine["asset_id"], BIOSVENDOR="IBM", BIOSDATE="10/27/82")
+        chips = get(client, "computers", machine["asset_id"])["machine"]["chips"]
+        assert chips["bios"] == "BIOS 10/27/82"
+
+    def test_otherwise_the_bios_goes_on_the_motherboard(self, client, computer, part):
+        machine = computer()
+        board = part(type="motherboard", computer_id=machine["asset_id"])
+        survey(client, TAG=machine["asset_id"], BIOSVENDOR="Award", BIOSDATE="08/22/96")
+        specs = get(client, "parts", board["asset_id"])["specs"]
+        assert "BIOS: Award" in specs and "08/22/96" in specs
+
+    def test_the_chipset_a_later_pc_names_goes_on_the_motherboard(self, client, computer, part):
+        machine = computer()
+        board = part(type="motherboard", computer_id=machine["asset_id"])
+        survey(client, TAG=machine["asset_id"], PCI1="8086:122D 0600")
+        assert "430FX" in get(client, "parts", board["asset_id"])["specs"]
+
+    def test_ports_answered_as_part_of_the_machine_go_on_the_motherboard(
+        self, client, computer, part
+    ):
+        machine = computer()
+        board = part(type="motherboard", computer_id=machine["asset_id"])
+        survey(
+            client,
+            TAG=machine["asset_id"],
+            COM1="03F8 16550A IRQ4",
+            COM2="02F8 16550A IRQ3",
+            LPT1="0378 IRQ7",
+            PORTS_ANSWER="MACHINE",
+        )
+        specs = get(client, "parts", board["asset_id"])["specs"]
+        assert "Ports: 2× Serial, Parallel" in specs
+
+    def test_anything_else_built_in_gets_a_line_of_its_own(self, client, computer, part):
+        machine = computer()
+        board = part(type="motherboard", computer_id=machine["asset_id"])
+        survey(client, TAG=machine["asset_id"], PCI1="1274:1371 0401", PCI1_ANSWER="MACHINE")
+        assert "Onboard sound" in get(client, "parts", board["asset_id"])["specs"]
+
+    def test_with_no_motherboard_on_record_the_answer_is_kept_and_nothing_written(
+        self, client, computer
+    ):
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], VIDEO="VGA", VIDEO_ANSWER="MACHINE")
+        assert parts_in(client, machine["asset_id"]) == []
+        again = survey(client, TAG=machine["asset_id"], VIDEO="VGA")
+        assert finding(again, "VIDEO")["answer"] == "machine"
+
+    def test_a_bare_motherboard_gets_what_belongs_to_a_board(self, client, part):
+        board = part(type="motherboard")
+        survey(
+            client,
+            TAG=board["asset_id"],
+            BIOSVENDOR="AMI",
+            BIOSDATE="04/04/93",
+            BOARD_SERIAL="BRD-9",
+            PCI1="8086:122D 0600",
+        )
+        got = get(client, "parts", board["asset_id"])
+        assert "AMI" in got["specs"] and "04/04/93" in got["specs"] and "430FX" in got["specs"]
+        assert got["serial"] == "BRD-9"
+        assert got["condition"] == "Working"
+
+
+# --- a part of its own --------------------------------------------------------------
+
+
+class TestAPartOfItsOwn:
+    def test_a_tag_answered_at_the_machine_joins_the_part_to_its_serial_number(
+        self, client, computer, part
+    ):
+        """How a disk catalogued by hand, before anything had read its serial number,
+        is joined to its own record rather than added twice."""
+        machine = computer()
+        shelf = location(client, "Shelf 2", "shelf")
+        disk = part(
+            type="storage",
+            model="Fireball 1080AT",
+            location=shelf["asset_id"],
+            specs="Kind: Hard disk | Interface: IDE",
+        )
+        survey(client, TAG=machine["asset_id"], DISK1_ANSWER=disk["asset_id"], **DISK)
+        got = get(client, "parts", disk["asset_id"])
+        assert got["serial"] == "QX123"
+        assert got["computer_id"] == machine["asset_id"]
+        assert len(all_parts(client)) == 1
+
+    def test_n_makes_a_new_hard_disk_named_as_it_names_itself(self, client, computer):
+        machine = computer()
+        made = survey(client, TAG=machine["asset_id"], DISK1_ANSWER="NEW", **DISK)
+        disk = get(client, "parts", finding(made, "DISK1")["part"])
+        assert disk["computer_id"] == machine["asset_id"]
+        assert disk["type"] == "storage"
+        assert "FIREBALL1080A" in f"{disk['name']} {disk['model']}".upper()
+        assert "Hard disk" in disk["specs"] and "IDE" in disk["specs"]
+        assert "2097" in disk["specs"]
+
+    def test_n_makes_a_new_card_named_by_its_rom(self, client, computer):
+        machine = computer()
+        made = survey(
+            client,
+            roms=[("VIDEO.BIN", VGA_ROM)],
+            TAG=machine["asset_id"],
+            VIDEO="VGA",
+            ROM1="C000 32768 VIDEO.BIN",
+            VIDEO_ANSWER="NEW",
+        )
+        card = get(client, "parts", finding(made, "VIDEO")["part"])
+        assert card["type"] == "video"
+        assert "ET4000" in f"{card['name']} {card['model']}"
+
+    def test_n_makes_a_new_card_named_by_its_chip_on_the_pci_bus(self, client, computer):
+        machine = computer()
+        made = survey(client, TAG=machine["asset_id"], PCI1="1013:00B8 0300", PCI1_ANSWER="NEW")
+        card = get(client, "parts", finding(made, "PCI1")["part"])
+        assert card["type"] == "video"
+        assert "5446" in f"{card['name']} {card['model']}"
+
+    def test_n_makes_a_network_card_named_by_its_driver_with_its_address(self, client, computer):
+        machine = computer()
+        made = survey(client, TAG=machine["asset_id"], NIC_ANSWER="NEW", **NIC)
+        card = get(client, "parts", finding(made, "NIC")["part"])
+        assert card["type"] == "network"
+        assert "NE2000" in f"{card['name']} {card['model']}"
+        assert card["ethernet_address"] == MAC
+
+    def test_n_makes_the_ports_an_io_card_with_them_on_it(self, client, computer):
+        machine = computer()
+        made = survey(
+            client,
+            TAG=machine["asset_id"],
+            COM1="03F8 16550A IRQ4",
+            LPT1="0378 IRQ7",
+            PORTS_ANSWER="NEW",
+        )
+        card = get(client, "parts", finding(made, "PORTS")["part"])
+        assert card["type"] == "io"
+        assert card["computer_id"] == machine["asset_id"]
+
+    def test_a_part_fitted_in_this_machine_is_confirmed_and_filled_in(self, client, with_disk):
+        machine, disk = with_disk()
+        made = survey(client, TAG=machine["asset_id"], **DISK)
+        assert finding(made, "DISK1")["part"] == disk["asset_id"]
+        assert "2097" in get(client, "parts", disk["asset_id"])["specs"]
+
+    def test_a_part_kept_on_a_shelf_is_moved_into_the_machine_by_survey(
+        self, client, computer, part
+    ):
+        machine = computer()
+        shelf = location(client, "Shelf 2", "shelf")
+        disk = part(
+            type="storage",
+            serial="QX123",
+            location=shelf["asset_id"],
+            specs="Kind: Hard disk | Interface: IDE",
+        )
+        survey(client, TAG=machine["asset_id"], **DISK)
+        assert get(client, "parts", disk["asset_id"])["computer_id"] == machine["asset_id"]
+        moves = client.get(f"/api/items/{disk['asset_id']}/moves").json()
+        assert moves[0]["how"] == "survey"
+
+    def test_a_part_kept_nowhere_is_moved_into_the_machine(self, client, computer, part):
+        machine = computer()
+        disk = part(type="storage", serial="QX123", specs="Kind: Hard disk | Interface: IDE")
+        survey(client, TAG=machine["asset_id"], **DISK)
+        assert get(client, "parts", disk["asset_id"])["computer_id"] == machine["asset_id"]
+
+    def test_a_part_in_another_machine_is_never_taken_out(self, client, computer, with_disk):
+        other, disk = with_disk()
+        machine = computer()
+        assert survey(client, TAG=machine["asset_id"], **DISK)["waiting"] == "machine"
+        assert get(client, "parts", disk["asset_id"])["computer_id"] == other["asset_id"]
+
+    def test_a_disk_that_cannot_say_which_one_it_is_is_known_by_its_size_in_the_same_machine(
+        self, client, computer
+    ):
+        """An MFM disk seen only through the BIOS, answered like a card."""
+        machine = computer()
+        mfm = {"DISK1_TYPE": "BIOS", "DISK1_CHS": "615/4/17", "DISK1_KB": "20910"}
+        first = survey(client, TAG=machine["asset_id"], DISK1_ANSWER="NEW", **mfm)
+        again = survey(client, TAG=machine["asset_id"], **mfm)
+        assert finding(again, "DISK1")["part"] == finding(first, "DISK1")["part"]
+        assert len(parts_in(client, machine["asset_id"])) == 1
+
+
+# --- bench cards ---------------------------------------------------------------------
+
+
+class TestBenchCards:
+    def test_a_location_can_be_a_bench(self, client):
+        assert location(client, "Bench 1", "bench")["kind"] == "bench"
+
+    def test_a_card_kept_on_a_bench_is_never_fitted_in_the_machine(
+        self, client, computer, bench_card
+    ):
+        card, bench = bench_card()
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], **NIC)
+        got = get(client, "parts", card["asset_id"])
+        assert not got["computer_id"]
+        assert got["location"] == bench["asset_id"]
+        assert parts_in(client, machine["asset_id"]) == []
+
+    def test_a_card_in_a_box_on_a_bench_is_the_benchs_too(self, client, computer, part):
+        bench = location(client, "Bench 1", "bench")
+        box = location(client, "Network cards", "box", parent=bench["asset_id"])
+        card = part(type="network", model="UM9003AF", location=box["asset_id"])
+        survey(client, TAG=computer()["asset_id"], NIC_ANSWER=card["asset_id"], **NIC)
+        survey(client, TAG=computer()["asset_id"], **NIC)
+        assert get(client, "parts", card["asset_id"])["location"] == box["asset_id"]
+
+    def test_a_bench_cards_address_is_recorded_where_it_stands(self, client, bench_card):
+        card, bench = bench_card()
+        got = get(client, "parts", card["asset_id"])
+        assert got["ethernet_address"] == MAC
+        assert got["location"] == bench["asset_id"]
+
+    def test_the_survey_names_the_card_it_came_through(self, client, computer, bench_card):
+        card, _ = bench_card()
+        assert survey(client, TAG=computer()["asset_id"], **NIC)["bench_card"] == card["asset_id"]
+
+    def test_add_to_bench_makes_a_new_card_on_a_bench(self, client, computer):
+        bench = location(client, "Bench 1", "bench")
+        made = survey(client, TAG=computer()["asset_id"], **NIC)
+        r = answer(client, made, "NIC", "bench", bench=bench["asset_id"])
+        assert r.status_code == 303, r.text
+        card = get(client, "parts", finding(read(client, made["id"]), "NIC")["part"])
+        assert card["location"] == bench["asset_id"]
+        assert card["ethernet_address"] == MAC
+
+    def test_a_card_made_in_a_machine_and_moved_to_a_bench_is_a_bench_card_from_then_on(
+        self, client, computer
+    ):
+        """The first time its address is read, N fits it in the machine being tested;
+        moved to the bench afterwards, it is left alone in every machine after."""
+        first, second = computer(), computer()
+        bench = location(client, "Bench 1", "bench")
+        made = survey(client, TAG=first["asset_id"], NIC_ANSWER="NEW", **NIC)
+        card = finding(made, "NIC")["part"]
+        r = client.patch(f"/api/parts/{card}", json={"location": bench["asset_id"]})
+        assert r.status_code == 200, r.text
+        survey(client, TAG=second["asset_id"], **NIC)
+        assert get(client, "parts", card)["location"] == bench["asset_id"]
+        assert parts_in(client, second["asset_id"]) == []
+
+    def test_a_bench_card_is_left_alone_whichever_machine_it_is_in(
+        self, client, computer, bench_card
+    ):
+        card, bench = bench_card()
+        for _ in range(2):
+            machine = computer()
+            made = survey(client, TAG=machine["asset_id"], **NIC)
+            assert made["waiting"] is None
+            assert parts_in(client, machine["asset_id"]) == []
+        assert get(client, "parts", card["asset_id"])["location"] == bench["asset_id"]
+
+    def test_a_machine_standing_on_a_bench_keeps_its_own_cards(self, client, computer):
+        """What is fitted in a machine is the machine's, wherever the machine is."""
+        bench = location(client, "Bench 1", "bench")
+        machine = computer(location=bench["asset_id"])
+        survey(client, TAG=machine["asset_id"], NIC_ANSWER="NEW", **NIC)
+        assert survey(client, **NIC)["machine"] == machine["asset_id"]
+
+
+# --- working, from the tests ---------------------------------------------------------
+
+PASSED = {"RESULT": "PASS", "TESTS": "3", "TEST_CPU": "PASS", "TEST_RAM": "PASS"}
+
+
+class TestWorkingFromTheTests:
+    @pytest.mark.parametrize("condition", ["", "Untested"])
+    def test_a_survey_whose_every_test_passed_marks_the_machine_working(
+        self, client, computer, condition
+    ):
+        machine = computer(condition=condition)
+        survey(client, TAG=machine["asset_id"], **PASSED)
+        assert get(client, "computers", machine["asset_id"])["condition"] == "Working"
+
+    def test_a_test_that_does_not_apply_does_not_count_against_it(self, client, computer):
+        """A clock on an XT, a second interrupt controller on a PC."""
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], TEST_RTC="NA", **PASSED)
+        assert get(client, "computers", machine["asset_id"])["condition"] == "Working"
+
+    def test_a_skipped_test_does_because_it_has_not_been_run(self, client, computer):
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], TEST_FDC="SKIP", **PASSED)
+        assert get(client, "computers", machine["asset_id"])["condition"] == ""
+
+    def test_a_soak_counts_the_same(self, client, computer):
+        machine = computer()
+        survey(
+            client,
+            TAG=machine["asset_id"],
+            MODE="SOAK",
+            PASSES="48",
+            ELAPSED="12:00:00",
+            STOPPED="ESC",
+            **PASSED,
+        )
+        assert get(client, "computers", machine["asset_id"])["condition"] == "Working"
+
+    @pytest.mark.parametrize("condition", ["", "Untested"])
+    def test_a_failed_test_never_writes_faulty(self, client, computer, condition):
+        """A failure says where to look rather than what the machine is."""
+        machine = computer(condition=condition)
+        survey(client, TAG=machine["asset_id"], **PASSED | {"RESULT": "FAIL", "TEST_RAM": "FAIL"})
+        assert get(client, "computers", machine["asset_id"])["condition"] == condition
+
+    def test_a_run_that_was_stopped_part_way_marks_nothing(self, client, computer):
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], **PASSED | {"RESULT": "ABORTED"})
+        assert get(client, "computers", machine["asset_id"])["condition"] == ""
+
+    @pytest.mark.parametrize(
+        "condition", ["Partially working", "Faulty", "For parts/repair", "Restored"]
+    )
+    def test_a_condition_somebody_chose_is_never_changed(self, client, computer, condition):
+        machine = computer(condition=condition)
+        survey(client, TAG=machine["asset_id"], **PASSED)
+        assert get(client, "computers", machine["asset_id"])["condition"] == condition
+
+    def test_a_failure_never_takes_working_away(self, client, computer):
+        machine = computer(condition="Working")
+        survey(client, TAG=machine["asset_id"], **PASSED | {"RESULT": "FAIL", "TEST_RAM": "FAIL"})
+        assert get(client, "computers", machine["asset_id"])["condition"] == "Working"
+
+    def test_a_faulty_machine_that_passes_every_test_is_pointed_out(self, client, computer):
+        machine = computer(condition="Faulty")
+        made = survey(client, TAG=machine["asset_id"], **PASSED)
+        assert [d for d in made["differs"] if d["field"] == "condition"]
+
+    def test_the_parts_in_the_machine_keep_their_condition(self, client, computer, part):
+        """The tests are of the machine, and do not say which card each result
+        belongs to."""
+        machine = computer()
+        card = part(type="video", computer_id=machine["asset_id"])
+        survey(client, TAG=machine["asset_id"], **PASSED)
+        assert get(client, "parts", card["asset_id"])["condition"] == ""
+
+
+# --- ROMs ------------------------------------------------------------------------------
+
+
+def files(client) -> list[dict]:
+    r = client.get("/api/files")
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+class TestROMs:
+    def test_a_rom_is_kept_as_a_private_file_with_a_note_saying_what_it_is(self, client, computer):
+        machine = computer()
+        survey(
+            client,
+            roms=[("BIOS.BIN", BIOS_ROM)],
+            TAG=machine["asset_id"],
+            BIOSVENDOR="Award",
+            BIOSDATE="08/22/96",
+            ROM1="F000 65536 BIOS.BIN",
+        )
+        (kept,) = files(client)
+        assert kept["public"] is False
+        assert "BIOS" in kept["note"] and "Award" in kept["note"]
+
+    def test_the_bios_is_linked_to_the_machine(self, client, computer):
+        machine = computer()
+        survey(
+            client,
+            roms=[("BIOS.BIN", BIOS_ROM)],
+            TAG=machine["asset_id"],
+            ROM1="F000 65536 BIOS.BIN",
+        )
+        assert files(client)[0]["assets"] == [machine["asset_id"]]
+
+    def test_the_bios_is_linked_to_the_motherboard_when_there_is_one(self, client, computer, part):
+        machine = computer()
+        board = part(type="motherboard", computer_id=machine["asset_id"])
+        survey(
+            client,
+            roms=[("BIOS.BIN", BIOS_ROM)],
+            TAG=machine["asset_id"],
+            ROM1="F000 65536 BIOS.BIN",
+        )
+        assert files(client)[0]["assets"] == [board["asset_id"]]
+
+    def test_a_cards_rom_is_linked_to_the_card(self, client, computer, part):
+        machine = computer()
+        card = part(type="video", model="ET4000", computer_id=machine["asset_id"])
+        survey(
+            client,
+            roms=[("VIDEO.BIN", VGA_ROM)],
+            TAG=machine["asset_id"],
+            VIDEO="VGA",
+            ROM1="C000 32768 VIDEO.BIN",
+            VIDEO_ANSWER=card["asset_id"],
+        )
+        assert files(client)[0]["assets"] == [card["asset_id"]]
+
+    def test_a_cards_rom_is_linked_to_the_machine_when_the_card_is_part_of_it(
+        self, client, computer
+    ):
+        machine = computer()
+        survey(
+            client,
+            roms=[("VIDEO.BIN", VGA_ROM)],
+            TAG=machine["asset_id"],
+            VIDEO="VGA",
+            ROM1="C000 32768 VIDEO.BIN",
+            VIDEO_ANSWER="MACHINE",
+        )
+        assert files(client)[0]["assets"] == [machine["asset_id"]]
+
+    def test_the_rom_of_something_left_out_is_not_kept(self, client, computer):
+        machine = computer()
+        survey(
+            client,
+            roms=[("VIDEO.BIN", VGA_ROM)],
+            TAG=machine["asset_id"],
+            VIDEO="VGA",
+            ROM1="C000 32768 VIDEO.BIN",
+            VIDEO_ANSWER="OUT",
+        )
+        assert files(client) == []
+
+    def test_the_same_rom_is_one_file_linked_to_one_more_thing(self, client, computer):
+        first, second = computer(), computer()
+        for machine in (first, second):
+            survey(
+                client,
+                roms=[("BIOS.BIN", BIOS_ROM)],
+                TAG=machine["asset_id"],
+                ROM1="F000 65536 BIOS.BIN",
+            )
+        (kept,) = files(client)
+        assert sorted(kept["assets"]) == sorted([first["asset_id"], second["asset_id"]])
+
+    def test_roms_start_private_whatever_new_files_are_public_says(self, client, computer):
+        """A BIOS is somebody's copyright, and publishing one should be a decision."""
+        r = client.post("/settings/server", data={"files_public": "1"}, follow_redirects=False)
+        assert r.status_code == 303, r.text
+        machine = computer()
+        survey(
+            client,
+            roms=[("BIOS.BIN", BIOS_ROM)],
+            TAG=machine["asset_id"],
+            ROM1="F000 65536 BIOS.BIN",
+        )
+        assert files(client)[0]["public"] is False
+
+    def test_a_network_cards_boot_rom_goes_with_the_card(self, client, computer, bench_card):
+        """So a bench card's boot ROM is the bench card's in every machine, and is
+        never asked about."""
+        card, _ = bench_card()
+        made = survey(
+            client,
+            roms=[("NETBOOT.BIN", BOOT_ROM)],
+            TAG=computer()["asset_id"],
+            NIC_ROM="D000",
+            ROM1="D000 16384 NETBOOT.BIN",
+            **NIC,
+        )
+        assert made["waiting"] is None
+        assert files(client)[0]["assets"] == [card["asset_id"]]
+
+    def test_the_text_in_each_rom_is_kept_with_the_survey(self, client, computer):
+        made = survey(
+            client,
+            roms=[("BIOS.BIN", BIOS_ROM)],
+            TAG=computer()["asset_id"],
+            ROM1="F000 65536 BIOS.BIN",
+        )
+        (rom,) = made["roms"]
+        assert "Award Modular BIOS v4.51PG, An Energy Star Ally" in rom["text"]
+
+    def test_the_bioss_maker_version_and_date_are_read_from_its_text(self, client, computer, part):
+        machine = computer()
+        board = part(type="motherboard", computer_id=machine["asset_id"])
+        survey(
+            client,
+            roms=[("BIOS.BIN", BIOS_ROM)],
+            TAG=machine["asset_id"],
+            BIOSDATE="08/22/96",
+            ROM1="F000 65536 BIOS.BIN",
+        )
+        specs = get(client, "parts", board["asset_id"])["specs"]
+        assert "Award" in specs and "4.51PG" in specs and "08/22/96" in specs
+
+    def test_a_bios_date_is_written_month_first(self, client, computer, part):
+        """As the BIOS writes it, because that is how it is known and looked up."""
+        machine = computer()
+        board = part(type="motherboard", computer_id=machine["asset_id"])
+        survey(client, TAG=machine["asset_id"], BIOSVENDOR="IBM", BIOSDATE="10/27/82")
+        specs = get(client, "parts", board["asset_id"])["specs"]
+        assert "10/27/82" in specs and "27/10/82" not in specs
+
+
+# --- in the history ------------------------------------------------------------------
+
+
+def lines(client, aid: str, kind: str | None = None) -> list[dict]:
+    r = client.get(f"/api/items/{aid}/log")
+    assert r.status_code == 200, r.text
+    return [e for e in r.json() if kind is None or e["kind"] == kind]
+
+
+class TestInTheHistory:
+    def test_each_survey_writes_one_line_marked_survey(self, client, computer):
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], CPU="80286", CPUKHZ="12000", OS="MS-DOS 5.00")
+        assert len(lines(client, machine["asset_id"], "survey")) == 1
+
+    def test_the_line_is_dated_when_the_survey_was_taken(self, client, computer):
+        """By the agent's clock, since a machine's own is often wrong."""
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], taken="2026-11-01T09:30:00", DATE="01/01/1980")
+        (line,) = lines(client, machine["asset_id"], "survey")
+        assert line["created_at"].startswith("2026-11-01T09:30")
+
+    def test_a_machine_a_survey_made_was_made_before_it_was_surveyed(self, client):
+        """Its history reads in the order it happened: made, then surveyed. The survey
+        line is dated when the survey was taken, so the line that made it is too."""
+        made = survey(client, TAG="NEW", taken="2026-11-01T09:30:00")
+        log = lines(client, made["machine"])
+        kinds = [e["kind"] for e in log]
+        assert kinds.index("survey") < kinds.index("created"), kinds
+        created = next(e for e in log if e["kind"] == "created")
+        assert created["created_at"].startswith("2026-11-01T09:30")
+
+    def test_the_line_says_every_test_passed_and_what_was_filled_in(self, client, computer):
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], CPU="80286", CPUKHZ="12000", **PASSED)
+        (line,) = lines(client, machine["asset_id"], "survey")
+        assert "every test passed" in line["message"]
+        assert "CPU" in line["message"]
+
+    def test_the_line_says_how_many_tests_failed_and_which(self, client, computer):
+        machine = computer()
+        survey(
+            client,
+            TAG=machine["asset_id"],
+            RESULT="FAIL",
+            TESTS="17",
+            FAILED="2",
+            TEST_RAM="FAIL",
+            TEST_FDC="FAIL",
+        )
+        (line,) = lines(client, machine["asset_id"], "survey")
+        assert "2 of 17 tests failed" in line["message"]
+        assert "RAM" in line["message"]
+
+    def test_a_soaks_line_says_how_long_it_ran(self, client, computer):
+        machine = computer()
+        survey(
+            client,
+            TAG=machine["asset_id"],
+            MODE="SOAK",
+            PASSES="48",
+            ELAPSED="12:00:00",
+            STOPPED="ESC",
+            **PASSED,
+        )
+        (line,) = lines(client, machine["asset_id"], "survey")
+        assert "48 passes over 12 hours" in line["message"]
+
+    def test_the_line_says_nothing_a_visitor_is_not_shown(self, client, computer):
+        """No serial number, no address, nowhere anything is kept: the history is
+        public."""
+        shelf = location(client, "Loft crate 3", "box")
+        machine = computer(location=shelf["asset_id"])
+        survey(client, TAG=machine["asset_id"], DISK1_ANSWER="NEW", NIC_ANSWER="NEW", **DISK, **NIC)
+        (line,) = lines(client, machine["asset_id"], "survey")
+        for private in ("QX123", MAC, "Loft crate 3"):
+            assert private not in line["message"]
+
+    def test_an_ethernet_address_is_never_written_into_a_parts_history(self, client, computer):
+        made = survey(client, TAG=computer()["asset_id"], NIC_ANSWER="NEW", **NIC)
+        card = finding(made, "NIC")["part"]
+        assert all(MAC not in entry["message"] for entry in lines(client, card))
+
+
+# --- what a survey never does ----------------------------------------------------------
+
+
+class TestWhatASurveyNeverDoes:
+    def test_it_never_changes_something_already_recorded(self, client, computer):
+        machine = computer(cpu="Intel 80386DX-33", os="PC DOS 3.30", serial="ABC")
+        survey(
+            client,
+            TAG=machine["asset_id"],
+            CPU="486DX2",
+            CPUVENDOR="GenuineIntel",
+            CPUKHZ="66000",
+            OS="MS-DOS 6.22",
+            SYSTEM_SERIAL="XYZ",
+        )
+        got = get(client, "computers", machine["asset_id"])
+        assert (got["cpu"], got["os"], got["serial"]) == ("Intel 80386DX-33", "PC DOS 3.30", "ABC")
+
+    def test_it_never_makes_anything_nobody_asked_for(self, client, computer):
+        machine = computer()
+        before = (len(computers(client)), len(all_parts(client)))
+        survey(client, TAG=machine["asset_id"], VIDEO="VGA", **DISK, **NIC)
+        assert (len(computers(client)), len(all_parts(client))) == before
+
+    def test_it_never_moves_the_machine_it_is_surveying(self, client, computer):
+        shelf = location(client, "Shelf 2", "shelf")
+        machine = computer(location=shelf["asset_id"])
+        survey(client, TAG=machine["asset_id"])
+        assert get(client, "computers", machine["asset_id"])["location"] == shelf["asset_id"]
+
+
+# --- what a report says --------------------------------------------------------------
+
+
+class TestWhatAReportSays:
+    def test_a_report_without_an_rhdb_section_is_refused(self, client):
+        assert send(client, "Every test passed.\r\n").status_code == 422
+
+    def test_an_rhdb_section_with_nothing_in_it_is_refused(self, client):
+        assert send(client, "DIAG 1.0\r\n\r\n[RHDB]\r\n").status_code == 422
+
+    def test_a_file_with_several_reports_in_it_is_several_surveys(self, client, computer):
+        first, second = computer(), computer()
+        both = report(TAG=first["asset_id"]) + report(TAG=second["asset_id"])
+        r = send(client, both)
+        assert r.status_code == 200, r.text
+        filed = [made["machine"] for made in r.json()["surveys"]]
+        assert filed == [first["asset_id"], second["asset_id"]]
+
+    def test_a_key_the_register_does_not_know_is_ignored(self, client, computer):
+        machine = computer()
+        made = survey(client, TAG=machine["asset_id"], SOMETHING_NEW="42")
+        assert made["machine"] == machine["asset_id"]
+
+    def test_the_report_is_kept_as_the_program_wrote_it(self, client, computer):
+        made = survey(client, TAG=computer()["asset_id"])
+        assert made["report"].startswith("DIAG 1.0  hardware report")
+
+    def test_the_machines_own_clock_is_kept_beside_the_real_one(self, client, computer):
+        """A machine whose clock thinks it is 1980 has a flat battery."""
+        made = survey(
+            client,
+            TAG=computer()["asset_id"],
+            taken="2026-11-06T10:00:00",
+            DATE="01/01/1980",
+            TIME="00:01:12",
+        )
+        assert made["clock"] == "01/01/1980 00:01:12"
+        assert made["taken"].startswith("2026-11-06T10:00")

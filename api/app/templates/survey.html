@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% import "_ui.html" as U with context %}
+{% import "_panel.html" as PN %}
+{% block title %}Survey {{ s.id }} — {{ site_name() }}{% endblock %}
+{% block backname %}Surveys{% endblock %}
+{% block content %}
+{# One survey (MANUAL §23, "The Surveys page"): the machine and how it was found, each
+   test, everything found and the answer each was given, what was filled in and what
+   differs, what was expected and not found, the ROMs and the text in them, and the
+   report as the program wrote it. #}
+{% macro thing(tag) -%}<a href="/items/{{ tag }}">{{ names.get(tag, tag) }}</a> <span class="tag muted">{{ tag }}</span>{%- endmacro %}
+<div class="pagehead"><h1 class="heading">Survey {{ s.id }}</h1>
+  <p class="hint">Taken {{ when(s.taken) }} through {{ s.agent or 'an agent' }}{% if s.bench_card %}, by way of the bench card {{ thing(s.bench_card) }}{% endif %}. {{ result }}.</p></div>
+{% if refusal %}{{ U.banner('danger', 'Not done.', refusal) }}{% endif %}
+
+{% call PN.panel('Machine') %}
+<div class="pbody">
+  {% if s.machine %}
+  <p>{{ thing(s.machine) }}:
+    {%- if s.how == 'typed' %} its tag was typed at the machine.
+    {%- elif s.how == 'new' %} made new at the machine.
+    {%- elif s.how == 'recognised' %} recognised by {{ s.by }}.
+    {%- elif s.how == 'filed' %} filed here by {{ s.by }}.{% endif %}</p>
+  {% else %}
+  <p>Not filed yet. {{ s.reason }}</p>
+  {% if request.state.authed %}
+  <form class="addrow labelled" method="post" action="/surveys/{{ s.id }}/file"
+        title="Files it against that machine as if its tag had been typed at the machine.">
+    <div class="field"><label for="file-tag">Machine</label>
+      <input class="input" id="file-tag" name="tag" placeholder="asset tag" autocomplete="off" required></div>
+    {{ U.button('File', type='submit') }}
+  </form>
+  <p title="Opens the form for a new machine with what the survey found already in it. Saving makes the machine and files the survey against it.">{{ U.button('New computer', href='/computers/new?survey=' ~ s.id) }}</p>
+  {% endif %}
+  {% endif %}
+  <dl class="kv">
+    <div><dt>The machine's clock</dt><dd>{{ s.clock or 'Not given' }}</dd></div>
+    <div><dt>The agent's clock</dt><dd>{{ when(s.taken) }}</dd></div>
+  </dl>
+</div>
+{% endcall %}
+
+{% call PN.panel('Tests', tests | length or '') %}
+{% if tests %}
+<table class="table">
+  <thead><tr><th scope="col">Test</th><th scope="col">Result</th><th scope="col">What it found</th></tr></thead>
+  <tbody>
+  {% for name, value, detail in tests %}
+  <tr><th scope="row">{{ name }}</th><td>{{ value }}</td><td>{{ detail }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}<p class="pbody muted">No tests were run.</p>{% endif %}
+{% endcall %}
+
+{% call PN.panel('Found', asked | length or '', flush=true) %}
+{% if asked %}
+<ul class="linkrows">
+{% for f in asked %}
+  <li>
+    <span><b>{{ f.name }}</b>{% if f.identifier %} <code>{{ f.identifier }}</code>{% endif %} <span class="muted">{{ f.thing }}</span>:
+    {% if f.answer == 'part' %}{{ thing(f.part) }}{% if f.bench %}, kept on a bench{% endif %}.
+    {% elif f.answer == 'machine' %}part of the machine.
+    {% elif f.answer == 'out' %}left out.
+    {% else %}<b>waiting for an answer.</b>{% endif %}</span>
+    {% if request.state.authed and s.machine %}
+    <form class="addrow labelled" method="post" action="/surveys/{{ s.id }}/answer">
+      <input type="hidden" name="thing" value="{{ f.thing }}">
+      {% if 'part' in f.fits %}
+      {{ U.button('New part', type='submit', name='answer', value='new', title='Makes a new part of it, fitted in the machine.') }}
+      <div class="field"><label for="tag-{{ f.thing }}">Its tag</label>
+        <input class="input" id="tag-{{ f.thing }}" name="tag" placeholder="asset tag" autocomplete="off"></div>
+      {{ U.button('Link', type='submit', name='answer', value='link', title='Joins it to the part the register has under that tag.') }}
+      {% if f.kind in ('disk', 'nic') and benches %}
+      <div class="field"><label for="bench-{{ f.thing }}">Bench</label>
+        <select class="input" id="bench-{{ f.thing }}" name="bench">{% for b in benches %}<option value="{{ b.asset_id }}">{{ b.name }}</option>{% endfor %}</select></div>
+      {{ U.button('Add to bench', type='submit', name='answer', value='bench', title="Makes a new part of it, kept on that bench: the bench's own, which no survey fits in a machine.") }}
+      {% endif %}
+      {% endif %}
+      {% if 'machine' in f.fits %}{{ U.button('Part of the machine', type='submit', name='answer', value='machine', title='Built into the machine or its board, and written into their record.') }}{% endif %}
+      {{ U.button('Leave out', type='submit', name='answer', value='out', title='Nothing is made of it, and the next survey leaves it out too.') }}
+    </form>
+    {% endif %}
+  </li>
+{% endfor %}
+</ul>
+{% else %}<div class="pbody"><p class="muted">Nothing that needed an answer.</p></div>{% endif %}
+{% endcall %}
+
+{% call PN.panel('Filled in', filled | length or '') %}
+<div class="pbody">
+  {% if filled %}<p>{{ filled | join(', ') }}.</p>{% else %}<p class="muted">Nothing: the record already had it, or the survey has not been filed.</p>{% endif %}
+  {% if differs %}
+  <table class="table">
+    <thead><tr><th scope="col">Differs</th><th scope="col">Recorded</th><th scope="col">Read</th></tr></thead>
+    <tbody>{% for d in differs %}<tr><th scope="row">{{ d.field }}</th><td>{{ d.recorded }}</td><td>{{ d.found }}</td></tr>{% endfor %}</tbody>
+  </table>
+  {% endif %}
+</div>
+{% endcall %}
+
+{% if missing %}
+{% call PN.panel('Expected and not found', missing | length) %}
+<div class="pbody"><ul>{% for tag in missing %}<li>{{ thing(tag) }}</li>{% endfor %}</ul>
+  <p class="muted">Nothing is changed. It is here to be looked at.</p></div>
+{% endcall %}
+{% endif %}
+
+{% call PN.panel('ROMs', roms | length or '') %}
+<div class="pbody">
+{% if roms %}
+{% for rom in roms %}
+  <details><summary>{{ rom.segment }}, {{ rom.size }} bytes</summary>
+    {% if rom.file %}<p><a href="/files/{{ rom.file }}">The file</a></p>{% endif %}
+    {% if rom.text %}<pre class="textfile">{{ rom.text | join('\n') }}</pre>{% else %}<p class="muted">No text in it.</p>{% endif %}
+  </details>
+{% endfor %}
+{% else %}<p class="muted">No ROMs were copied.</p>{% endif %}
+</div>
+{% endcall %}
+
+{% call PN.panel('Report') %}
+<div class="pbody"><pre class="textfile">{{ s.report }}</pre></div>
+{% endcall %}
+
+{% if request.state.authed %}
+<form method="post" action="/surveys/{{ s.id }}/delete"
+      data-confirm="Delete this survey and its report? What it filled in stays, and so do its ROM files.">
+  {{ U.button('Delete', kind='danger', type='submit') }}
+</form>
+{% endif %}
+{% endblock %}

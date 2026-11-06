@@ -36,11 +36,13 @@ os.environ["RHDB_STATS_DIR"] = str(_TMP / "stats")
 os.environ["RHDB_BASE_URL"] = "https://example.test"
 os.environ.pop("RHDB_AUTH_USER", None)
 os.environ.pop("RHDB_AUTH_PASSWORD", None)
-# And the print agents, for the same reason and one more: a developer running the
-# suite on the box the site is deployed on has real ones in their own .env, and a
-# test about what printers exist would pass in CI and fail there -- or, worse, the
-# other way round. The suite starts with none, and the tests that want one say so.
+# And the print and survey agents, for the same reason and one more: a developer
+# running the suite on the box the site is deployed on has real ones in their own
+# .env, and a test about what agents exist would pass in CI and fail there -- or,
+# worse, the other way round. The suite starts with none, and the tests that want
+# one say so.
 os.environ.pop("RHDB_PRINT_AGENTS", None)
+os.environ.pop("RHDB_SURVEY_AGENTS", None)
 os.environ.pop("RHDB_OPEN", None)
 os.environ.pop("RHDB_API_TOKEN", None)
 
@@ -250,7 +252,7 @@ def part(client):
 
 
 @pytest.fixture
-def a_page_of_everything(client, computer, part):
+def a_page_of_everything(client, computer, part, monkeypatch):
     """One machine with a part on it, so the forms, the item pages and the lists
     all render the controls they only have when there is something to show."""
     made = computer(manufacturer="Amstrad", model="PC1512")
@@ -300,6 +302,24 @@ def a_page_of_everything(client, computer, part):
     for code in (shelf["asset_id"], made["asset_id"], "NOT-A-TAG"):
         client.post("/audit/scan", data={"code": code}, follow_redirects=False)
     report = client.post("/audit/finish", follow_redirects=False).headers["location"]
+    # Two surveys, so the Surveys pages are walked with the rest (ADR-0043): one filed
+    # against the machine with a disk nobody answered for, which draws the answer
+    # forms and the bench menu, and one that waits for a machine, which draws File.
+    client.post("/api/locations", json={"name": "Bench 1", "kind": "bench"})
+    monkeypatch.setenv("RHDB_SURVEY_AGENTS", "walk:key-walk")
+    surveyed = []
+    for tag, serial in ((made["asset_id"], "WALK-1"), ("", "WALK-2")):
+        text = (
+            f"DIAG 1.0\r\n\r\n[RHDB]\r\nTAG={tag}\r\nRESULT=PASS\r\nTESTS=1\r\n"
+            f"TEST_CPU=PASS\r\nDISK1_MODEL=QUANTUM FIREBALL\r\nDISK1_SERIAL={serial}\r\n"
+            "DISK1_TYPE=ATA\r\nVIDEO=VGA\r\nCOM1=03F8 16550A IRQ4\r\n"
+        )
+        sent = client.post(
+            "/api/survey/agent/surveys",
+            files={"report": ("RH.TXT", text.encode(), "text/plain")},
+            headers={"Authorization": "Bearer key-walk"},
+        )
+        surveyed.append(f"/surveys/{sent.json()['surveys'][0]['id']}")
     return [
         "/",
         "/machines",
@@ -330,6 +350,9 @@ def a_page_of_everything(client, computer, part):
         "/settings/users",
         f"/settings/users/{owner_id}",
         "/settings/account",
+        "/surveys",
+        "/surveys/seen",
+        *surveyed,
         # The item pages a tab at a time, which choosing tabs keeps for the rest of
         # this client's walk: last, so every page above is read as one page.
         *[

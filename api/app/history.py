@@ -19,7 +19,7 @@ from urllib.parse import urlencode
 
 from sqlalchemy.orm import Session
 
-from .models import LogEntry, LogPhoto, Move
+from .models import LogEntry, LogPhoto, Move, Survey
 from .web import templates
 
 
@@ -51,6 +51,10 @@ KEPT_ENTRIES = frozenset({MOVE_ENTRY, CHECK_ENTRY})
 # of its own is a thing said about the machine as much as a sentence is.
 NOTE_ENTRY = "note"
 WRITTEN = frozenset({NOTE_ENTRY, PHOTO_ENTRY})
+
+# The one line a survey writes on the machine it was filed against (ADR-0043): public,
+# like the rest of the history, and linking to the survey for whoever may read one.
+SURVEY_ENTRY = "survey"
 
 
 def add_log(
@@ -204,8 +208,14 @@ def _history(db: Session, asset_id: str, kept: bool = True) -> list[SimpleNamesp
     lines = _fold_log(entries, log_photos(db, [e.id for e in entries]))
     ids = [e.id for e in entries if e.kind == MOVE_ENTRY]
     moves = {m.log_id: m for m in db.query(Move).filter(Move.log_id.in_(ids))} if ids else {}
+    # A survey's line links to the survey, for whoever may read one (ADR-0043).
+    said = [e.id for e in entries if e.kind == SURVEY_ENTRY]
+    surveys = (
+        {s.log_id: s.id for s in db.query(Survey).filter(Survey.log_id.in_(said))} if said else {}
+    )
     for line in lines:
         line.move = moves.get(line.id)
+        line.survey = surveys.get(line.id)
     return lines
 
 

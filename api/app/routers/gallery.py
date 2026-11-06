@@ -18,7 +18,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from .. import cards, entry, locations, projects, settings, specdb, tree
+from .. import cards, entry, locations, projects, settings, specdb, surveys, tree
 from ..auth import LAYOUT_COOKIE, SORT_COOKIE
 from ..common import folder_images, to_dict
 from ..db import get_db
@@ -499,6 +499,10 @@ def gui_index(request: Request, q: str = "", db: Session = Depends(get_db)) -> R
         first_run=total == 0 and not q.strip(),
         named=settings.site_name() != settings.DEFAULT_SITE_NAME,
         hit_projects=hit_projects,
+        # What surveys have seen with the words in it -- a disk's serial number, a
+        # card's address -- for somebody signed in, so the number on a drive's label
+        # says where that drive has been even if it was never made a part (ADR-0043).
+        seen=surveys.seen_matching(db, q) if q.strip() and request.state.sees_private else [],
         og=_og(
             request,
             settings.site_name(),

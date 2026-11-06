@@ -159,7 +159,7 @@ the box by hand; a fresh clone needs its own `.env`. `.env.example` is the list,
 with what each key is for written beside it: `DB_*`, `RHDB_AUTH_USER` and
 `RHDB_AUTH_PASSWORD` (read only to make the first administrator on an upgraded
 install), `RHDB_API_TOKEN` (the tool server's), `RHDB_DOMAIN`, `RHDB_ACME_EMAIL`,
-`RHDB_BASE_URL`, `RHDB_WATERMARK` and `RHDB_PRINT_AGENTS`. The login itself is not
+`RHDB_BASE_URL`, `RHDB_WATERMARK`, `RHDB_PRINT_AGENTS` and `RHDB_SURVEY_AGENTS`. The login itself is not
 in `.env`: accounts live in the database (ADR-0032).
 
 ## Special case: changing the site icon
