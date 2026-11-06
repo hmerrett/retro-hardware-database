@@ -4195,7 +4195,8 @@ It watches that folder and every folder inside it.
   stops. One that has not changed for an hour is sent as it stands, because the
   machine was switched off.
 - **A report the register refuses** moves into `REFUSED`, with a file ending
-  `.WHY` beside it saying why. One it could not deliver stays where it is and is
+  `.WHY` beside it saying why. Its receipt says so too, so the machine waiting for
+  one is not left waiting. One it could not deliver stays where it is and is
   tried again.
 
 Every name it writes fits in eight characters and three, so a DOS machine can

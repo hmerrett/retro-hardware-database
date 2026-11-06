@@ -279,6 +279,15 @@ def test_a_report_the_register_refuses_moves_into_refused_with_the_reason(
     assert (folder / "REFUSED" / "RH0001.WHY").read_text(encoding="cp437").strip()
 
 
+def test_a_refused_report_says_so_where_the_machine_is_waiting(agent, served, folder):
+    """The machine waits for a receipt; one that never came would leave whoever is
+    at it watching a screen that will not change."""
+    leave(folder, "RH0001.TXT", "DIAG 1.0\n\n[RHDB]\n")
+    run(agent, served, folder)
+    said = (folder / "RH0001.RCT").read_text(encoding="cp437")
+    assert "REFUSED" in said
+
+
 def test_a_report_it_could_not_deliver_stays_and_is_tried_again(agent, served, folder, client):
     """An agent with no register to talk to is not an error: the report waits in
     its folder until it can be sent."""
