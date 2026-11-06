@@ -211,6 +211,8 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `routers/accounts.py` | the account pages: Settings → Accounts for administrators, and Your account for everybody signed in |
 | `routers/health.py` | /healthz: up, and able to reach the database |
 | `routers/print_queue.py` | the print queue: the owner's half, and the half a print agent's key opens |
+| `routers/surveys.py` | the Surveys page, each survey's page with its answers and File, and the list of what surveys have seen (ADR-0043) |
+| `routers/api_surveys.py` | the survey agent's door (a machine's question, its reports) and surveys as JSON at /api/surveys |
 | `routers/locations.py` | a location's page, its form, emptying, merging and deleting one, its photographs and its labels -- each route asking Show locations who may see it |
 | `routers/api_locations.py` | /api/locations, and where a thing or a location has been at /api/items/<id>/moves |
 | `routers/storage.py` | the audit (`/audit`; its first name, storage, is still the code's): the screen, a scan, an undo, finishing a round, and the report |
@@ -263,6 +265,10 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `enrich.py` | fetching a photo for an item from its reference URL |
 | `labels.py` | what a label says and where on it that goes, for either surface: the two labels as Settings → Labels sets them up, every kind following its label's list, the stock deciding a label's shape, and a crowded label making room before it leaves anything off (ADR-0037, ADR-0039) |
 | `printing.py` | the queue of labels waiting for a printer on somebody else's machine, and what any item's label is read from, for the queue and the label routes alike |
+| `surveys.py` | a machine's report of itself filed against it (ADR-0043): which machine it is, the three answers, filling what is empty, Working from the tests, its ROMs, its history line, and what it has seen |
+| `surveyreport.py` | reading a survey report's `[RHDB]` section, and a machine's question before its tests |
+| `romtext.py` | the readable text in a ROM, and what the register makes of it: which BIOS it is, what a card's ROM calls the card |
+| `pciids.py` | names for what a PCI bus reports: the chipsets and cards of the period, and the part each class is filed as |
 | `labelpreview.py` | each label's picture on Settings → Labels: the example it is drawn for, the stock where it goes, and what it has no room for, from the page's settings before they are saved |
 | `surfaces.py` | the two things a label is drawn on: a PDF page, and a printer's own dots |
 | `barcode.py` | Code 128: a tag as the bars a label carries, set B only, and the table the browser's reader in static/code128.js is held to |

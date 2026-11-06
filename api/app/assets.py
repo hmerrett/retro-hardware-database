@@ -255,6 +255,8 @@ DUP_EXCLUDE = {
     "acquired_date",
     "notes",
     "serial",
+    # A network card's address is this card's, as its serial number is.
+    "ethernet_address",
 }
 
 

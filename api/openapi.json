@@ -109,6 +109,34 @@
         "title": "BoardOut",
         "type": "object"
       },
+      "Body_send_api_survey_agent_surveys_post": {
+        "properties": {
+          "report": {
+            "contentMediaType": "application/octet-stream",
+            "title": "Report",
+            "type": "string"
+          },
+          "roms": {
+            "default": [],
+            "items": {
+              "contentMediaType": "application/octet-stream",
+              "type": "string"
+            },
+            "title": "Roms",
+            "type": "array"
+          },
+          "taken": {
+            "default": "",
+            "title": "Taken",
+            "type": "string"
+          }
+        },
+        "required": [
+          "report"
+        ],
+        "title": "Body_send_api_survey_agent_surveys_post",
+        "type": "object"
+      },
       "ComputerCreate": {
         "properties": {
           "acquired_date": {
@@ -1430,6 +1458,11 @@
           "disposed_note": {
             "default": "",
             "title": "Disposed Note",
+            "type": "string"
+          },
+          "ethernet_address": {
+            "default": "",
+            "title": "Ethernet Address",
             "type": "string"
           },
           "image": {
@@ -3821,6 +3854,143 @@
         "summary": "Api Project Update Task",
         "tags": [
           "projects"
+        ]
+      }
+    },
+    "/api/survey/agent/ask": {
+      "post": {
+        "description": "A machine's question before its tests: the lines it has found so far, and the\ntag once it has been typed. The answer is the lines the agent leaves beside it.\nAsking writes nothing.",
+        "operationId": "ask_api_survey_agent_ask_post",
+        "responses": {
+          "200": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ask",
+        "tags": [
+          "surveys"
+        ]
+      }
+    },
+    "/api/survey/agent/surveys": {
+      "post": {
+        "description": "A file of reports, with the ROMs named in them, as the agent found them. Each\nreport is a survey, filed as far as it can be. 422 for a file that is not a report,\nwith the reason for the agent to leave beside it.",
+        "operationId": "send_api_survey_agent_surveys_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_send_api_survey_agent_surveys_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Send Api Survey Agent Surveys Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Send",
+        "tags": [
+          "surveys"
+        ]
+      }
+    },
+    "/api/surveys": {
+      "get": {
+        "description": "Every survey: waiting first, then newest first.",
+        "operationId": "list_surveys_api_surveys_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response List Surveys Api Surveys Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Surveys",
+        "tags": [
+          "surveys"
+        ]
+      }
+    },
+    "/api/surveys/{sid}": {
+      "get": {
+        "operationId": "get_survey_api_surveys__sid__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sid",
+            "required": true,
+            "schema": {
+              "title": "Sid",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Survey Api Surveys  Sid  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Survey",
+        "tags": [
+          "surveys"
         ]
       }
     }

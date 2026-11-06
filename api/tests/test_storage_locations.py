@@ -103,10 +103,10 @@ class TestALocation:
         made = db.get(Location, tag)
         assert (made.name, made.kind, made.notes) == ("Blue crate", "box", "under the stairs")
 
-    def test_the_form_offers_the_seven_kinds(self, client):
+    def test_the_form_offers_the_eight_kinds(self, client):
         page = client.get("/locations/new").text
-        kinds = re.findall(r'<option value="([a-z]+)"', page.split('name="kind"', 1)[1])[:7]
-        assert kinds == ["building", "room", "rack", "shelf", "box", "bag", "other"]
+        kinds = re.findall(r'<option value="([a-z]+)"', page.split('name="kind"', 1)[1])[:8]
+        assert kinds == ["building", "room", "rack", "shelf", "box", "bag", "bench", "other"]
 
     def test_a_kind_it_does_not_offer_is_refused(self, client, db):
         r = make_location(client, kind="drawer")

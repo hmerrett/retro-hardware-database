@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% import "_ui.html" as U with context %}
+{% import "_panel.html" as PN %}
+{% block title %}Surveys — {{ site_name() }}{% endblock %}
+{% block content %}
+{# Every survey (MANUAL §23, "The Surveys page"): those waiting for somebody first, then
+   every one, newest first. Read by anybody signed in; what is done to one is done on
+   its own page. #}
+{% macro rows(list) %}
+<table class="table stack">
+  <thead><tr><th scope="col">Survey</th><th scope="col">Machine</th><th scope="col">Taken</th><th scope="col">Tests</th><th scope="col">Waiting for</th></tr></thead>
+  <tbody>
+  {% for s in list %}
+  <tr>
+    <td data-label="Survey"><a href="/surveys/{{ s.id }}">Survey {{ s.id }}</a></td>
+    <td data-label="Machine">{% if s.machine %}<a href="/items/{{ s.machine }}">{{ names.get(s.machine, s.machine) }}</a> <span class="tag muted">{{ s.machine }}</span>{% else %}<span class="muted">Not known yet</span>{% endif %}</td>
+    <td data-label="Taken">{{ when(s.taken) }}</td>
+    <td data-label="Tests">{{ result(s) }}</td>
+    <td data-label="Waiting for">{% if s.waiting == 'machine' %}A machine{% elif s.waiting == 'answer' %}An answer{% else %}<span class="muted">Nothing</span>{% endif %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endmacro %}
+<div class="pagehead"><h1 class="heading">Surveys</h1>
+  <p class="hint">What machines have said about themselves. {{ U.button('Seen', href='/surveys/seen', title='Every serial number and Ethernet address a survey has read.') }}</p></div>
+{% call PN.panel('Waiting', waiting | length or '') %}
+  {% if waiting %}{{ rows(waiting) }}{% else %}<p class="pbody muted">Nothing is waiting for you.</p>{% endif %}
+{% endcall %}
+{% call PN.panel('Every survey', done | length or '') %}
+  {% if done %}{{ rows(done) }}{% else %}<p class="pbody muted">No other surveys.</p>{% endif %}
+{% endcall %}
+{% endblock %}

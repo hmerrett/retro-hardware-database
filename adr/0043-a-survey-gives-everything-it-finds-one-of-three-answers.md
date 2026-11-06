@@ -1,6 +1,6 @@
 # 0043 — A survey gives everything it finds one of three answers
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-11-06
 **Amends:** [ADR-0034](0034-a-location-is-a-record-in-the-register.md)
 

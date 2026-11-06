@@ -1,7 +1,7 @@
 """The pages of a machine: its own page, its form, its photographs, and what is
 fitted inside it."""
 
-from .. import machines
+from .. import machines, surveys
 from ..assets import _bezel_ctx, _machine_ctx
 from ..pages import _datalists
 
@@ -101,7 +101,7 @@ from ..disposal import inside
 from ..forms import Posted, _coerce, _field_diffs, posted, refusals, year_hint
 from ..history import _history, add_log
 from ..ids import next_asset_id
-from ..models import AssetVariant, Computer, Part, StoredFile
+from ..models import AssetVariant, Computer, Part, StoredFile, Survey
 from ..pages import _answers_given, _note_with_photos
 from ..photos import (
     _chosen_photos,
@@ -407,6 +407,7 @@ def gui_new_computer(
     request: Request,
     db: Session = Depends(get_db),
     source: str = Query("", alias="from"),
+    survey: int = 0,
 ) -> HTMLResponse:
     """The new machine's form. `from` starts it filled in from a machine already held,
     as the new part's form does from a part: what Duplicate copies, with nothing saved
@@ -416,8 +417,35 @@ def gui_new_computer(
     already been found to have as well as what the catalogue names -- and the form for
     a machine being entered for the first time is where that matters most."""
     like = db.get(Computer, source.strip().upper()) if source.strip() else None
-    return templates.TemplateResponse(
-        request, "computer_form.html", _computer_form_ctx(None, "New computer", db, like=like)
+    ctx = _computer_form_ctx(None, "New computer", db, like=like)
+    # From a survey that waits for a machine (MANUAL §23, "The Surveys page"): the form
+    # starts with what the survey found, and saving it files the survey against it.
+    found = db.get(Survey, survey) if survey else None
+    if found is not None and found.waiting == surveys.FOR_MACHINE:
+        said = surveys.prefill(found)
+        ctx["c"] = Computer(
+            **{
+                k: v
+                for k, v in said.items()
+                if k in ("cpu", "os", "manufacturer", "model", "serial")
+            }
+        )
+        ctx["ram_free"] = said["installed_ram"]
+        ctx["from_survey"] = found.id
+    return templates.TemplateResponse(request, "computer_form.html", ctx)
+
+
+def _file_survey(
+    db: Session, obj: Computer, form: Posted, who: str
+) -> tuple[Survey, surveys.Filing] | None:
+    """A new machine saved from a survey's page files the survey against it, as if its
+    tag had been typed at the machine (MANUAL §23, "The Surveys page")."""
+    raw = (form.get("survey", "") or "").strip()
+    found = db.get(Survey, int(raw)) if raw.isdigit() else None
+    if found is None or found.waiting != surveys.FOR_MACHINE:
+        return None
+    return found, surveys.settle(
+        db, found, {}, who, machine=obj.asset_id, how=surveys.FILED, by=who
     )
 
 
@@ -452,7 +480,10 @@ async def gui_create_computer(request: Request, db: Session = Depends(get_db)) -
     if errors:
         ctx = _computer_form_ctx(obj, "New computer", db) | {"new": True}
         return refused(request, db, "computer_form.html", ctx, form, errors)
+    filed = _file_survey(db, obj, form, request.state.principal.username)
     db.commit()
+    if filed is not None and (agent := surveys.agents().get(filed[0].agent)) is not None:
+        surveys.labels_for(db, agent, filed[1].made)
     if photos:
         _attach_photos(db, obj, "computers", photos)
         db.commit()

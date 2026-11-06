@@ -431,6 +431,9 @@
 {%- endif -%}
 {%- if request.state.sees_private -%}
 <a href="/for-sale"{{ here('/for-sale', current) }}>{% if sheet %}{{ I.ico('tag') }}{% endif %}{{ 'Might sell' | ui }}</a>
+{#- What machines have said about themselves: read by anybody signed in, and acted
+    on by an administrator on each survey's page (ADR-0043). -#}
+<a href="/surveys"{{ here('/surveys', current) }}>{% if sheet %}{{ I.ico('view') }}{% endif %}{{ 'Surveys' | ui }}</a>
 {%- endif -%}
 {%- if authed -%}
 <a href="/traffic">{% if sheet %}{{ I.ico('numbers') }}{% endif %}{{ 'Traffic' | ui }}</a>
@@ -588,6 +591,7 @@
     {%- endif %}
     {%- if request.state.sees_private %}
     <a class="item" href="/for-sale" title="{{ 'Might sell' | ui }}" aria-label="{{ 'Might sell' | ui }}"{{ here('/for-sale', current) }}>{{ I.ico('tag') }}<span>{{ 'Might sell' | ui }}</span></a>
+    <a class="item" href="/surveys" title="{{ 'Surveys' | ui }}" aria-label="{{ 'Surveys' | ui }}"{{ here('/surveys', current) }}>{{ I.ico('view') }}<span>{{ 'Surveys' | ui }}</span></a>
     {%- endif %}
     {%- if authed %}
     <a class="item" href="/traffic" title="{{ 'Traffic' | ui }}" aria-label="{{ 'Traffic' | ui }}">{{ I.ico('numbers') }}<span>{{ 'Traffic' | ui }}</span></a>

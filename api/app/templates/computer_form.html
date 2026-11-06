@@ -40,6 +40,10 @@
   {% if from_computer %}
   <p class="hint" title="The serial number, source, acquired date, notes, location, photographs, board issue and chips are not carried over.">Copied from <a href="/computers/{{ from_computer }}">{{ from_computer }}</a>.</p>
   {% endif %}
+  {% if from_survey is defined and from_survey %}
+  <p class="hint" title="Saving makes the machine and files the survey against it.">Filled in from <a href="/surveys/{{ from_survey }}">survey {{ from_survey }}</a>.</p>
+  <input type="hidden" name="survey" value="{{ from_survey }}">
+  {% endif %}
   {% for name, values in DL.items() %}
   <datalist id="dl_{{ name }}">{% for v in values %}<option value="{{ v }}">{% endfor %}</datalist>
   {% endfor %}

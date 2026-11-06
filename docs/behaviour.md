@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3266 behaviours, from 98 files.*
+*3267 behaviours, from 98 files.*
 
 
 ## A barcode takes the room the words leave
@@ -5096,7 +5096,7 @@ Regenerate with:
 - its label address opens its page  
   /items/<tag> is the address every label carries, whatever the tag is.
 - new location makes one and opens its page
-- the form offers the seven kinds
+- the form offers the eight kinds
 - a kind it does not offer is refused
 - a name is required
 - inside says which location it is in
@@ -5643,7 +5643,7 @@ Regenerate with:
 
 ## The survey agent
 
-*test_the_survey_agent.py — 24 behaviours*
+*test_the_survey_agent.py — 25 behaviours*
 
 - a question is answered beside it  
   The machine asks before it tests anything, so that a machine the register knows is named on its screen and nothing is asked of whoever is there.
@@ -5669,6 +5669,8 @@ Regenerate with:
 - a soak left alone for an hour is sent as it stands  
   Because the machine was switched off part-way, which is how most soaks end.
 - a report the register refuses moves into refused with the reason
+- a refused report says so where the machine is waiting  
+  The machine waits for a receipt; one that never came would leave whoever is at it watching a screen that will not change.
 - a report it could not deliver stays and is tried again  
   An agent with no register to talk to is not an error: the report waits in its folder until it can be sent.
 - every name it writes fits eight characters and three  

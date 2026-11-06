@@ -191,6 +191,12 @@ READING = {
     "login.html",
     "setup.html",
     "traffic.html",  # what /traffic says before GoAccess has written its first report
+    # The surveys: a list, one survey read down its panels, the serial numbers seen,
+    # and the question a filing asks first.
+    "surveys.html",
+    "survey.html",
+    "surveys_seen.html",
+    "survey_file.html",
     "delete.html",
     "detach.html",
     "error.html",

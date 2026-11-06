@@ -129,5 +129,5 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   Public switch, and nothing else — *Accepted* (amends
   [0028](0028-a-file-is-linked-to-the-things-it-is-for-by-their-ids.md))
 - [0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md) — A
-  survey gives everything it finds one of three answers — *Proposed* (amends
+  survey gives everything it finds one of three answers — *Accepted* (amends
   [0034](0034-a-location-is-a-record-in-the-register.md))

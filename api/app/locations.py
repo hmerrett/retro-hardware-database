@@ -35,10 +35,15 @@ KINDS: tuple[tuple[str, str], ...] = (
     ("shelf", "Shelf"),
     ("box", "Box"),
     ("bag", "Bag"),
+    # The one kind that changes anything: what is kept on a bench is the bench's own
+    # equipment, which a survey never takes for part of the machine it is testing
+    # (ADR-0043).
+    ("bench", "Bench"),
     ("other", "Other"),
 )
 KIND_NAMES = dict(KINDS)
 OTHER = "other"
+BENCH = "bench"
 
 # How a path is written where it has to be typed or read as text -- a form's box,
 # the API, a label. A page draws it as links instead (see `Tree.steps`).
