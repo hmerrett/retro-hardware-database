@@ -260,6 +260,11 @@ def name(vendor: str, device: str) -> str:
     return f"PCI {vendor}:{device}"
 
 
+def known(vendor: str, device: str) -> bool:
+    """Whether the table can say both who made a device and what it is."""
+    return vendor in VENDORS and f"{vendor}:{device}" in DEVICES
+
+
 def maker(vendor: str) -> str:
     return VENDORS.get(vendor, "")
 

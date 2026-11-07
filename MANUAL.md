@@ -4401,6 +4401,10 @@ machine](#two-ways-of-describing-a-machine), [drives](#8-drives)):
 | A hard disk | A part of its own, or left out |
 | The network card, the video card, any other card seen through its ROM or on a PCI bus (a disk controller, a sound card), and the serial and parallel ports | A part of its own, part of the machine (built into its board), or left out |
 
+The network card a survey runs through is one thing, however the survey sees
+it: by its Ethernet address, on the PCI bus, and through its boot ROM where the
+survey can tell which ROM that is. It is asked about once.
+
 An answer is remembered. The next survey that finds the same thing in the same
 machine gives it the same answer without asking. A thing with a serial number
 or an address is known by that wherever it turns up, and anything else by what
@@ -4443,7 +4447,7 @@ say.
 
 | Found | Written into |
 |---|---|
-| The processor and its measured speed | **CPU**, the way the form asks for it: `Intel 486DX2-66`. A chip too old to say who made it is written without a maker, as `80286-12`. |
+| The processor and its measured speed | **CPU**, the way the form asks for it: `Intel 486DX2-66`. A chip that answers CPUID is named by what it answers (`AMD K6-2-300`, `Intel Pentium MMX-233`). A chip too old to say who made it is written without a maker, as `80286-12`. |
 | A maths coprocessor | the **FPU** socket, on a machine the catalogue gives one (`Intel 8087`); otherwise **FPU** on the motherboard fitted in it |
 | The memory the BIOS counts | **Installed RAM**, as a plain total, when nothing about the machine's memory is recorded yet. Above 1 MiB it is rounded up to whole MiB, because an AT's BIOS leaves out the 384 KiB under its ROMs. |
 | The operating system on the first hard disk | **Operating system** |
@@ -4474,7 +4478,8 @@ machine says which:
 - **N** makes a new one, fitted in the machine and named as it names itself: a
   hard disk as `QUANTUM FIREBALL1080A`, with its interface, capacity and
   geometry; a card by its ROM or its chip (`Tseng Labs ET4000`); a network card
-  by the driver it was run with; the ports as an I/O card with them on it. Its
+  by its chip where it is on the PCI bus, and otherwise by the driver it was run
+  with; the ports as an I/O card with them on it. Its
   label is printed on the agent's printer, if it has one.
 
 Then, wherever the register has that part:
@@ -4555,6 +4560,10 @@ the card is part of it. The ROM of something left out is not kept. A network
 card's boot ROM goes with the card wherever the survey can tell which ROM that
 is, so a bench card's boot ROM is the bench card's in every machine.
 
+The BIOS is the ROM that runs to the top of the first megabyte, wherever it
+starts. On an XT that is F000. A later board's BIOS is bigger, and starts lower
+(E000, or E800).
+
 - **The same ROM is one file.** One read again, from this machine or from
   another of the same model, is the file already kept, linked to one more
   thing.
@@ -4623,7 +4632,11 @@ when it was taken (by the agent's clock, since a machine's own is often wrong):
 
 - `Surveyed: every test passed. Filled in CPU, memory and operating system.`
 - `Surveyed: 2 of 17 tests failed (RAM, floppy).`
+- `Surveyed: 14 of 17 tests passed, 3 skipped.`
 - `Surveyed: every test passed, 48 passes over 12 hours.`
+
+"Every test passed" means every test that applies to the machine. A skipped
+test has not been run, so a survey with one never says it.
 
 A visitor sees it, as they see the rest of the history, and it says nothing a
 visitor is not shown: no serial number, no address, nowhere anything is kept.
@@ -4669,7 +4682,7 @@ does not know is ignored, so a program is free to say more than this.
 | `RESULT` | `PASS`, `FAIL` or `ABORTED` |
 | `TEST_<name>`, `DETAIL_<name>` | each test's result (`PASS`, `FAIL`, `SKIP`, `NA` for one that does not apply, or `NOTRUN`), and what it found |
 | `MODE`, `PASSES`, `ELAPSED` | `ONCE` or `SOAK`, and for a soak how many passes in how long |
-| `CPU`, `CPUVENDOR`, `CPUKHZ`, `FPU` | the processor, its maker where it says, its measured speed, and the maths coprocessor |
+| `CPU`, `CPUVENDOR`, `CPUSIG`, `CPUKHZ`, `FPU` | the processor, its maker where it says, its CPUID signature (family, model and stepping, as four hex digits), its measured speed, and the maths coprocessor |
 | `RAMKB`, `EXTKB` | conventional and extended memory as the BIOS counts it, in KiB |
 | `FLOPPY<n>` | a floppy drive as the BIOS has it: `360K`, `1.2M`, `720K`, `1.44M` or `2.88M` |
 | `BIOSVENDOR`, `BIOSDATE` | the BIOS's maker and date |
