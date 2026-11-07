@@ -1739,7 +1739,12 @@ def tests_line(keys: Mapping[str, str]) -> str:
     result = keys.get("RESULT", "").strip().upper()
     tests = {k[5:]: v.strip().upper() for k, v in keys.items() if k.startswith("TEST_")}
     failed = [_TEST_WORDS.get(name, name) for name, v in tests.items() if v == "FAIL"]
+    # Of the tests that apply: one that does not (a clock on an XT) is no test at all.
     total = _int(keys.get("TESTS")) or len(tests)
+    not_applying = _int(keys.get("NA"))
+    if not_applying is None:
+        not_applying = sum(1 for v in tests.values() if v == "NA")
+    total = max(total - not_applying, 0)
     if result == "ABORTED":
         return "the tests were stopped before they finished"
     if failed or result == "FAIL":

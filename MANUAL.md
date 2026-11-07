@@ -4669,8 +4669,10 @@ when it was taken (by the agent's clock, since a machine's own is often wrong):
 - `Surveyed: 14 of 17 tests passed, 3 skipped.`
 - `Surveyed: every test passed, 48 passes over 12 hours.`
 
-"Every test passed" means every test that applies to the machine. A skipped
-test has not been run, so a survey with one never says it.
+"Every test passed" means every test that applies to the machine, and the
+counts are of those: a clock test on an XT is no test at all, so it is not one
+of the 17. A skipped test has not been run, so a survey with one never says
+every test passed.
 
 A visitor sees it, as they see the rest of the history, and it says nothing a
 visitor is not shown: no serial number, no address, nowhere anything is kept.
