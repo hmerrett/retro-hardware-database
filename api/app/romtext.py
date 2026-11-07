@@ -93,47 +93,55 @@ def oem(texts: list[str]) -> str:
     return ""
 
 
-# Who made the cards that carry a ROM of their own, as their ROMs name themselves:
-# video chips first, then disk controllers and boot ROMs.
-_MAKERS = (
-    "Tseng",
-    "Trident",
-    "S3 ",
-    "Cirrus",
-    "ATI ",
-    "Paradise",
-    "Western Digital",
-    "Oak Technology",
-    "Realtek",
-    "Chips and Tech",
-    "Chips & Tech",
-    "Video Seven",
-    "Headland",
-    "Avance",
-    "Matrox",
-    "Number Nine",
-    "Genoa",
-    "Orchid",
-    "Diamond",
-    "Hercules",
-    "Everex",
-    "Ahead",
-    "Sigma",
-    "Adaptec",
-    "XTIDE",
-    "XT-IDE",
-    "Future Domain",
-    "Seagate",
-    "Promise",
-    "netboot",
-    "3Com",
+# Who made the cards that carry a ROM of their own, as their ROMs name them and as the
+# register writes them: the chip makers whose own BIOS most cards carry, then the
+# makers of cards, of disk and SCSI controllers and of network cards, and the
+# computer makers whose own cards carry their name. A program names a ROM and not who
+# built the card it is on, so its maker is "" (ADR-0047). Each pattern takes the
+# maker's words as a banner writes them, company suffix and all, so that what is left
+# is the card's model.
+_INC = r"(?:,? (?:Inc|Corp|Corporation|Ltd)\b\.?)?"
+_MAKERS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"\bTseng(?: Lab(?:s|oratories))?\b" + _INC, re.I), "Tseng Labs"),
+    (re.compile(r"\bTrident(?: Microsystems)?\b" + _INC, re.I), "Trident Microsystems"),
+    (re.compile(r"\bS3\b" + _INC), "S3"),
+    (re.compile(r"\bCirrus(?: Logic)?\b" + _INC, re.I), "Cirrus Logic"),
+    (re.compile(r"\bATI(?: Technologies)?\b" + _INC), "ATI"),
+    (re.compile(r"\bParadise(?: Systems)?\b" + _INC, re.I), "Paradise"),
+    (re.compile(r"\bWestern Digital\b" + _INC, re.I), "Western Digital"),
+    (re.compile(r"\bOak Technology\b" + _INC, re.I), "Oak Technology"),
+    (re.compile(r"\bRealtek(?: Semiconductor)?\b" + _INC, re.I), "Realtek"),
+    (re.compile(r"\bChips (?:and|&) Tech(?:nologies)?\b" + _INC, re.I), "Chips and Technologies"),
+    (re.compile(r"\bVideo Seven\b" + _INC, re.I), "Video Seven"),
+    (re.compile(r"\bHeadland(?: Technology)?\b" + _INC, re.I), "Headland Technology"),
+    (re.compile(r"\bAvance(?: Logic)?\b" + _INC, re.I), "Avance Logic"),
+    (re.compile(r"\bMatrox\b" + _INC, re.I), "Matrox"),
+    (re.compile(r"\bNumber Nine(?: Computer)?\b" + _INC, re.I), "Number Nine"),
+    (re.compile(r"\bGenoa(?: Systems)?\b" + _INC, re.I), "Genoa Systems"),
+    (re.compile(r"\bOrchid(?: Technology)?\b" + _INC, re.I), "Orchid Technology"),
+    (re.compile(r"\bDiamond(?: Multimedia| Computer Systems)?\b" + _INC, re.I), "Diamond"),
+    (re.compile(r"\bHercules(?: Computer Technology)?\b" + _INC, re.I), "Hercules"),
+    (re.compile(r"\bEverex(?: Systems)?\b" + _INC, re.I), "Everex"),
+    (re.compile(r"\bAhead(?: Systems)?\b" + _INC, re.I), "Ahead Systems"),
+    (re.compile(r"\bSigma(?: Designs)?\b" + _INC, re.I), "Sigma Designs"),
+    (re.compile(r"\bAdaptec\b" + _INC, re.I), "Adaptec"),
+    (re.compile(r"\bFuture Domain\b" + _INC, re.I), "Future Domain"),
+    (re.compile(r"\bSeagate(?: Technology)?\b" + _INC, re.I), "Seagate"),
+    (re.compile(r"\bPromise(?: Technology)?\b" + _INC, re.I), "Promise Technology"),
+    (re.compile(r"\b3Com\b" + _INC, re.I), "3Com"),
+    (re.compile(r"\bCOMPAQ(?: Computer)?\b" + _INC, re.I), "Compaq"),
+    # IBM's own, by its copyright mark rather than the "IBM compatible" a clone says.
+    (re.compile(r"COPR\. IBM\b|\bIBM Corp(?:oration)?\b\.?"), "IBM"),
+    (re.compile(r"\bXT-?IDE\b", re.I), ""),
+    (re.compile(r"\bnetboot\b", re.I), ""),
 )
 
 # What comes after a card's name on its banner line: the words about which BIOS and
-# which version this is, which are not the card's name.
+# which version this is, which are not the card's name. Whole words only, or the
+# "ver" in Everex or Universal would end the name there.
 _AFTER_NAME = re.compile(
-    r"\s*(?:(?:VGA|SVGA|EGA|Video|Graphics|Display)\s+)?(?:BIOS|ROM)\b.*$"
-    r"|\s*(?:Version|Ver\.?|Rev\.?|Copyright|\(C\)).*$",
+    r"\s*(?:(?:VGA|SVGA|EGA|Video|Graphics|Display)\s+)?\b(?:BIOS|ROM)\b.*$"
+    r"|\s*\b(?:Version\b|Ver\b\.?|Rev\b\.?|Copyright\b).*$|\s*\(C\).*$",
     re.I,
 )
 
@@ -147,20 +155,44 @@ _BANNER = re.compile(r"\b(?:BIOS|ROM|Version|Copyright)\b|\b(?:Ver|Rev)\.|\(C\)"
 _LEADING = re.compile(r"^[^A-Za-z0-9]+")
 
 
+def _named(text: str) -> str:
+    """A banner line with the words about which BIOS and which version it is taken
+    off, and anything before its first word: what it calls the card. A ROM's header
+    can run straight into its banner (the size byte of a 32 KiB ROM is "@")."""
+    return _LEADING.sub("", _AFTER_NAME.sub("", text)).strip(" ,.-")
+
+
+def card_made(texts: list[str]) -> tuple[str, str]:
+    """(maker, model) of a card as its ROM names them: the maker its first banner line
+    naming one gives, as the register writes it, and the rest of that line's name for
+    the card as the model. Where that line names only the maker (a copyright line), the
+    model is the first banner line naming a chip: the words on it with a number in them
+    (`CL-GD5428`). ("", "") for a ROM whose banners name nobody, so that a card whose
+    ROM says nothing of itself is one nobody can name (ADR-0044)."""
+    banners = [text for text in texts if _BANNER.search(text)]
+    for text in banners:
+        for pattern, maker in _MAKERS:
+            if pattern.search(text) is None:
+                continue
+            model = _named(pattern.sub(" ", text) if maker else text)
+            if not model:
+                model = next((n for n in map(_named, banners) if _chip(n)), "")
+            if maker or len(model) >= 3:
+                return maker, model[:120]
+            break
+    return "", ""
+
+
+def _chip(name: str) -> bool:
+    """Whether a banner's name is a chip's: a number in it, and no maker's name."""
+    return any(c.isdigit() for c in name) and not any(p.search(name) for p, _ in _MAKERS)
+
+
 def card(texts: list[str]) -> str:
-    """What a card's ROM calls the card: its first banner line naming a maker, with the
-    words about versions and copyright taken off. "" when no banner names one, so that
-    a card whose ROM says nothing of itself is one nobody can name (ADR-0044)."""
-    for text in texts:
-        if not _BANNER.search(text):
-            continue
-        if any(maker.lower() in text.lower() for maker in _MAKERS):
-            # A ROM's header can run straight into its banner: the size byte of a 32 KiB
-            # ROM is "@", and is not part of the card's name.
-            name = _LEADING.sub("", _AFTER_NAME.sub("", text)).strip(" ,.-")
-            if len(name) >= 3:
-                return name[:120]
-    return ""
+    """What a card's ROM calls the card: its maker and its model (ADR-0044, ADR-0047),
+    or "" for a ROM that names nobody."""
+    name = " ".join(filter(None, card_made(texts)))
+    return name if len(name) >= 3 else ""
 
 
 # What a network card's boot ROM says of itself: the boot code's own name, or its
