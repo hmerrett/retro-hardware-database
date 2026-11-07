@@ -844,6 +844,12 @@ def folded(keys: Mapping[str, str]) -> dict[str, str]:
     return out
 
 
+def edid_text(keys: Mapping[str, str]) -> str:
+    """The monitor's EDID as the report carries it: 128 bytes in hex, 32 to a line
+    (EDID1= to EDID4=) so that each line fits the machine's screen."""
+    return "".join(keys.get(f"EDID{n}", "") for n in _numbers(keys, "EDID"))
+
+
 def _monitor_made(m: edid.Monitor) -> tuple[str, str]:
     """(maker, model) for a monitor: its maker by its code, and its own name without the
     maker's word it starts with. No model where it gave no name."""
@@ -1161,7 +1167,7 @@ def findings(
         )
     # A monitor that says what it is, through DDC: a part of its own or left out, and
     # known by its serial number where it gives one (ADR-0051).
-    if (screen := edid.read(keys.get("EDID", ""))) is not None:
+    if (screen := edid.read(edid_text(keys))) is not None:
         made_by, model = _monitor_made(screen)
         product = f"{screen.code}{screen.product}"
         out.append(
@@ -1260,7 +1266,7 @@ def name_of(keys: Mapping[str, str], f: Finding, texts: Mapping[str, list[str]])
         plug = pnp_nic(keys)
         return " ".join(filter(None, _pnp_made(plug))) if plug and plug.own else ""
     if kind == "monitor":
-        return f["name"] if (screen := edid.read(keys.get("EDID", ""))) and screen.name else ""
+        return f["name"] if (screen := edid.read(edid_text(keys))) and screen.name else ""
     if f["thing"].startswith("PNP"):
         card = next((c for c in pnp_cards(keys) if f"PNP{c.n}" == f["thing"]), None)
         return " ".join(filter(None, _pnp_made(card))) if card and card.own else ""
@@ -1967,7 +1973,7 @@ def _new_part(
         part.ethernet_address = f["identifier"]
     elif f["kind"] == "monitor":
         # Named as it names itself, with the serial number on its label (ADR-0051).
-        screen = edid.read(keys.get("EDID", ""))
+        screen = edid.read(edid_text(keys))
         if screen is not None:
             part.manufacturer, part.model = _monitor_made(screen)
             part.model = part.model or f"{screen.code}{screen.product}"

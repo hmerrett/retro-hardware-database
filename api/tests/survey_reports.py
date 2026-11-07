@@ -116,6 +116,15 @@ AWE64 = {
     "PNP1_IO": "220 330 388",
 }
 
+# The EDID QEMU's VGA gives, as tinydiag 0.12.0 reported it: Red Hat's code, product 1234h,
+# no serial number, and its name, "QEMU Monitor".
+QEMU_EDID = {
+    "EDID1": "00FFFFFFFFFFFF0049143412000000002A180104A520147806EE91A3544C9926",
+    "EDID2": "0F5054210800E1C0D1C0D100A940B300950081808140EA2900C051201C304026",
+    "EDID3": "444045CB10000018000000F7000A004082002820000000000000000000FD0032",
+    "EDID4": "7D1EA0FF010A202020202020000000FC0051454D55204D6F6E69746F720A013A",
+}
+
 
 def edid(
     code: str = "DEL",
@@ -123,10 +132,11 @@ def edid(
     number: int = 0x01010101,
     name: str = "DELL P1110",
     serial: str = "9J0123A1B2C3",
-) -> str:
-    """A monitor's EDID as DDC gives it, in hex as the report carries it: the header,
-    its maker's code and its product, its serial number as a number, a timing, and
-    descriptors with its serial number written out and its name (EDID 1.3)."""
+) -> dict[str, str]:
+    """A monitor's EDID as DDC gives it, as the report carries it: in hex, 32 bytes to a
+    line (EDID1= to EDID4=). The header, its maker's code and its product, its serial
+    number as a number, a timing, and descriptors with its serial number written out and
+    its name (EDID 1.3)."""
     block = bytearray(128)
     block[0:8] = bytes.fromhex("00FFFFFFFFFFFF00")
     packed = sum((ord(c) - 64) << shift for c, shift in zip(code, (10, 5, 0), strict=True))
@@ -146,7 +156,8 @@ def edid(
     block[90:108] = text(0xFC, name)
     block[108:126] = bytes([0, 0, 0, 0x10, 0]) + bytes(13)
     block[127] = -sum(block[:127]) & 0xFF
-    return block.hex().upper()
+    text = block.hex().upper()
+    return {f"EDID{n + 1}": text[n * 64 : n * 64 + 64] for n in range(4)}
 
 
 def report(**keys: str | None) -> str:

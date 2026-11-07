@@ -35,14 +35,15 @@ motherboard, or left out), except a monitor.
 ### Plug and Play cards
 
 `PNP1=CTL0045 1A2B3C4D` (the card's ID and serial number), `PNP1_ANSI=Creative
-SB AWE64 PnP` (its own name) and `PNP1_IO=220 330 388` (the first port of each
-of its devices that is switched on).
+SB AWE64 PnP` (its own name) and `PNP1_IO=0220 0330 0388` (the first port of each
+of its first four devices that is switched on).
 
 - **Read where they were set up.** Where the BIOS is a Plug and Play BIOS, it says
   which port it reads the cards through and how many it numbered, and each card is
   woken by its number and read, which changes nothing. Without one, the cards are
   isolated as a driver would, which numbers them again (in the same order, which
-  their serial numbers decide) and never resets what a driver configured. They
+  their serial numbers decide) and never resets what a driver configured. It
+  reads them through 20Bh, else 27Bh, which nothing else common answers at. They
   are put back to waiting for the key either way.
 - **Known by its ID and serial number** wherever it turns up, as `pnp` among the
   serial numbers seen, and so says which machine it is in, as a disk does. Many
@@ -55,14 +56,17 @@ of its devices that is switched on).
 - **One card, not two.** A `SOUND`, `ADLIB`, `MPU` or `GUS` at one of a card's own
   ports is that card and not a finding of its own. A Plug and Play card whose name
   says it is a network card is the network card, where the survey runs through one
-  that is not on the PCI bus and only that one says so: it names the card, and is
-  not asked about twice.
+  that is not on the PCI bus and only that one says so: it names the card. The
+  register's answer tells the machine which (`SOUND_ANSWER=PNP1`, `PNP2_ANSWER=NIC`,
+  and `MPU_ANSWER=SOUND` for a Sound Blaster 16's), and the survey program, which
+  takes any answer as settled, does not ask about it twice.
 
 ### Monitors
 
-`EDID=` with the 128 bytes the monitor gave, in hex. The survey program asks only
-on a VGA whose BIOS answers VESA's AX=4F00h, and sends the block unread; the
-register reads it.
+`EDID1=` to `EDID4=`: the 128 bytes the monitor gave, in hex, 32 to a line so
+that each line of the report fits the machine's screen. The survey program asks
+only on a VGA whose BIOS answers VESA's AX=4F00h, and sends the block unread; the
+register reads it, and refuses one whose header or checksum is wrong.
 
 - **A part of its own, or left out.** A monitor is never part of a motherboard, so
   M is not offered. A new one is a **Display** part with its maker (from its code,
@@ -92,15 +96,17 @@ still holds.
 The serial port test already said which chip each port has (`COM1=03F8 16550A
 IRQ4 ...`). The parallel port test now says whether a port is an ECP port (its
 extended control register answers as one does) or a bidirectional one (its data
-lines stop driving when told to), as `LPT1=0378 ECP ...`. Both go into the ports'
+lines stop driving when told to), as `LPT1=0378 ECP ...` or `LPT1=0378 BIDIR ...`.
+Both go into the ports'
 line, a chip or a mode to an entry (`2× Serial (16550A), Parallel (ECP)`), and into
 nothing they are known by, so ports answered before are not asked again.
 
 ### A Gravis UltraSound and an MPU-401
 
-`GUS=240 1024` (its port and its sound memory, in K) and `MPU=330`. The
-UltraSound is found by resetting it and writing to its sound memory, at 220h, 240h
-and 260h; the MPU-401 by its reset at 330h. Those writes go to ports a network
+`GUS=0240 1024` (its port and its sound memory, in K) and `MPU=0330`. The
+UltraSound is found as Gravis's own software found one, by resetting it and
+writing to its sound memory, at 220h, 240h and 260h; the MPU-401 by its reset at
+330h. Those writes go to ports a network
 card on the ISA bus can be set to (320h-37Fh), and the survey reports through its
 network card, so both are probed only where that card is on the PCI bus. An
 MPU-401 beside a Sound Blaster whose DSP is 4 or later is the Sound Blaster 16's

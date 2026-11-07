@@ -37,6 +37,7 @@ from survey_reports import (
     NETBOOT_ROM,
     NIC,
     PRINTERS,
+    QEMU_EDID,
     VGA_ROM,
     XTIDE_ROM,
     answer,
@@ -976,13 +977,18 @@ class TestWhatTheHardwareSays:
     # A monitor
 
     def test_a_monitor_is_named_by_its_maker_and_model(self, client, computer):
-        made = survey(client, TAG=computer()["asset_id"], EDID=edid())
+        made = survey(client, TAG=computer()["asset_id"], **edid())
         assert finding(made, "MONITOR")["fits"] == ["part", "out"]
-        assert ask(client, EDID=edid())["MONITOR_NAME"] == "Dell P1110"
+        assert ask(client, **edid())["MONITOR_NAME"] == "Dell P1110"
+
+    def test_qemus_monitor_is_named_from_what_it_gave(self, client, computer):
+        made = survey(client, TAG=computer()["asset_id"], **QEMU_EDID)
+        assert finding(made, "MONITOR")["name"] == "Red Hat QEMU Monitor"
+        assert ask(client, **QEMU_EDID)["MONITOR_NAME"] == "Red Hat QEMU Monitor"
 
     def test_n_makes_a_display_with_its_serial_number(self, client, computer):
         machine = computer()
-        made = survey(client, TAG=machine["asset_id"], EDID=edid(), MONITOR_ANSWER="NEW")
+        made = survey(client, TAG=machine["asset_id"], **edid(), MONITOR_ANSWER="NEW")
         screen = get(client, "parts", finding(made, "MONITOR")["part"])
         assert (screen["type"], screen["manufacturer"], screen["model"], screen["serial"]) == (
             "display",
@@ -993,44 +999,43 @@ class TestWhatTheHardwareSays:
         assert screen["computer_id"] == machine["asset_id"]
 
     def test_a_monitor_is_known_by_its_serial_number_wherever_it_turns_up(self, client, computer):
-        survey(client, TAG=computer()["asset_id"], EDID=edid(), MONITOR_ANSWER="OUT")
-        again = survey(client, TAG=computer()["asset_id"], EDID=edid())
+        survey(client, TAG=computer()["asset_id"], **edid(), MONITOR_ANSWER="OUT")
+        again = survey(client, TAG=computer()["asset_id"], **edid())
         assert finding(again, "MONITOR")["answer"] == "out"
 
     def test_its_number_serves_where_it_writes_none_out(self, client, computer, part):
         screen = part(type="display", manufacturer="Dell", model="P1110", serial="19088743")
-        made = survey(client, TAG=computer()["asset_id"], EDID=edid(number=0x01234567, serial=""))
+        made = survey(client, TAG=computer()["asset_id"], **edid(number=0x01234567, serial=""))
         assert finding(made, "MONITOR")["part"] == screen["asset_id"]
 
     def test_one_that_gives_no_serial_number_is_known_per_machine(self, client, computer):
         blank = edid(number=0x01010101, serial="")
         machine = computer()
-        survey(client, TAG=machine["asset_id"], EDID=blank, MONITOR_ANSWER="OUT")
+        survey(client, TAG=machine["asset_id"], **blank, MONITOR_ANSWER="OUT")
         assert (
-            finding(survey(client, TAG=machine["asset_id"], EDID=blank), "MONITOR")["answer"]
-            == "out"
+            finding(survey(client, TAG=machine["asset_id"], **blank), "MONITOR")["answer"] == "out"
         )
         assert (
-            finding(survey(client, TAG=computer()["asset_id"], EDID=blank), "MONITOR")["answer"]
+            finding(survey(client, TAG=computer()["asset_id"], **blank), "MONITOR")["answer"]
             is None
         )
 
     def test_a_monitor_does_not_say_which_machine_it_is(self, client, computer):
         machine = computer()
-        survey(client, TAG=machine["asset_id"], EDID=edid(), MONITOR_ANSWER="NEW")
-        assert "TAG" not in ask(client, EDID=edid())
+        survey(client, TAG=machine["asset_id"], **edid(), MONITOR_ANSWER="NEW")
+        assert "TAG" not in ask(client, **edid())
 
     def test_the_benchs_monitor_is_left_on_the_bench(self, client, computer, part):
         bench = location(client, "Bench 1", "bench")
         screen = part(
             type="display", model="P1110", serial="9J0123A1B2C3", location=bench["asset_id"]
         )
-        survey(client, TAG=computer()["asset_id"], EDID=edid())
+        survey(client, TAG=computer()["asset_id"], **edid())
         assert get(client, "parts", screen["asset_id"])["location"] == bench["asset_id"]
 
     def test_the_page_offers_to_add_a_monitor_to_the_bench(self, client, computer):
         location(client, "Bench 1", "bench")
-        made = survey(client, TAG=computer()["asset_id"], EDID=edid())
+        made = survey(client, TAG=computer()["asset_id"], **edid())
         page = client.get(f"/surveys/{made['id']}")
         assert page.status_code == 200, page.text
         assert 'value="bench"' in page.text
