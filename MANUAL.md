@@ -4516,6 +4516,20 @@ with [adopt_machines.py](#adopt_machinespy), and the next survey fills in the BI
 and the rest. What was typed names the record and nothing else. It is never how
 the thing is known the next time.
 
+Then, wherever the register has that part:
+
+| The register has it | The survey |
+|---|---|
+| fitted in this machine | confirms it, and fills in what its record is missing, such as a disk's capacity and geometry. |
+| on a bench itself | leaves it where it is ([bench cards](#bench-cards)). |
+| kept anywhere else (a shelf, a box), or nowhere | moves it into the machine, as a scan in the [audit](#audit) would. The move is recorded as made **by survey**. |
+| in another machine | waits for you. A survey never takes a part out of another machine. |
+
+A hard disk the survey can see only through the BIOS (MFM, RLL, ESDI, and SCSI
+behind most controllers), or an early IDE disk that reports no serial number,
+cannot say which one it is. It is answered like a card, and known the next time
+by its size in the same machine.
+
 ### Who made it, from its BIOS
 
 Most PCs' BIOSes were written by a few companies (AMI, Award, Phoenix, Quadtel,
@@ -4542,20 +4556,6 @@ A badge can say otherwise. An AT&T 6300 is an Olivetti inside, with an Olivetti
 BIOS, and a Sinclair PC200 is an Amstrad. Type the badge at the machine, or put
 it right on the form. A survey never changes a **Manufacturer** that is already
 recorded, and does not list its BIOS's maker as a difference from one.
-
-Then, wherever the register has that part:
-
-| The register has it | The survey |
-|---|---|
-| fitted in this machine | confirms it, and fills in what its record is missing, such as a disk's capacity and geometry. |
-| on a bench itself | leaves it where it is ([bench cards](#bench-cards)). |
-| kept anywhere else (a shelf, a box), or nowhere | moves it into the machine, as a scan in the [audit](#audit) would. The move is recorded as made **by survey**. |
-| in another machine | waits for you. A survey never takes a part out of another machine. |
-
-A hard disk the survey can see only through the BIOS (MFM, RLL, ESDI, and SCSI
-behind most controllers), or an early IDE disk that reports no serial number,
-cannot say which one it is. It is answered like a card, and known the next time
-by its size in the same machine.
 
 ### Bench cards
 
