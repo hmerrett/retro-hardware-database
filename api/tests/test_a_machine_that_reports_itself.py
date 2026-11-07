@@ -1568,6 +1568,32 @@ class TestInTheHistory:
         assert "2 of 3 tests passed, 1 skipped" in line["message"]
         assert "every test passed" not in line["message"]
 
+    def test_the_counts_are_of_the_tests_that_apply(self, client, computer):
+        """A clock test on an XT is no test at all, so it is not one of the total."""
+        machine = computer()
+        survey(
+            client,
+            TAG=machine["asset_id"],
+            **PASSED | {"TESTS": "4", "NA": "1", "TEST_RTC": "NA", "TEST_FDC": "SKIP"},
+        )
+        (line,) = lines(client, machine["asset_id"], "survey")
+        assert "2 of 3 tests passed, 1 skipped" in line["message"]
+
+    def test_so_are_the_failures(self, client, computer):
+        machine = computer()
+        survey(
+            client,
+            TAG=machine["asset_id"],
+            RESULT="FAIL",
+            TESTS="17",
+            NA="2",
+            FAILED="2",
+            TEST_RAM="FAIL",
+            TEST_FDC="FAIL",
+        )
+        (line,) = lines(client, machine["asset_id"], "survey")
+        assert "2 of 15 tests failed" in line["message"]
+
     def test_a_test_that_does_not_apply_still_lets_it_say_every_test_passed(self, client, computer):
         machine = computer()
         survey(client, TAG=machine["asset_id"], **PASSED | {"TEST_RTC": "NA"})

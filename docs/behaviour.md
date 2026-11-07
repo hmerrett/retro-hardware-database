@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3317 behaviours, from 98 files.*
+*3319 behaviours, from 98 files.*
 
 
 ## A barcode takes the room the words leave
@@ -166,7 +166,7 @@ Regenerate with:
 
 ## A machine that reports itself
 
-*test_a_machine_that_reports_itself.py — 169 behaviours*
+*test_a_machine_that_reports_itself.py — 171 behaviours*
 
 
 **What it takes**
@@ -405,6 +405,9 @@ Regenerate with:
 - the line says how many tests failed and which
 - the line says how many tests were skipped  
   A skipped test has not been run, so the line never says every test passed.
+- the counts are of the tests that apply  
+  A clock test on an XT is no test at all, so it is not one of the total.
+- so are the failures
 - a test that does not apply still lets it say every test passed
 - a soaks line says how long it ran
 - the line says nothing a visitor is not shown  
