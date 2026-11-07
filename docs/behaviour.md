@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3302 behaviours, from 98 files.*
+*3317 behaviours, from 98 files.*
 
 
 ## A barcode takes the room the words leave
@@ -166,7 +166,7 @@ Regenerate with:
 
 ## A machine that reports itself
 
-*test_a_machine_that_reports_itself.py — 154 behaviours*
+*test_a_machine_that_reports_itself.py — 169 behaviours*
 
 
 **What it takes**
@@ -295,6 +295,28 @@ Regenerate with:
 - anything else built in gets a line of its own
 - with no motherboard on record the answer is kept and nothing written
 - a bare motherboard gets what belongs to a board
+
+**The motherboard**
+
+- a machine with no board on record is asked about one
+- n makes one fitted in the machine and its bios goes on it
+- a new machine gets its board the same way
+- a board its bios names takes that name
+- a placeholder never names a board
+- x is remembered
+- a board cannot be part of the machine  
+  Part of the machine is what the catalogue's sockets are for.
+- a machine with a board on record is not asked
+- a catalogue machine that keeps its own bios is not asked  
+  An IBM 5150's BIOS goes in its BIOS ROM socket.
+- a board the register has is joined by its tag
+- a board the register has is known by its serial
+- a loose board known by its serial goes into a new machine  
+  With N typed, a board on a shelf is a board being put in a case.
+- with nothing typed a loose board is the board being surveyed  
+  A bare board on the bench, known by its serial number.
+- a board made on the surveys page gets the bios too
+- the answer names a board its bios names
 
 **A part of its own**
 

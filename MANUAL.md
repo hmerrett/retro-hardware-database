@@ -4351,8 +4351,9 @@ hard disk by the name it gives itself, a later PC by what its BIOS says.
   asked about it.
 - **Otherwise the survey asks for the machine's tag.** Type it from the label,
   **N** for a new machine, or Enter to leave it for later.
-- **For each thing found that has no answer yet**, it asks for one, showing the
-  thing by the register's name for it where there is one: the tag on its label,
+- **For each thing found that has no answer yet**, it asks for one (the
+  motherboard first, in a machine with none on record), showing the thing by
+  the register's name for it where there is one: the tag on its label,
   **N** for a new part, **M** if it is part of the machine, **X** to leave it
   out, or Enter to decide later. It offers only the answers that fit
   ([what it does with what it finds](#what-it-does-with-what-it-finds)).
@@ -4380,7 +4381,10 @@ The register works it out in this order:
 2. **What is inside it.** A hard disk or a network card the register has in a
    machine, as a part fitted in it or as part of it, says it is that machine. So
    does a serial number from the BIOS that matches a machine's, or a
-   motherboard's fitted in one.
+   motherboard's fitted in one. A motherboard the register has in no machine,
+   known by that serial number, says this is that board when nothing was typed
+   (a bare board surveyed on the bench). With a machine's tag typed, or **N**, it
+   is a board going into that machine.
 3. **Neither**, and the survey waits for you to say.
 
 A survey that cannot be sure does nothing and waits:
@@ -4410,6 +4414,7 @@ machine](#two-ways-of-describing-a-machine), [drives](#8-drives)):
 |---|---|
 | The processor and its maths coprocessor, the memory, the operating system, the BIOS, the chipset, the machine's own maker, model and serial number, floppy drives, CD-ROM drives and CompactFlash cards | Always part of the machine. Nobody is asked. |
 | A hard disk | A part of its own, or left out |
+| The motherboard, in a machine with none on record | A part of its own, or left out |
 | The network card, the video card, any other card seen through its ROM or on a PCI bus (a disk controller, a sound card), and the serial and parallel ports | A part of its own, part of the machine (built into its board), or left out |
 
 The network card a survey runs through is one thing, however the survey sees
@@ -4468,8 +4473,13 @@ say.
 | The chipset a later PC's bus names | **Chipset** on the motherboard fitted in it |
 | A card, or the ports, answered as part of the machine | **Onboard video** or **Onboard I/O ports** on the motherboard fitted in it, or a line of their own for anything else (`Onboard sound`) |
 
-A machine with no motherboard on record has nowhere for a board's lines, so
-those answers are remembered and nothing is written.
+A machine with no motherboard on record is asked about one, as a thing of its
+own: the tag of a board the register has, **N** to make one, or **X** for none.
+Its BIOS, its chipset, its serial number and the lines of anything built into it
+then go on that board, and the BIOS's ROM is linked to it. With none, a board's
+lines are remembered and nothing is written. A machine whose catalogue model
+keeps its BIOS in a socket of its own (an IBM 5150's **BIOS ROM**) is never
+asked.
 
 The speed is the one measured, so a machine surveyed with its turbo switched
 off is written at its slower speed.
@@ -4490,9 +4500,11 @@ machine says which:
   hard disk as `QUANTUM FIREBALL1080A`, with its interface, capacity and
   geometry; a card by its ROM or its chip (`Tseng Labs ET4000`); a network card
   by its chip where it is on the PCI bus, and otherwise by the driver it was run
-  with; the ports as an I/O card with them on it. One that names nothing is
-  named by the make and model typed at the machine, into its **Manufacturer**
-  and **Model**. Its label is printed on the agent's printer, if it has one.
+  with; the ports as an I/O card with them on it; a motherboard as a later PC's
+  BIOS names it (SMBIOS), with the serial number it keeps. One that names
+  nothing is named by the make and model typed at the machine, into its
+  **Manufacturer** and **Model**. Its label is printed on the agent's printer, if
+  it has one.
 
 A make and model typed for a new machine go into its **Manufacturer** and
 **Model** the same way. They do not choose a catalogue model for it, because the
@@ -4709,7 +4721,7 @@ does not know is ignored, so a program is free to say more than this.
 | `FLOPPY<n>` | a floppy drive as the BIOS has it: `360K`, `1.2M`, `720K`, `1.44M` or `2.88M` |
 | `BIOSVENDOR`, `BIOSDATE` | the BIOS's maker and date |
 | `SYSTEM_MAKER`, `SYSTEM_MODEL`, `SYSTEM_SERIAL` | what a later PC's BIOS says about the machine (SMBIOS), or for a new machine whose BIOS does not say, the make and model typed at the machine |
-| `BOARD_MAKER`, `BOARD_MODEL`, `BOARD_SERIAL` | and what it says about the board |
+| `BOARD_MAKER`, `BOARD_MODEL`, `BOARD_SERIAL` | and what it says about the board, or for a new board whose BIOS does not say, the make and model typed at the machine |
 | `DISK<n>_MODEL`, `DISK<n>_SERIAL`, `DISK<n>_KB`, `DISK<n>_CHS`, `DISK<n>_TYPE` | each drive: its name, serial number, capacity, geometry, and `ATA`, `ATAPI`, `CFA`, or `BIOS` for one seen only through the BIOS |
 | `NIC_MAC`, `NIC_DRIVER`, `NIC_ROM` | the network card the survey ran through, its driver's name, and the segment of its boot ROM where the survey can tell |
 | `VIDEO` | the video card, as the BIOS sees it |
@@ -4717,7 +4729,7 @@ does not know is ignored, so a program is free to say more than this.
 | `PCI<n>` | a card on the PCI bus, as `vendor:device class` |
 | `ROM<n>` | a ROM copied beside the report, as `segment size filename` |
 | `OS` | the operating system on the first hard disk |
-| `DISK<n>_ANSWER`, `NIC_ANSWER`, `VIDEO_ANSWER`, `PCI<n>_ANSWER`, `ROM<n>_ANSWER`, `PORTS_ANSWER` | the answer given at the machine for that thing: a tag, `NEW`, `MACHINE`, `OUT`, or empty for later |
+| `BOARD_ANSWER`, `DISK<n>_ANSWER`, `NIC_ANSWER`, `VIDEO_ANSWER`, `PCI<n>_ANSWER`, `ROM<n>_ANSWER`, `PORTS_ANSWER` | the answer given at the machine for that thing: a tag, `NEW`, `MACHINE`, `OUT`, or empty for later |
 | `DISK<n>_MAKER`, `DISK<n>_MODEL`, `NIC_MAKER`, `VIDEO_MAKER`, `ROM<n>_MODEL` and so on | the make and model typed at the machine for a new part nobody could name. A disk with a model of its own is never asked, so `DISK<n>_MODEL` is the one or the other |
 
 ---
