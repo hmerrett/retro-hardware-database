@@ -837,28 +837,20 @@ def seen_row(db: Session, kind: str, value: str) -> SurveySeen | None:
     return db.query(SurveySeen).filter(SurveySeen.kind == kind, SurveySeen.value == value).first()
 
 
-def _bench_kinds(db: Session, tags: Iterable[str]) -> dict[str, str]:
-    wanted = list(tags)
-    if not wanted:
-        return {}
-    return {
-        loc.asset_id.upper(): loc.kind
-        for loc in db.query(Location).filter(Location.asset_id.in_(wanted))
-    }
-
-
 def on_bench(db: Session, t: tree.Tree, tag: str) -> bool:
-    """Whether a part is the bench's own equipment: kept on a bench, or in something
-    that is, and not fitted in a machine. A machine standing on a bench keeps its own
-    parts, because what is fitted in it is not kept anywhere."""
-    chain = t.up(tag.upper())
-    kinds = _bench_kinds(db, [up for up in chain if t.what(up) == tree.LOCATION])
-    for up in chain:
+    """Whether a part is the bench's own equipment: kept directly on a bench, or
+    mounted on something that is (ADR-0046). A box or a tray on a bench is storage
+    like any other, so only the first location up the chain is asked. A machine
+    standing on a bench keeps its own parts, because what is fitted in it is not kept
+    anywhere."""
+    for up in t.up(tag.upper()):
         what = t.what(up)
-        if what == tree.COMPUTER:
-            return False
-        if what == tree.LOCATION and kinds.get(up) == locations.BENCH:
-            return True
+        if what == tree.PART:
+            continue
+        if what == tree.LOCATION:
+            found = db.get(Location, up)
+            return found is not None and found.kind == locations.BENCH
+        return False
     return False
 
 

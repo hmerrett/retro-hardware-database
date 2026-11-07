@@ -2723,7 +2723,7 @@ it is kept](#where-it-is-kept)). It has:
 | Field | |
 |---|---|
 | **Name** | What it is called where it is: `Shelf 2`, `Box 14`, `Blue crate`. It does not need to say where it is, because the path already does. Required. |
-| **Kind** | Building, room, rack, shelf, box, bag, bench or other. It describes the location and gives no rules about what goes in what: a bag may hold a box if that is how your loft is. A bench is the one kind that changes anything, because a survey leaves what is kept on it where it is ([bench cards](#bench-cards)). |
+| **Kind** | Building, room, rack, shelf, box, bag, bench or other. It describes the location and gives no rules about what goes in what: a bag may hold a box if that is how your loft is. A bench is the one kind that changes anything, because a survey leaves what is kept directly on it where it is ([bench cards](#bench-cards)). |
 | **Inside** | The location it is in. Leave it blank for the top of a tree, such as a building or a room. |
 | **Notes** | How to find it, for whoever is sent to fetch something: `third rack on the left`, `under the stairs, behind the hoover`. |
 
@@ -4518,7 +4518,7 @@ Then, wherever the register has that part:
 | The register has it | The survey |
 |---|---|
 | fitted in this machine | confirms it, and fills in what its record is missing, such as a disk's capacity and geometry. |
-| on a bench | leaves it where it is ([bench cards](#bench-cards)). |
+| on a bench itself | leaves it where it is ([bench cards](#bench-cards)). |
 | kept anywhere else (a shelf, a box), or nowhere | moves it into the machine, as a scan in the [audit](#audit) would. The move is recorded as made **by survey**. |
 | in another machine | waits for you. A survey never takes a part out of another machine. |
 
@@ -4530,12 +4530,18 @@ by its size in the same machine.
 ### Bench cards
 
 A **bench** is a location of kind *Bench* ([a location](#a-location)): the
-table where machines are tested. Anything kept on one, or in a box or a drawer
-on one, is the bench's own equipment, and a survey never takes it for part of
-the machine in front of it. It is never fitted in the machine, never counted
-when working out which machine this is, and never moved. So the network card
-that starts every machine on the bench in turn stays on the bench, and the
-survey's page names it as the card the survey came through.
+table where machines are tested. Anything kept directly on one, and anything
+mounted on that (a boot ROM on the bench's network card), is the bench's own
+equipment, and a survey never takes it for part of the machine in front of it.
+It is never fitted in the machine, never counted when working out which machine
+this is, and never moved. So the network card that starts every machine on the
+bench in turn stays on the bench, and the survey's page names it as the card the
+survey came through.
+
+A box, a tray or a drawer on the bench is storage like any other. A card kept in
+one is found and fitted the way a card on a shelf is, because a tray of spare
+cards beside the machines is stock, not the bench's kit. To make a card the
+bench's, put it on the bench itself.
 
 A card becomes a bench card by being put on a bench. The first time a survey
 reads its address:
@@ -4698,7 +4704,7 @@ into any of them.
 It never changes something already recorded, and never makes anything nobody
 asked for: a new machine or part comes only from **N** at the machine, or from
 **New computer** or **New part** on its page. It never moves the machine it is
-surveying or anything kept on a bench, and never takes a part out of another
+surveying or anything kept directly on a bench, and never takes a part out of another
 machine. It never writes a condition other than **Working** or changes one
 somebody chose, and never publishes or deletes anything.
 
