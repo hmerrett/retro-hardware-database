@@ -1,6 +1,6 @@
 # 0043 — A survey gives everything it finds one of three answers
 
-**Status:** Accepted — amended by [ADR-0044](0044-a-survey-asks-the-make-and-model-of-what-nobody-can-name.md)
+**Status:** Accepted — amended by [ADR-0044](0044-a-survey-asks-the-make-and-model-of-what-nobody-can-name.md) and [ADR-0045](0045-a-machine-with-no-motherboard-on-record-is-asked-about-one.md)
 **Date:** 2026-11-06
 **Amends:** [ADR-0034](0034-a-location-is-a-record-in-the-register.md)
 

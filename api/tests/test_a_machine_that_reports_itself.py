@@ -802,6 +802,164 @@ class TestPartOfTheMachine:
         assert got["condition"] == "Working"
 
 
+# --- the motherboard ----------------------------------------------------------------
+
+# What a PC's BIOS says of its board: its date, a ROM copy, and on a later PC the
+# chipset the bus names.
+BOARDISH = {"BIOSDATE": "08/22/96", "PCI1": "8086:7030 0600"}
+
+
+class TestTheMotherboard:
+    """A machine with no motherboard on record is asked about one, so its BIOS, its
+    chipset and its serial number have somewhere to go (MANUAL §23, "Part of the
+    machine"; ADR-0045)."""
+
+    def test_a_machine_with_no_board_on_record_is_asked_about_one(self, client, computer):
+        made = survey(client, TAG=computer()["asset_id"], **BOARDISH)
+        assert finding(made, "BOARD")["answer"] is None
+        assert finding(made, "BOARD")["fits"] == ["part", "out"]
+        assert made["waiting"] == "answer"
+
+    def test_n_makes_one_fitted_in_the_machine_and_its_bios_goes_on_it(self, client, computer):
+        machine = computer()
+        made = survey(
+            client,
+            roms=[("BIOS.BIN", BIOS_ROM)],
+            TAG=machine["asset_id"],
+            ROM1="F000 65536 BIOS.BIN",
+            BOARD_ANSWER="NEW",
+            BOARD_MAKER="ASUSTeK",
+            BOARD_MODEL="P/I-P55TVP4",
+            BOARD_SERIAL="MB-123",
+            **BOARDISH,
+        )
+        assert made["waiting"] is None
+        board = get(client, "parts", finding(made, "BOARD")["part"])
+        assert board["type"] == "motherboard"
+        assert board["computer_id"] == machine["asset_id"]
+        assert (board["manufacturer"], board["model"]) == ("ASUSTeK", "P/I-P55TVP4")
+        assert board["serial"] == "MB-123"
+        assert "Award" in board["specs"] and "08/22/96" in board["specs"]
+        assert "430VX" in board["specs"]
+        assert files(client)[0]["assets"] == [board["asset_id"]]
+
+    def test_a_new_machine_gets_its_board_the_same_way(self, client):
+        made = survey(client, TAG="NEW", BOARD_ANSWER="NEW", **BOARDISH)
+        board = get(client, "parts", finding(made, "BOARD")["part"])
+        assert board["computer_id"] == made["machine"]
+        assert "08/22/96" in board["specs"]
+
+    def test_a_board_its_bios_names_takes_that_name(self, client, computer):
+        made = survey(
+            client,
+            TAG=computer()["asset_id"],
+            BOARD_ANSWER="NEW",
+            BOARD_MAKER="ASUSTeK Computer INC.",
+            BOARD_MODEL="P5A",
+            **BOARDISH,
+        )
+        board = get(client, "parts", finding(made, "BOARD")["part"])
+        assert (board["manufacturer"], board["model"]) == ("ASUSTeK Computer INC.", "P5A")
+
+    def test_a_placeholder_never_names_a_board(self, client, computer):
+        made = survey(
+            client,
+            TAG=computer()["asset_id"],
+            BOARD_ANSWER="NEW",
+            BOARD_MAKER="To be filled by O.E.M.",
+            BOARD_MODEL="To be filled by O.E.M.",
+            **BOARDISH,
+        )
+        board = get(client, "parts", finding(made, "BOARD")["part"])
+        assert (board["manufacturer"], board["model"]) == ("", "")
+
+    def test_x_is_remembered(self, client, computer):
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], BOARD_ANSWER="OUT", **BOARDISH)
+        again = survey(client, TAG=machine["asset_id"], **BOARDISH)
+        assert finding(again, "BOARD")["answer"] == "out"
+        assert again["waiting"] is None
+        assert ask(client, TAG=machine["asset_id"], **BOARDISH)["BOARD_ANSWER"] == "OUT"
+
+    def test_a_board_cannot_be_part_of_the_machine(self, client, computer):
+        """Part of the machine is what the catalogue's sockets are for."""
+        made = survey(client, TAG=computer()["asset_id"], BOARD_ANSWER="MACHINE", **BOARDISH)
+        assert finding(made, "BOARD")["answer"] is None
+        assert answer(client, made, "BOARD", "machine").status_code == 400
+
+    def test_a_machine_with_a_board_on_record_is_not_asked(self, client, computer, part):
+        machine = computer()
+        board = part(type="motherboard", computer_id=machine["asset_id"])
+        assert ask(client, TAG=machine["asset_id"], **BOARDISH)["BOARD_ANSWER"] == board["asset_id"]
+        made = survey(client, TAG=machine["asset_id"], **BOARDISH)
+        assert finding(made, "BOARD")["part"] == board["asset_id"]
+        assert made["waiting"] is None
+
+    def test_a_catalogue_machine_that_keeps_its_own_bios_is_not_asked(self, client, computer):
+        """An IBM 5150's BIOS goes in its BIOS ROM socket."""
+        machine = computer(machine={"model_key": "ibm-5150"})
+        assert ask(client, TAG=machine["asset_id"], **BOARDISH)["BOARD_ANSWER"] == "MACHINE"
+        made = survey(client, TAG=machine["asset_id"], **BOARDISH)
+        assert finding(made, "BOARD")["answer"] == "machine"
+        assert made["waiting"] is None
+
+    def test_a_board_the_register_has_is_joined_by_its_tag(self, client, computer, part):
+        shelf = location(client, "Shelf 4", "shelf")
+        board = part(type="motherboard", model="P5A", location=shelf["asset_id"])
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], BOARD_ANSWER=board["asset_id"], **BOARDISH)
+        got = get(client, "parts", board["asset_id"])
+        assert got["computer_id"] == machine["asset_id"]
+        assert "08/22/96" in got["specs"]
+
+    def test_a_board_the_register_has_is_known_by_its_serial(self, client, computer, part):
+        board = part(type="motherboard", model="P5A", serial="MB-9")
+        machine = computer()
+        made = survey(client, TAG=machine["asset_id"], BOARD_SERIAL="MB-9", **BOARDISH)
+        assert finding(made, "BOARD")["part"] == board["asset_id"]
+        assert get(client, "parts", board["asset_id"])["computer_id"] == machine["asset_id"]
+
+    def test_a_loose_board_known_by_its_serial_goes_into_a_new_machine(self, client, part):
+        """With N typed, a board on a shelf is a board being put in a case."""
+        board = part(type="motherboard", model="P5A", serial="MB-11")
+        made = survey(client, TAG="NEW", BOARD_SERIAL="MB-11", **BOARDISH)
+        assert made["how"] == "new"
+        assert get(client, "parts", board["asset_id"])["computer_id"] == made["machine"]
+
+    def test_with_nothing_typed_a_loose_board_is_the_board_being_surveyed(self, client, part):
+        """A bare board on the bench, known by its serial number."""
+        board = part(type="motherboard", model="P5A", serial="MB-12")
+        made = survey(client, BOARD_SERIAL="MB-12", **BOARDISH)
+        assert made["machine"] == board["asset_id"]
+        assert finding(made, "BOARD")["part"] == board["asset_id"]
+
+    def test_a_board_made_on_the_surveys_page_gets_the_bios_too(self, client, computer):
+        machine = computer()
+        made = survey(
+            client,
+            roms=[("BIOS.BIN", BIOS_ROM)],
+            TAG=machine["asset_id"],
+            ROM1="F000 65536 BIOS.BIN",
+            **BOARDISH,
+        )
+        r = answer(client, made, "BOARD", "new")
+        assert r.status_code in (200, 303), r.text
+        board = get(client, "parts", finding(read(client, made["id"]), "BOARD")["part"])
+        assert "Award" in board["specs"] and "08/22/96" in board["specs"]
+        assert board["asset_id"] in files(client)[0]["assets"]
+
+    def test_the_answer_names_a_board_its_bios_names(self, client):
+        assert (
+            ask(client, BOARD_MAKER="ASUSTeK Computer INC.", BOARD_MODEL="P5A", **BOARDISH)[
+                "BOARD_NAME"
+            ]
+            == "ASUSTeK Computer INC. P5A"
+        )
+        assert "BOARD_NAME" not in ask(
+            client, BOARD_MAKER="System manufacturer", BOARD_MODEL="P5A", **BOARDISH
+        )
+
+
 # --- a part of its own --------------------------------------------------------------
 
 
@@ -1262,7 +1420,8 @@ class TestROMs:
 
     def test_a_later_boards_bios_is_the_bios_wherever_it_starts(self, client, computer):
         """It runs to the top of the first megabyte. One that starts at E800 is the
-        BIOS, and never a card to be asked about."""
+        BIOS, and never a card to be asked about. What waits is the board it is on,
+        which this machine has none of on record."""
         machine = computer()
         made = survey(
             client,
@@ -1271,7 +1430,7 @@ class TestROMs:
             ROM1="E800 98304 BIOS.BIN",
         )
         assert all(f["thing"] != "ROM1" for f in made["findings"])
-        assert made["waiting"] is None
+        assert [f["thing"] for f in made["findings"] if f["answer"] is None] == ["BOARD"]
         (kept,) = files(client)
         assert kept["note"].startswith("BIOS")
         assert kept["assets"] == [machine["asset_id"]]
@@ -1541,13 +1700,20 @@ class TestAReportAsTinydiagWritesIt:
         r = send(
             client,
             tinydiag_report(
-                TAG="NEW", DISK1_ANSWER="NEW", VIDEO_ANSWER="NEW", PORTS_ANSWER="MACHINE"
+                TAG="NEW",
+                BOARD_ANSWER="NEW",
+                DISK1_ANSWER="NEW",
+                VIDEO_ANSWER="NEW",
+                PORTS_ANSWER="MACHINE",
             ),
         )
         assert r.status_code == 200, r.text
         (sent,) = r.json()["surveys"]
         made = read(client, sent["id"])
         assert made["waiting"] is None
+        board = get(client, "parts", finding(made, "BOARD")["part"])
+        assert board["computer_id"] == made["machine"]
+        assert "06/23/99" in board["specs"]
         machine = get(client, "computers", made["machine"])
         # QEMU's clock, measured faithfully.
         assert machine["cpu"] == "Intel 486DX4-3857"

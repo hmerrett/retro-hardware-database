@@ -402,6 +402,13 @@ def nic_pci(keys: Mapping[str, str]) -> tuple[int, str, str, str] | None:
     return None
 
 
+def _board_name(keys: Mapping[str, str]) -> str:
+    """The motherboard as a later PC's SMBIOS tables name it: its maker and model, and
+    "" unless both are there and neither is a placeholder."""
+    maker, model = said(keys.get("BOARD_MAKER")), said(keys.get("BOARD_MODEL"))
+    return f"{maker} {model}" if maker and model else ""
+
+
 def _display(keys: Mapping[str, str]) -> tuple[str, str] | None:
     """The video card on the PCI bus, as (vendor, device): the first display device."""
     for n in _numbers(keys, "PCI"):
@@ -540,11 +547,6 @@ def findings(
                 filter(None, (said(keys.get("SYSTEM_MAKER")), said(keys.get("SYSTEM_MODEL"))))
             ),
         )
-    if any(said(keys.get(k)) for k in ("BOARD_MAKER", "BOARD_MODEL", "BOARD_SERIAL")):
-        machine_thing(
-            "BOARD",
-            " ".join(filter(None, (said(keys.get("BOARD_MAKER")), said(keys.get("BOARD_MODEL"))))),
-        )
     for n in _numbers(keys, "FLOPPY"):
         if keys.get(f"FLOPPY{n}", "").strip():
             machine_thing(f"FLOPPY{n}", keys[f"FLOPPY{n}"].strip())
@@ -560,6 +562,27 @@ def findings(
     if bridges:
         names = [pciids.chipset(v, d) for v, d in bridges]
         machine_thing("CHIPSET", next((n for n in names if n), pciids.name(*bridges[0])))
+
+    # The motherboard, which every PC has and which its BIOS, its chipset and a later
+    # PC's SMBIOS tables speak for. It is a part of its own or left out; whether the
+    # machine has one on record already is the register's to say (ADR-0045).
+    if (
+        keys.get("BIOSVENDOR", "").strip()
+        or keys.get("BIOSDATE", "").strip()
+        or bridges
+        or any(_is_bios(segment, size) for _, segment, size, _ in roms)
+        or any(said(keys.get(k)) for k in ("BOARD_MAKER", "BOARD_MODEL", "BOARD_SERIAL"))
+    ):
+        out.append(
+            _finding(
+                "BOARD",
+                "board",
+                _board_name(keys) or "Motherboard",
+                PART_OR_OUT,
+                signature="board",
+                ptype="motherboard",
+            )
+        )
 
     for n in _numbers(keys, "DISK"):
         model = keys.get(f"DISK{n}_MODEL", "").strip()
@@ -727,6 +750,8 @@ def name_of(keys: Mapping[str, str], f: Finding, texts: Mapping[str, list[str]])
     disk the BIOS knows by its size), whose make and model the machine asks when it
     is made (ADR-0044)."""
     kind = f["kind"]
+    if kind == "board":
+        return _board_name(keys)
     if kind == "disk":
         return keys.get(f"{f['thing']}_MODEL", "").strip()
     if kind == "nic":
@@ -749,10 +774,11 @@ def name_of(keys: Mapping[str, str], f: Finding, texts: Mapping[str, list[str]])
 def _typed(keys: Mapping[str, str], thing: str) -> tuple[str, str]:
     """The make and model typed at the machine for a new thing nobody could name: what
     a person said, so what the record is called, and never how the thing is known the
-    next time (ADR-0044)."""
+    next time (ADR-0044). The board's keys are its SMBIOS tables' where nothing was
+    typed, so a placeholder from those says nothing here either."""
 
     def said_at(key: str) -> str:
-        return " ".join(keys.get(key, "").split())[:64]
+        return said(keys.get(key))[:64]
 
     return said_at(f"{thing}_MAKER"), said_at(f"{thing}_MODEL")
 
@@ -905,6 +931,11 @@ def identify(db: Session, keys: Mapping[str, str], found: list[Finding], t: tree
     nothing (MANUAL §23, "Which machine it is")."""
     pointed = pointed_at(db, keys, found, t)
     typed = keys.get("TAG", "").strip().upper()
+    if typed:
+        # A board in no machine, known by its serial number, says this is that board
+        # only when nothing was typed (a bare board on the bench). With a machine
+        # named, or N, it is a board being put in one, which disagrees with nothing.
+        pointed = {m: by for m, by in pointed.items() if not isinstance(db.get(Thing, m), Part)}
     if typed == "NEW":
         if pointed:
             machine, by = next(iter(pointed.items()))
@@ -1074,17 +1105,21 @@ def _apply(
     if subject is None:
         s.waiting, s.reason = FOR_MACHINE, f"{machine} is not a machine or a motherboard."
         return
-    board = subject if isinstance(subject, Part) else _board_of(db, t, machine)
     texts = _rom_texts(s)
     for f in found:
         if f["kind"] == MACHINE:
             continue
-        if f["identifier"]:
+        if f["kind"] == "board":
+            _answer_board(db, keys, f, subject, machine, who, t, done, texts)
+        elif f["identifier"]:
             _answer_identified(db, keys, f, machine, who, t, done, texts)
         else:
             _answer_remembered(db, keys, f, machine, who, t, done, texts)
         if f["kind"] == "nic" and f["bench"] and f["part"]:
             s.bench_card = f["part"]
+    # The board, found only now: it may have been made, or joined to the machine, by
+    # the answer just given for it.
+    board = subject if isinstance(subject, Part) else _board_of(db, tree.load(db), machine)
     _fill(db, s, keys, found, subject, board, texts, done)
     _condition(keys, subject, done)
     _keep_roms(db, s, keys, found, roms, subject, board, texts)
@@ -1209,6 +1244,65 @@ def _answer_remembered(
         remember(db, machine, f)
 
 
+def keeps_bios(db: Session, subject: Computer | Part | None) -> bool:
+    """Whether a machine's catalogue model keeps its BIOS in a socket of its own (an
+    IBM 5150's BIOS ROM): its BIOS is written there, and it has no board to be asked
+    about."""
+    if not isinstance(subject, Computer):
+        return False
+    return "bios" in machines.roles(machinedb.read(db, subject)["model_key"])
+
+
+def board_by_serial(db: Session, keys: Mapping[str, str]) -> Part | None:
+    """A motherboard the register has, by the serial number a later PC's SMBIOS tables
+    keep for the board."""
+    serial = said(keys.get("BOARD_SERIAL"))
+    if not serial:
+        return None
+    return (
+        db.query(Part)
+        .filter(Part.serial == serial, Part.type == "motherboard", Part.disposed.is_(False))
+        .first()
+    )
+
+
+def _answer_board(
+    db: Session,
+    keys: Mapping[str, str],
+    f: Finding,
+    subject: Computer | Part,
+    machine: str,
+    who: str,
+    t: tree.Tree,
+    done: Filing,
+    texts: Mapping[str, list[str]],
+) -> None:
+    """The motherboard (ADR-0045): the board fitted in the machine, or the board being
+    surveyed on its own, or the machine's own record where its catalogue model keeps
+    the BIOS; then a board the register has, known by its serial number; then the
+    answer remembered for the machine, or the one given at the machine. A tag typed
+    for it that is not a motherboard's is not an answer."""
+    if isinstance(subject, Part):
+        f["answer"], f["part"] = PART, subject.asset_id.upper()
+        return
+    fitted = _board_of(db, t, machine)
+    if fitted is not None:
+        f["answer"], f["part"] = PART, fitted.asset_id.upper()
+        return
+    if keeps_bios(db, subject):
+        f["answer"] = MACHINE
+        return
+    known = board_by_serial(db, keys)
+    if known is not None:
+        _place(db, f, known, machine, who, t)
+        remember(db, machine, f)
+        return
+    how, tag = answer_in(keys, f)
+    if how == "link" and ((linked := _part(db, tag)) is None or linked.type != "motherboard"):
+        keys = {k: v for k, v in keys.items() if k != "BOARD_ANSWER"}
+    _answer_remembered(db, keys, f, machine, who, t, done, texts)
+
+
 def remember(db: Session, machine: str, f: Finding) -> None:
     """Keep the answer for a thing with no serial number, for the machine it is in."""
     if not f["signature"] or f["answer"] is None:
@@ -1245,7 +1339,11 @@ def _new_part(
     on the PCI bus, a network card by its chip or by the driver it was run with. What
     was typed at the machine for one that names nothing is its name instead."""
     part = Part(asset_id=next_asset_id(db), type=f["ptype"] or "other")
-    if f["kind"] == "disk":
+    if f["kind"] == "board":
+        # Named by its SMBIOS tables or by what was typed, below; its BIOS and chipset
+        # are written on it when the survey fills what is empty.
+        part.serial = said(keys.get("BOARD_SERIAL"))[:64]
+    elif f["kind"] == "disk":
         part.model = f["name"]
         part.serial = f["identifier"][:64]
         part.specs = _disk_specs(keys, f)
@@ -1706,7 +1804,12 @@ def _record_seen(db: Session, s: Survey, found: list[Finding], machine: str | No
     if serial := said(keys.get("SYSTEM_SERIAL")):
         seen.append(("system", serial, MACHINE if machine else None, machine))
     if serial := said(keys.get("BOARD_SERIAL")):
-        seen.append(("board", serial, MACHINE if machine else None, machine))
+        # The board's own, once it is a part; until then it is kept with the machine.
+        board = next((f for f in found if f["kind"] == "board" and f["part"]), None)
+        if board is not None and board["answer"] == PART:
+            seen.append(("board", serial, PART, board["part"]))
+        else:
+            seen.append(("board", serial, MACHINE if machine else None, machine))
     for kind, value, answer, owner in seen:
         row = seen_row(db, kind, value[:128])
         if row is None:
@@ -1756,7 +1859,10 @@ def answer_question(db: Session, text: str, roms: Mapping[str, bytes] | None = N
     for f in found:
         if f["kind"] == MACHINE:
             continue
-        value = _held(db, f, machine, t)
+        if f["kind"] == "board":
+            value = _held_board(db, keys, f, machine, t)
+        else:
+            value = _held(db, f, machine, t)
         if value:
             lines.append(f"{f['thing']}_ANSWER={value}")
     # What each thing is called, for the machine to show it by, and so that it asks the
@@ -1772,6 +1878,28 @@ def answer_question(db: Session, text: str, roms: Mapping[str, bytes] | None = N
     if nic is not None and nic["segment"] and not keys.get("NIC_ROM", "").strip():
         lines.append(f"NIC_ROM={nic['segment']}")
     return "\r\n".join(lines) + "\r\n"
+
+
+def _held_board(
+    db: Session, keys: Mapping[str, str], f: Finding, machine: str | None, t: tree.Tree
+) -> str:
+    """What the register already has for the motherboard, as `_answer_board` would
+    file it: the board fitted, or being surveyed on its own; MACHINE where the
+    catalogue model keeps the BIOS; a board known by its serial number; else the
+    answer remembered for the machine."""
+    subject = _subject(db, machine) if machine else None
+    if isinstance(subject, Part):
+        return subject.asset_id.upper()
+    if machine is not None:
+        fitted = _board_of(db, t, machine)
+        if fitted is not None:
+            return fitted.asset_id.upper()
+        if keeps_bios(db, subject):
+            return MACHINE.upper()
+    known = board_by_serial(db, keys)
+    if known is not None:
+        return known.asset_id.upper()
+    return _held(db, f, machine, t)
 
 
 def _held(db: Session, f: Finding, machine: str | None, t: tree.Tree) -> str:
@@ -1919,7 +2047,7 @@ def answer_on_page(
     if f is None or f["kind"] == MACHINE:
         raise Refused("That is not something this survey can be asked about.")
     wanted = {"new": PART, "link": PART, "bench": PART, MACHINE: MACHINE, OUT: OUT}.get(how)
-    if wanted is None or wanted not in f["fits"]:
+    if wanted is None or wanted not in f["fits"] or (f["kind"] == "board" and how == "bench"):
         raise Refused("That answer does not fit it.")
     machine = s.machine
     t = tree.load(db)
@@ -1940,6 +2068,8 @@ def answer_on_page(
         part = _part(db, exact_tag(tag) or tag)
         if part is None:
             raise Refused(f"{tag or 'That'} is not a part in the register.")
+        if f["kind"] == "board" and part.type != "motherboard":
+            raise Refused(f"{part.asset_id} is not a motherboard.")
         _identify_part(part, f)
         if on_bench(db, t, part.asset_id):
             f["answer"], f["part"], f["bench"] = PART, part.asset_id.upper(), True
@@ -1966,6 +2096,12 @@ def answer_on_page(
                 _spec_fill(db, board, [(f"Onboard {word}", _card_name(f, texts))], done)
     if subject is not None:
         _link_rom(db, s, f, subject)
+    # A board made or joined here gets what a survey writes on a board, as one answered
+    # at the machine would have: its BIOS, its chipset, and the BIOS's ROM.
+    board = _part(db, f["part"]) if f["kind"] == "board" and f["answer"] == PART else None
+    if board is not None and isinstance(subject, Computer):
+        _fill(db, s, keys, found, subject, board, texts, done)
+        _bios_to_board(db, s, subject, board)
     if f["kind"] == "nic":
         s.bench_card = f["part"] if f["bench"] else None
     s.findings = json.dumps(found)
@@ -1979,6 +2115,18 @@ def _record_answer(db: Session, f: Finding, machine: str) -> None:
         return
     row.answer = f["answer"]
     row.asset_id = f["part"] if f["answer"] == PART else machine if f["answer"] == MACHINE else None
+
+
+def _bios_to_board(db: Session, s: Survey, machine: Computer, board: Part) -> None:
+    """The BIOS's ROM, kept with the machine while it had no board, moved to the board
+    it now has."""
+    for rom in roms_of(s):
+        segment, size, file_id = rom.get("segment"), rom.get("size"), rom.get("file")
+        if not isinstance(file_id, int) or not isinstance(size, int):
+            continue
+        if _is_bios(str(segment), size):
+            filesdb.link(db, file_id, board.asset_id)
+            filesdb.unlink(db, file_id, machine.asset_id)
 
 
 def _link_rom(db: Session, s: Survey, f: Finding, subject: Computer | Part) -> None:

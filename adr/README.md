@@ -131,7 +131,11 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
 - [0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md) — A
   survey gives everything it finds one of three answers — *Accepted* (amends
   [0034](0034-a-location-is-a-record-in-the-register.md); amended by
-  [0044](0044-a-survey-asks-the-make-and-model-of-what-nobody-can-name.md))
+  [0044](0044-a-survey-asks-the-make-and-model-of-what-nobody-can-name.md) and
+  [0045](0045-a-machine-with-no-motherboard-on-record-is-asked-about-one.md))
 - [0044](0044-a-survey-asks-the-make-and-model-of-what-nobody-can-name.md) — A
   survey asks the make and model of what nobody can name — *Accepted* (amends
+  [0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md))
+- [0045](0045-a-machine-with-no-motherboard-on-record-is-asked-about-one.md) — A
+  machine with no motherboard on record is asked about one — *Accepted* (amends
   [0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md))
