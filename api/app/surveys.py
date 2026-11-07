@@ -33,12 +33,14 @@ from sqlalchemy.orm import Session
 
 from . import (
     drivedb,
+    edid,
     entry,
     filesdb,
     locations,
     machinedb,
     machines,
     pciids,
+    pnpids,
     printing,
     ramdb,
     romtext,
@@ -705,6 +707,120 @@ def _before_386(keys: Mapping[str, str]) -> bool:
     return cpu.startswith(("808", "8018", "V2", "V3")) or cpu == "80286"
 
 
+# Who made a VGA chip the survey program named by its registers, by the start of the
+# name it gives (ADR-0051), so a variant the table has not met still finds its maker.
+_VGA_CHIP_MAKERS = (
+    ("ET", "Tseng Labs"),
+    ("CL-", "Cirrus Logic"),
+    ("86C", "S3"),
+    ("VISION", "S3"),
+    ("TRIO", "S3"),
+    ("TVGA", "Trident"),
+    ("TGUI", "Trident"),
+    ("PVGA", "Paradise"),
+    ("WD90", "Western Digital"),
+    ("OTI", "Oak Technology"),
+    ("V7", "Video Seven"),
+    ("HT2", "Headland"),
+    ("82C4", "Chips and Technologies"),
+    ("F655", "Chips and Technologies"),
+    ("ATI", "ATI"),
+)
+
+
+def vga_chip(keys: Mapping[str, str]) -> tuple[str, str]:
+    """(maker, chip) for the VGA chip the survey program named by its registers, which
+    it reads only where no video card is on the PCI bus: ("", "") for none."""
+    chip = " ".join(keys.get("VIDEO_CHIP", "").split())[:32]
+    if not chip or _display(keys) is not None:
+        return "", ""
+    upper = chip.upper()
+    made_by = next((m for prefix, m in _VGA_CHIP_MAKERS if upper.startswith(prefix)), "")
+    return made_by, pnpids.model(chip, made_by)
+
+
+class PnpCard(NamedTuple):
+    """A Plug and Play ISA card as the survey program read it (ADR-0051)."""
+
+    n: int
+    code: str  # its ID, CTL0045
+    serial: str  # 1A2B3C4D, or "" where it gives one that says nothing
+    own: str  # its own name, Creative SB AWE64 PnP
+    ports: frozenset[str]  # the first port of each device switched on, 220
+
+
+_PNP_ID = re.compile(r"^[A-Z]{3}[0-9A-F]{4}$")
+
+# What kind of card a Plug and Play card's own name says it is, by its words.
+_PNP_KINDS = (
+    ("network", re.compile(r"\b(ethernet|etherlink|network|lan|ne ?2000|token.ring|arcnet)\b")),
+    (
+        "sound",
+        re.compile(
+            r"\b(sound|audio|blaster|sb|awe\d*|wave\w*|music|midi|ultrasound|opl\d*"
+            r"|synth\w*|codec|vibra\w*)\b"
+        ),
+    ),
+    ("video", re.compile(r"\b(vga|video|graphics)\b")),
+    ("io", re.compile(r"\b(scsi|e?ide|floppy|controller)\b")),
+)
+
+
+def _port(text: str) -> str:
+    """A port as the register writes one, in hex with no leading zeros: 220."""
+    try:
+        value = int(text, 16)
+    except ValueError:
+        return ""
+    return f"{value:X}" if 0 < value < 0x10000 else ""
+
+
+def pnp_cards(keys: Mapping[str, str]) -> list[PnpCard]:
+    """Each Plug and Play card a report names (PNP1=CTL0045 1A2B3C4D). A serial number
+    of FFFFFFFF or 0, which many cards give, says nothing."""
+    out = []
+    for n in _numbers(keys, "PNP"):
+        words = keys.get(f"PNP{n}", "").upper().split()
+        if not words or not _PNP_ID.match(words[0]):
+            continue
+        serial = words[1] if len(words) > 1 and re.fullmatch(r"[0-9A-F]{8}", words[1]) else ""
+        ports = frozenset(filter(None, (_port(w) for w in keys.get(f"PNP{n}_IO", "").split())))
+        own = " ".join(keys.get(f"PNP{n}_ANSI", "").split())[:64]
+        out.append(
+            PnpCard(n, words[0], "" if serial in ("FFFFFFFF", "00000000") else serial, own, ports)
+        )
+    return out
+
+
+def _pnp_made(card: PnpCard) -> tuple[str, str]:
+    """(maker, model) for a Plug and Play card: its maker by its code, and its own name
+    without the maker's word it starts with. No model where it gave no name."""
+    made_by = pnpids.maker(card.code)
+    return made_by, pnpids.model(card.own, made_by) if card.own else ""
+
+
+def _pnp_type(card: PnpCard) -> str:
+    words = card.own.lower()
+    return next((ptype for ptype, said_so in _PNP_KINDS if said_so.search(words)), "other")
+
+
+def pnp_nic(keys: Mapping[str, str]) -> PnpCard | None:
+    """The Plug and Play card that is the network card the survey ran through: where
+    that card is not on the PCI bus and exactly one Plug and Play card says it is a
+    network card (ADR-0051)."""
+    if not mac(keys.get("NIC_MAC", "")) or nic_pci(keys) is not None:
+        return None
+    named = [c for c in pnp_cards(keys) if _pnp_type(c) == "network"]
+    return named[0] if len(named) == 1 else None
+
+
+def _monitor_made(m: edid.Monitor) -> tuple[str, str]:
+    """(maker, model) for a monitor: its maker by its code, and its own name without the
+    maker's word it starts with. No model where it gave no name."""
+    made_by = pnpids.maker(m.code)
+    return made_by, pnpids.model(m.name, made_by) if m.name else ""
+
+
 def findings(
     keys: Mapping[str, str], texts: Mapping[str, list[str]] | None = None
 ) -> list[Finding]:
@@ -833,6 +949,7 @@ def findings(
 
     nic_rom = keys.get("NIC_ROM", "").strip().upper() or _boot_rom(keys, texts or {})
     on_pci = nic_pci(keys)
+    plug_nic = pnp_nic(keys)
     if address := mac(keys.get("NIC_MAC", "")):
         named = pciids.known(on_pci[1], on_pci[2]) if on_pci else False
         out.append(
@@ -840,6 +957,7 @@ def findings(
                 "NIC",
                 "nic",
                 (pciids.name(on_pci[1], on_pci[2]) if on_pci and named else "")
+                or (" ".join(filter(None, _pnp_made(plug_nic))) if plug_nic else "")
                 or keys.get("NIC_DRIVER", "").strip()
                 or "Network card",
                 ALL,
@@ -854,7 +972,8 @@ def findings(
     display = next(((n, v, d) for n, v, d, c in pci if c.startswith("03")), None)
     if video:
         rom_seg = "C000" if any(seg == "C000" for _, seg, _, _ in roms) else ""
-        name = pciids.name(display[1], display[2]) if display else video
+        chip = " ".join(filter(None, vga_chip(keys)))
+        name = pciids.name(display[1], display[2]) if display else chip or video
         out.append(
             _finding(
                 "VIDEO",
@@ -921,11 +1040,37 @@ def findings(
             )
         )
 
+    # Plug and Play cards (ADR-0051): known by their ID and serial number where they
+    # give one that says something, and otherwise per machine by their ID. The card
+    # that is the network card the survey ran through is that card, above.
+    taken: set[str] = set()
+    for card in pnp_cards(keys):
+        taken |= card.ports
+        if plug_nic is not None and card.n == plug_nic.n:
+            continue
+        made_by, model = _pnp_made(card)
+        out.append(
+            _finding(
+                f"PNP{card.n}",
+                "card",
+                " ".join(filter(None, (made_by, model)))
+                if model
+                else f"Plug and Play card {card.code}",
+                ALL,
+                id_kind="pnp" if card.serial else "",
+                identifier=f"{card.code}:{card.serial}" if card.serial else "",
+                signature="" if card.serial else f"pnp:{card.code}",
+                ptype=_pnp_type(card),
+            )
+        )
+
     # A sound card and expanded memory, which the survey program looks for since neither
     # has a ROM or a PCI number (ADR-0050). A Sound Blaster's own FM chip answers at
-    # 388h too, so an AdLib is a card of its own only where no Sound Blaster is.
-    if sound := keys.get("SOUND", "").strip():
-        base, _, dsp = sound.partition(" ")
+    # 388h too, so an AdLib is a card of its own only where no Sound Blaster is. One at
+    # a Plug and Play card's own port is that card (ADR-0051).
+    sound = keys.get("SOUND", "").strip()
+    base, _, dsp = sound.partition(" ")
+    if sound and _port(base) not in taken:
         out.append(
             _finding(
                 "SOUND",
@@ -936,7 +1081,7 @@ def findings(
                 ptype="sound",
             )
         )
-    elif adlib := keys.get("ADLIB", "").strip():
+    elif (adlib := keys.get("ADLIB", "").strip()) and not sound and _port(adlib) not in taken:
         out.append(
             _finding(
                 "ADLIB",
@@ -956,6 +1101,52 @@ def findings(
                 ALL,
                 signature=f"ems:{kb}",
                 ptype="ram",
+            )
+        )
+    # A Gravis UltraSound and an MPU-401, which the survey program looks for only where
+    # its network card is on the PCI bus (ADR-0051). A Sound Blaster whose DSP is 4 or
+    # later is a Sound Blaster 16, which has an MPU-401 of its own.
+    gus_base, _, gus_kb = keys.get("GUS", "").strip().partition(" ")
+    if _port(gus_base) and _port(gus_base) not in taken:
+        memory = f", {entry.fmt_kb(kb)}" if (kb := _int(gus_kb)) else ""
+        out.append(
+            _finding(
+                "GUS",
+                "card",
+                f"Gravis UltraSound at {_port(gus_base)}h{memory}",
+                ALL,
+                signature=f"gus:{_port(gus_base)}",
+                ptype="sound",
+            )
+        )
+    mpu = _port(keys.get("MPU", "").strip())
+    sixteen = (_int(dsp.partition(".")[0]) or 0) >= 4 if sound else False
+    if mpu and mpu not in taken and not sixteen:
+        out.append(
+            _finding(
+                "MPU",
+                "card",
+                f"MPU-401 MIDI interface at {mpu}h",
+                ALL,
+                signature=f"mpu:{mpu}",
+                ptype="sound",
+            )
+        )
+    # A monitor that says what it is, through DDC: a part of its own or left out, and
+    # known by its serial number where it gives one (ADR-0051).
+    if (screen := edid.read(keys.get("EDID", ""))) is not None:
+        made_by, model = _monitor_made(screen)
+        product = f"{screen.code}{screen.product}"
+        out.append(
+            _finding(
+                "MONITOR",
+                "monitor",
+                " ".join(filter(None, (made_by, model))) if model else f"Monitor {product}",
+                PART_OR_OUT,
+                id_kind="monitor" if screen.serial else "",
+                identifier=f"{product}:{screen.serial}" if screen.serial else "",
+                signature="" if screen.serial else f"monitor:{product}",
+                ptype="display",
             )
         )
     # Anything else given at the machine, by its tag or as N with a make and model.
@@ -994,14 +1185,28 @@ def _ports_words(keys: Mapping[str, str]) -> str:
     return "Ports: " + ", ".join(bits)
 
 
+# What the port tests say a port is: a serial port's chip, and a parallel port's mode
+# (ADR-0051). Anything else in their lines (IRQ4, PLUG:NONE) is about the test.
+_UARTS = {"8250": "8250", "16450": "16450", "16550": "16550", "16550A": "16550A"}
+_LPT_MODES = {"ECP": "ECP", "BIDIR": "bidirectional"}
+
+
 def _ports_spec(keys: Mapping[str, str]) -> str:
-    serial, parallel = _ports(keys)
-    bits = []
-    if serial:
-        bits.append(f"{serial}x Serial")
-    if parallel:
-        bits.append(f"{parallel}x Parallel")
-    return ", ".join(bits)
+    """The ports for a board's or an I/O card's Ports: how many of each, with the chip
+    or the mode where a test said, one entry to each (`2x Serial (16550A), 1x Parallel
+    (ECP)`). The entries are counted, so a comma never goes inside one."""
+    counted: dict[tuple[str, str], int] = {}
+    for word, said_by in (("COM", _UARTS), ("LPT", _LPT_MODES)):
+        for k in sorted(keys):
+            if not re.match(rf"^{word}\d+$", k) or not keys[k].strip():
+                continue
+            words = keys[k].upper().split()
+            what = said_by.get(words[1], "") if len(words) > 1 else ""
+            name = "Serial" if word == "COM" else "Parallel"
+            counted[name, what] = counted.get((name, what), 0) + 1
+    return ", ".join(
+        f"{n}x {name}" + (f" ({what})" if what else "") for (name, what), n in counted.items()
+    )
 
 
 def name_of(keys: Mapping[str, str], f: Finding, texts: Mapping[str, list[str]]) -> str:
@@ -1025,7 +1230,15 @@ def name_of(keys: Mapping[str, str], f: Finding, texts: Mapping[str, list[str]])
         on_pci = nic_pci(keys)
         if on_pci is not None and pciids.known(on_pci[1], on_pci[2]):
             return pciids.name(on_pci[1], on_pci[2])
-        return ""
+        plug = pnp_nic(keys)
+        return " ".join(filter(None, _pnp_made(plug))) if plug and plug.own else ""
+    if kind == "monitor":
+        return f["name"] if (screen := edid.read(keys.get("EDID", ""))) and screen.name else ""
+    if f["thing"].startswith("PNP"):
+        card = next((c for c in pnp_cards(keys) if f"PNP{c.n}" == f["thing"]), None)
+        return " ".join(filter(None, _pnp_made(card))) if card and card.own else ""
+    if f["thing"] == "GUS":
+        return "Advanced Gravis UltraSound"
     if f["signature"].startswith("pci:"):
         vendor, device, _cls = pciids.split(f["signature"][4:])
         return pciids.name(vendor, device) if pciids.known(vendor, device) else ""
@@ -1034,7 +1247,12 @@ def name_of(keys: Mapping[str, str], f: Finding, texts: Mapping[str, list[str]])
         if display is not None and pciids.known(*display):
             return pciids.name(*display)
     if kind in ("video", "card") and f["segment"]:
-        return romtext.card(texts.get(f["segment"], []))
+        named = romtext.card(texts.get(f["segment"], []))
+        if named or kind == "card":
+            return named
+    if kind == "video":
+        # Its chip, read from the chip's own registers, where nothing else names it.
+        return " ".join(filter(None, vga_chip(keys)))
     return ""
 
 
@@ -1080,6 +1298,7 @@ def _part(db: Session, tag: str | None) -> Part | None:
 def known_part(db: Session, f: Finding) -> Part | None:
     """The part a finding that can say which one it is turns out to be, by its serial
     number or its address, or by what it was answered as before."""
+    found: Part | None = None
     if f["id_kind"] == "disk":
         found = (
             db.query(Part).filter(Part.serial == f["identifier"], Part.disposed.is_(False)).first()
@@ -1090,7 +1309,18 @@ def known_part(db: Session, f: Finding) -> Part | None:
             .filter(Part.ethernet_address == f["identifier"], Part.disposed.is_(False))
             .first()
         )
-    else:
+    elif f["id_kind"] == "monitor":
+        # A display with that serial number on its label; the maker's code and model are
+        # only to keep two makers' numbers apart among those seen (ADR-0051).
+        serial = f["identifier"].partition(":")[2]
+        found = (
+            db.query(Part)
+            .filter(Part.serial == serial, Part.type == "display", Part.disposed.is_(False))
+            .first()
+        )
+    elif f["id_kind"] != "pnp":
+        # A Plug and Play card's serial number is on no label, so only an answer given
+        # before says which part it is.
         return None
     if found is not None:
         return found
@@ -1148,7 +1378,9 @@ def pointed_at(
     kept on a bench says nothing: it goes into every machine on the bench in turn."""
     out: dict[str, str] = {}
     for f in found:
-        if not f["identifier"]:
+        # A monitor is moved from machine to machine more often than anything inside
+        # them, so it says nothing about which one this is (ADR-0051).
+        if not f["identifier"] or f["id_kind"] == "monitor":
             continue
         part = known_part(db, f)
         if part is not None:
@@ -1424,6 +1656,8 @@ def _identify_part(part: Part, f: Finding) -> None:
         part.serial = f["identifier"][:64]
     if f["id_kind"] == "mac" and not part.ethernet_address:
         part.ethernet_address = f["identifier"]
+    if f["id_kind"] == "monitor" and not part.serial:
+        part.serial = f["identifier"].partition(":")[2][:64]
 
 
 def _identified(
@@ -1695,12 +1929,29 @@ def _new_part(
         part.specs = _drive_specs(keys, f)
     elif f["kind"] == "nic":
         on_pci = nic_pci(keys)
+        plug = pnp_nic(keys)
         if on_pci is not None and pciids.known(on_pci[1], on_pci[2]):
             part.manufacturer = pciids.maker(on_pci[1])
             part.model = pciids.model(on_pci[1], on_pci[2])
+        elif plug is not None and plug.own:
+            part.manufacturer, part.model = _pnp_made(plug)
         else:
             part.model = f["name"]
         part.ethernet_address = f["identifier"]
+    elif f["kind"] == "monitor":
+        # Named as it names itself, with the serial number on its label (ADR-0051).
+        screen = edid.read(keys.get("EDID", ""))
+        if screen is not None:
+            part.manufacturer, part.model = _monitor_made(screen)
+            part.model = part.model or f"{screen.code}{screen.product}"
+            part.serial = screen.serial[:64]
+    elif f["thing"].startswith("PNP"):
+        # Its maker by its code and its own name; its serial number is on no label.
+        card = next((c for c in pnp_cards(keys) if f"PNP{c.n}" == f["thing"]), None)
+        made_by, model = _pnp_made(card) if card else ("", "")
+        part.manufacturer, part.model = made_by, model or f["name"]
+    elif f["thing"] == "GUS":
+        part.manufacturer, part.model = "Advanced Gravis", "UltraSound"
     elif f["kind"] == "ports":
         part.model = "I/O card"
         part.specs = f"Ports: {_ports_spec(keys)}"
@@ -1713,6 +1964,9 @@ def _new_part(
         # the PCI bus has its chip's maker and its chip (ADR-0047).
         own = (texts or {}).get(f["segment"], []) if f["segment"] else []
         maker, model = romtext.card_made(own)
+        if not (maker or model) and f["kind"] == "video":
+            # Its chip, by the chip's own registers (ADR-0051).
+            maker, model = vga_chip(keys)
         if maker or model:
             part.manufacturer, part.model = maker, model
         else:

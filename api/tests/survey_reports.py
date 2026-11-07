@@ -108,6 +108,46 @@ COMPAQ_VGA_ROM = (
 )
 XTIDE_ROM = b"\x55\xaa\x10" + b"-=XTIDE Universal BIOS (XT)=-\0" + b"\0" * 200
 
+# A Plug and Play card as the survey program reads it: its ID and serial number, its own
+# name, and the first port of each of its devices that is switched on (ADR-0051).
+AWE64 = {
+    "PNP1": "CTL0045 1A2B3C4D",
+    "PNP1_ANSI": "Creative SB AWE64 PnP",
+    "PNP1_IO": "220 330 388",
+}
+
+
+def edid(
+    code: str = "DEL",
+    product: int = 0xA0A3,
+    number: int = 0x01010101,
+    name: str = "DELL P1110",
+    serial: str = "9J0123A1B2C3",
+) -> str:
+    """A monitor's EDID as DDC gives it, in hex as the report carries it: the header,
+    its maker's code and its product, its serial number as a number, a timing, and
+    descriptors with its serial number written out and its name (EDID 1.3)."""
+    block = bytearray(128)
+    block[0:8] = bytes.fromhex("00FFFFFFFFFFFF00")
+    packed = sum((ord(c) - 64) << shift for c, shift in zip(code, (10, 5, 0), strict=True))
+    block[8:10] = packed.to_bytes(2, "big")
+    block[10:12] = product.to_bytes(2, "little")
+    block[12:16] = number.to_bytes(4, "little")
+    block[16:20] = bytes([12, 2001 - 1990, 1, 3])
+    block[54:56] = (10800).to_bytes(2, "little")  # a detailed timing: 108 MHz
+
+    def text(tag: int, words: str) -> bytes:
+        body = words.encode("ascii")[:13]
+        if len(body) < 13:
+            body += b"\n" + b" " * (12 - len(body))
+        return bytes([0, 0, 0, tag, 0]) + body
+
+    block[72:90] = text(0xFF, serial) if serial else bytes([0, 0, 0, 0x10, 0]) + bytes(13)
+    block[90:108] = text(0xFC, name)
+    block[108:126] = bytes([0, 0, 0, 0x10, 0]) + bytes(13)
+    block[127] = -sum(block[:127]) & 0xFF
+    return block.hex().upper()
+
 
 def report(**keys: str | None) -> str:
     """A report: words for the person reading it, then the [RHDB] section, one

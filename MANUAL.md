@@ -4698,6 +4698,10 @@ reads its address:
 
 From then on it is recognised and left alone, whichever machine it is in.
 
+The bench's monitor is the bench's in the same way. Kept on the bench itself, it
+is known by its serial number and left there, whichever machine it is showing,
+and **Add to bench** on the survey's page makes one of a monitor a survey found.
+
 A machine standing on the bench is still a machine. What is fitted in it is its
 own, so moving a machine to the bench to work on it does not make its cards the
 bench's.
