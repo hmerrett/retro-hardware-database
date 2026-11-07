@@ -60,7 +60,7 @@
   <li>
     <span><b>{{ f.name }}</b>{% if f.identifier %} <code>{{ f.identifier }}</code>{% endif %} <span class="muted">{{ f.thing }}</span>:
     {% if f.answer == 'part' %}{{ thing(f.part) }}{% if f.bench %}, kept on a bench{% endif %}.
-    {% elif f.answer == 'machine' %}part of the machine.
+    {% elif f.answer == 'machine' %}{{ 'part of the machine' if f.kind in ('drive', 'machine') else 'built into the motherboard' }}.
     {% elif f.answer == 'out' %}left out.
     {% else %}<b>waiting for an answer.</b>{% endif %}</span>
     {% if request.state.authed and s.machine %}
@@ -77,7 +77,8 @@
       {{ U.button('Add to bench', type='submit', name='answer', value='bench', title="Makes a new part of it, kept on that bench: the bench's own, which no survey fits in a machine.") }}
       {% endif %}
       {% endif %}
-      {% if 'machine' in f.fits %}{{ U.button('Part of the machine', type='submit', name='answer', value='machine', title='Built into the machine or its board, and written into their record.') }}{% endif %}
+      {% if 'machine' in f.fits and f.kind == 'drive' %}{{ U.button('Part of the machine', type='submit', name='answer', value='machine', title='Kept as a row in the machine\'s Drives list rather than as a part of its own.') }}
+      {% elif 'machine' in f.fits %}{{ U.button('On the motherboard', type='submit', name='answer', value='machine', title='Built into the motherboard, and written into its record as a line of its own.') }}{% endif %}
       {{ U.button('Leave out', type='submit', name='answer', value='out', title='Nothing is made of it, and the next survey leaves it out too.') }}
     </form>
     {% endif %}

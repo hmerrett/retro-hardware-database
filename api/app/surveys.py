@@ -686,6 +686,25 @@ def mac(value: str) -> str:
     return ":".join(digits[i : i + 2] for i in range(0, 12, 2)).upper()
 
 
+# What a Sound Blaster's DSP version says it is, by its major number. A clone answers
+# with the version of the card it copies.
+_SOUND_BLASTERS = {1: "Sound Blaster", 2: "Sound Blaster 2.0", 3: "Sound Blaster Pro"}
+
+
+def _sound_blaster(dsp: str) -> str:
+    major = _int(dsp.partition(".")[0])
+    if major is None:
+        return "Sound Blaster"
+    return _SOUND_BLASTERS.get(major, "Sound Blaster 16")
+
+
+def _before_386(keys: Mapping[str, str]) -> bool:
+    """Whether the processor is one whose expanded memory can only be a card's: on a 386
+    or later it is EMM386's, made by the processor (ADR-0050)."""
+    cpu = keys.get("CPU", "").strip().upper()
+    return cpu.startswith(("808", "8018", "V2", "V3")) or cpu == "80286"
+
+
 def findings(
     keys: Mapping[str, str], texts: Mapping[str, list[str]] | None = None
 ) -> list[Finding]:
@@ -901,6 +920,53 @@ def findings(
                 ptype="io",
             )
         )
+
+    # A sound card and expanded memory, which the survey program looks for since neither
+    # has a ROM or a PCI number (ADR-0050). A Sound Blaster's own FM chip answers at
+    # 388h too, so an AdLib is a card of its own only where no Sound Blaster is.
+    if sound := keys.get("SOUND", "").strip():
+        base, _, dsp = sound.partition(" ")
+        out.append(
+            _finding(
+                "SOUND",
+                "card",
+                f"{_sound_blaster(dsp)}-compatible sound card at {base}h",
+                ALL,
+                signature=f"sound:{base}:{dsp}",
+                ptype="sound",
+            )
+        )
+    elif adlib := keys.get("ADLIB", "").strip():
+        out.append(
+            _finding(
+                "ADLIB",
+                "card",
+                f"AdLib-compatible sound card at {adlib}h",
+                ALL,
+                signature=f"adlib:{adlib}",
+                ptype="sound",
+            )
+        )
+    if (kb := _int(keys.get("EMS_KB"))) and _before_386(keys):
+        out.append(
+            _finding(
+                "EMS",
+                "card",
+                f"Expanded memory card, {entry.fmt_kb(kb)}",
+                ALL,
+                signature=f"ems:{kb}",
+                ptype="ram",
+            )
+        )
+    # Anything else given at the machine, by its tag or as N with a make and model.
+    for n in _numbers(keys, "EXTRA"):
+        if keys.get(f"EXTRA{n}_ANSWER", "").strip():
+            typed = " ".join(filter(None, _typed(keys, f"EXTRA{n}")))
+            out.append(
+                _finding(
+                    f"EXTRA{n}", "extra", typed or "Something else fitted", [PART], ptype="other"
+                )
+            )
 
     # Which of the same in one machine each is: the survey cannot tell two alike apart,
     # so they are counted.
@@ -1312,6 +1378,7 @@ def _apply(
             s.bench_card = f["part"]
     drives = [f for f in found if f["kind"] == "drive"]
     _answer_drives(db, keys, drives, machine, who, t, done, texts)
+    _take_out(db, keys, machine, who, t)
     # The board, found only now: it may have been made, or joined to the machine, by
     # the answer just given for it.
     board = subject if isinstance(subject, Part) else _board_of(db, tree.load(db), machine)
@@ -1462,6 +1529,18 @@ def _answer_remembered(
     _answered_at_machine(db, keys, f, machine, who, t, done, texts)
     if f["answer"] is not None:
         remember(db, machine, f)
+
+
+def _take_out(db: Session, keys: Mapping[str, str], machine: str, who: str, t: tree.Tree) -> None:
+    """The parts said at the machine to have been taken out (`GONE1=RH-4K7Q`, ADR-0050):
+    each one directly in this machine is taken out, by survey, and left with no
+    location until somebody puts it away. A part anywhere else is left alone."""
+    for n in _numbers(keys, "GONE"):
+        said_of = keys.get(f"GONE{n}", "").split()
+        part = _part(db, exact_tag(said_of[0]) if said_of else None)
+        if part is not None and t.holder(part.asset_id.upper()) == machine.upper():
+            with contextlib.suppress(tree.Refused):
+                tree.put(db, part, None, tree.SURVEY, who, t)
 
 
 def _answer_drives(
@@ -1853,7 +1932,7 @@ def _built_in_word(f: Finding) -> str:
     if f["signature"].startswith("pci:"):
         _vendor, _device, cls = pciids.split(f["signature"][4:])
         return pciids.kind(cls)[1]
-    return "card"
+    return {"sound": "sound", "ram": "memory"}.get(f["ptype"], "card")
 
 
 def _video_name(f: Finding, texts: Mapping[str, list[str]]) -> str:
@@ -2147,6 +2226,7 @@ def answer_question(
     if machine is not None:
         lines.append(f"TAG={machine}")
     drives = _held_drives(db, keys, found, machine, t)
+    accounted: set[str] = set()
     for f in found:
         if f["kind"] == MACHINE:
             continue
@@ -2158,6 +2238,13 @@ def answer_question(
             value = _held(db, f, machine, t)
         if value:
             lines.append(f"{f['thing']}_ANSWER={value}")
+            accounted.add(value.split()[0])
+    # The parts on record in the machine that nothing found accounts for, for the
+    # machine to ask whether each is still fitted (ADR-0050).
+    if machine is not None:
+        for n, part in enumerate(_kept(db, t, machine, accounted), 1):
+            name = entry.display_name(to_dict(part))
+            lines.append(f"KEPT{n}={_shown(f'{part.asset_id.upper()} {name}')}")
     # What each thing is called, for the machine to show it by, and so that it asks the
     # make and model only of what nobody can name (ADR-0044). The machine itself is
     # named by its BIOS only when the BIOS says both who made it and what it is.
@@ -2200,6 +2287,21 @@ def _held_board(
     if known is not None:
         return known.asset_id.upper()
     return _held(db, f, machine, t)
+
+
+# As many parts on record as the machine is asked about in one survey.
+_KEPT_MOST = 8
+
+
+def _kept(db: Session, t: tree.Tree, machine: str, accounted: set[str]) -> list[Part]:
+    """The parts fitted directly in a machine that no answer accounts for, by tag: what
+    the survey did not find, to be asked whether each is still there."""
+    out: list[Part] = []
+    for tag in t.children(machine.upper()):
+        found = db.get(Thing, tag)
+        if isinstance(found, Part) and not found.disposed and tag.upper() not in accounted:
+            out.append(found)
+    return out[:_KEPT_MOST]
 
 
 def _held_drives(

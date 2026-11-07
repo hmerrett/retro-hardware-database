@@ -39,6 +39,9 @@ part, part of the machine (a row in its Drives list), or left out. A drive the
 machine's rows or fitted parts already record is taken for that, so nothing is
 recorded twice. Where the small label goes to a print agent, the machine offers to
 print the small label of everything the survey makes, once, and Y queues them.
+After the things it found, a survey asks about the parts on record it did not find
+(still fitted, or taken out) and for anything else fitted, and it looks for a sound
+card and expanded memory itself.
 
 **Upgrading:** nothing to do unless you want surveys. Give an agent a key in
 `RHDB_SURVEY_AGENTS` in `.env`, run `tools/survey_agent.py` where the machines'
