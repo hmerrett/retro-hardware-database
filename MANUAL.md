@@ -4362,15 +4362,26 @@ hard disk by the name it gives itself, a later PC by what its BIOS says.
 - **For each thing found that has no answer yet**, it asks for one (the
   motherboard first, in a machine with none on record), showing the thing by
   the register's name for it where there is one: the tag on its label,
-  **N** for a new part, **M** if it is part of the machine, **X** to leave it
-  out, or Enter to decide later. It offers only the answers that fit
-  ([what it does with what it finds](#what-it-does-with-what-it-finds)).
+  **N** for a new part, **M** if it is built into the motherboard (for a drive,
+  part of the machine), **X** to leave it out, or Enter to decide later. It
+  offers only the answers that fit ([what it does with what it
+  finds](#what-it-does-with-what-it-finds)). In a machine being added (**N**),
+  Enter makes a new part as **N** does, since everything in it is new.
 - **N for something nobody can name** asks its make and then its model, so the
   new record has a name from the start. Type them from its label, or press Enter
   to leave either out. A new machine is asked the same, unless its BIOS says what
   it is, and is offered the company that wrote its BIOS as its make where that is
   who made it ([who made it, from its BIOS](#who-made-it-from-its-bios)). Nothing
   that already has a name is asked about.
+- **Parts on record it did not find.** In a machine the register knows, each
+  part the register has fitted in it that the survey did not find is shown in
+  turn: Enter if it is still fitted, **X** if it has been taken out. A part
+  taken out is left with no location until you put it away.
+- **Anything else.** Then the survey asks for anything else fitted that it
+  could not see, as many times as there is something to give: the tag of a part
+  the register has (it is fitted in the machine, as a tag typed for anything
+  found is), **N** for a new part (its make and model are asked), or Enter when
+  there is nothing more.
 - **Labels for what is new.** Where the small label goes to a print agent's
   queue (its **Goes to**, [where a label goes](#where-a-label-goes)) and the
   survey is about to make something (**N** for the machine, or for anything it
@@ -4435,7 +4446,19 @@ machine](#two-ways-of-describing-a-machine), [drives](#8-drives)):
 | A hard disk | A part of its own, or left out |
 | The motherboard, in a machine with none on record | A part of its own, or left out |
 | A floppy drive, a CD-ROM drive or a CompactFlash card | A part of its own, part of the machine (a row in its **Drives**), or left out |
-| The network card, the video card, any other card seen through its ROM or on a PCI bus (a disk controller, a sound card), and the serial and parallel ports | A part of its own, part of the machine (built into its board), or left out |
+| The network card, the video card, any other card seen through its ROM or on a PCI bus (a disk controller, a sound card), and the serial and parallel ports | A part of its own, built into the motherboard, or left out |
+| A sound card that answers as a Sound Blaster does (at 220h to 280h), or an AdLib's sound chip (at 388h) | the same |
+| Expanded memory on a PC, an XT or an AT, through the memory card's own driver | the same |
+| Anything else fitted, given at the machine | A part of its own |
+
+A sound card and expanded memory are looked for, since neither has a ROM or a
+PCI number to be found by. The survey program tries a Sound Blaster's reset at
+each of its usual addresses and an AdLib's timers at 388h, which a card in no
+way like either at those addresses would not answer. Expanded memory is found
+through the driver of the card that provides it, so a card whose driver is not
+loaded is not found, and on a 386 or later expanded memory is EMM386's, made by
+the processor, and is not a card at all. What none of this finds is asked for
+under **Anything else**.
 
 The network card a survey runs through is one thing, however the survey sees
 it: by its Ethernet address, on the PCI bus, and through its boot ROM where the
@@ -4535,7 +4558,10 @@ machine says which:
   geometry; a CD-ROM drive (`Optical`) or a CompactFlash card (`SD/CF card`,
   with its capacity and geometry) the same way; a floppy drive by its size
   (`1.44MB`, for 3.5" disks), since a floppy drive cannot say what it is, so
-  the make and model typed at the machine are its name; a card by its ROM or its
+  the make and model typed at the machine are its name; a sound card or an
+  expanded memory card the same way, since neither can say who made it (a
+  Sound Blaster clone answers just as a Sound Blaster does); anything else given
+  at the machine by its make and model; a card by its ROM or its
   chip (`Tseng Labs ET4000`); a network card
   by its chip where it is on the PCI bus, and otherwise by the driver it was run
   with; the ports as an I/O card with them on it; a motherboard as a later PC's
@@ -4713,7 +4739,8 @@ A survey waits for one of two things:
 - **An answer.** Everything else is done, and something found is waiting for
   the answer nobody gave at the machine. Its line offers the answers that fit:
   a box for a part's tag with **Link**, **New part**, **Add to bench** for a
-  hard disk or a network card, **Part of the machine** and **Leave out**.
+  hard disk, a drive or a network card, **On the motherboard** (for a drive,
+  **Part of the machine**) and **Leave out**.
 
 A survey's page shows:
 

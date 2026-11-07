@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3356 behaviours, from 98 files.*
+*3370 behaviours, from 98 files.*
 
 
 ## A barcode takes the room the words leave
@@ -166,7 +166,7 @@ Regenerate with:
 
 ## A machine that reports itself
 
-*test_a_machine_that_reports_itself.py — 208 behaviours*
+*test_a_machine_that_reports_itself.py — 222 behaviours*
 
 
 **What it takes**
@@ -284,6 +284,24 @@ Regenerate with:
 - a fitted drive with another serial is another drive
 - an answer for a floppy drive is remembered
 - a cd rom drive is known by its serial and says which machine
+
+**What it could not see**
+
+- the answer names each part on record it did not find
+- a part the survey found is not named again
+- a part said to be taken out leaves the machine
+- only a part in this machine is taken out
+- a tag given for anything else fits that part
+- n for anything else makes a part named by what was typed
+- a sound blaster is found and asked its make  
+  A clone answers as a Sound Blaster does, so the card is not named by it.
+- n makes a sound card
+- an adlib alone is a sound card
+- an adlib beside a sound blaster is the sound blasters
+- expanded memory on an at is a memory card
+- expanded memory on a 386 is not a card
+- an answer for a sound card is remembered
+- the page says a built in card is on the motherboard
 
 **Serial numbers and addresses**
 

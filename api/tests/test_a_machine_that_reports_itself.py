@@ -770,6 +770,131 @@ class TestDrives:
         assert finding(again, "DISK2")["part"] == finding(first, "DISK2")["part"]
 
 
+# --- what it could not see ---------------------------------------------------------
+
+
+class TestWhatItCouldNotSee:
+    """After the things it found, a survey asks about what it could not see: the parts
+    on record it did not find, and anything else fitted. It looks for a sound card and
+    expanded memory itself (MANUAL §23, "At the machine" and "What it does with what it
+    finds"; ADR-0050)."""
+
+    def test_the_answer_names_each_part_on_record_it_did_not_find(self, client, computer, part):
+        machine = computer()
+        sound = part(
+            type="sound",
+            manufacturer="Creative",
+            model="Sound Blaster Pro",
+            computer_id=machine["asset_id"],
+        )
+        answered = ask(client, TAG=machine["asset_id"])
+        assert answered["KEPT1"] == f"{sound['asset_id']} Creative Sound Blaster Pro"
+
+    def test_a_part_the_survey_found_is_not_named_again(self, client, with_disk):
+        machine, _disk = with_disk()
+        answered = ask(client, TAG=machine["asset_id"], **DISK)
+        assert not [k for k in answered if k.startswith("KEPT")]
+
+    def test_a_part_said_to_be_taken_out_leaves_the_machine(self, client, computer, part):
+        machine = computer()
+        sound = part(type="sound", model="Sound Blaster Pro", computer_id=machine["asset_id"])
+        survey(client, TAG=machine["asset_id"], GONE1=sound["asset_id"])
+        got = get(client, "parts", sound["asset_id"])
+        assert not got["computer_id"] and not got["location"]
+
+    def test_only_a_part_in_this_machine_is_taken_out(self, client, computer, part):
+        other = computer()
+        sound = part(type="sound", model="Sound Blaster Pro", computer_id=other["asset_id"])
+        survey(client, TAG=computer()["asset_id"], GONE1=sound["asset_id"])
+        assert get(client, "parts", sound["asset_id"])["computer_id"] == other["asset_id"]
+
+    def test_a_tag_given_for_anything_else_fits_that_part(self, client, computer, part):
+        shelf = location(client, "Shelf 3", "shelf")
+        card = part(type="ram", model="RAM 3000", location=shelf["asset_id"])
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], EXTRA1_ANSWER=card["asset_id"])
+        assert get(client, "parts", card["asset_id"])["computer_id"] == machine["asset_id"]
+
+    def test_n_for_anything_else_makes_a_part_named_by_what_was_typed(self, client, computer):
+        machine = computer()
+        made = survey(
+            client,
+            TAG=machine["asset_id"],
+            EXTRA1_ANSWER="NEW",
+            EXTRA1_MAKER="Everex",
+            EXTRA1_MODEL="RAM 3000",
+        )
+        card = get(client, "parts", finding(made, "EXTRA1")["part"])
+        assert (card["manufacturer"], card["model"], card["computer_id"]) == (
+            "Everex",
+            "RAM 3000",
+            machine["asset_id"],
+        )
+
+    def test_a_sound_blaster_is_found_and_asked_its_make(self, client, computer):
+        """A clone answers as a Sound Blaster does, so the card is not named by it."""
+        made = survey(client, TAG=computer()["asset_id"], SOUND="220 3.02")
+        found = finding(made, "SOUND")
+        assert found["fits"] == ["part", "machine", "out"]
+        assert "Sound Blaster Pro" in found["name"]
+        assert "SOUND_NAME" not in ask(client, SOUND="220 3.02")
+
+    def test_n_makes_a_sound_card(self, client, computer):
+        made = survey(
+            client,
+            TAG=computer()["asset_id"],
+            SOUND="220 3.02",
+            SOUND_ANSWER="NEW",
+            SOUND_MAKER="Creative",
+            SOUND_MODEL="Sound Blaster Pro",
+        )
+        card = get(client, "parts", finding(made, "SOUND")["part"])
+        assert (card["type"], card["manufacturer"], card["model"]) == (
+            "sound",
+            "Creative",
+            "Sound Blaster Pro",
+        )
+
+    def test_an_adlib_alone_is_a_sound_card(self, client, computer):
+        made = survey(client, TAG=computer()["asset_id"], ADLIB="388")
+        assert finding(made, "ADLIB")["fits"] == ["part", "machine", "out"]
+
+    def test_an_adlib_beside_a_sound_blaster_is_the_sound_blasters(self, client, computer):
+        made = survey(client, TAG=computer()["asset_id"], SOUND="220 3.02", ADLIB="388")
+        assert [f["thing"] for f in made["findings"] if f["thing"] in ("SOUND", "ADLIB")] == [
+            "SOUND"
+        ]
+
+    def test_expanded_memory_on_an_at_is_a_memory_card(self, client, computer):
+        made = survey(
+            client,
+            TAG=computer()["asset_id"],
+            CPU="80286",
+            EMS_KB="2048",
+            EMS_ANSWER="NEW",
+            EMS_MAKER="Everex",
+            EMS_MODEL="RAM 3000",
+        )
+        card = get(client, "parts", finding(made, "EMS")["part"])
+        assert (card["type"], card["manufacturer"], card["model"]) == ("ram", "Everex", "RAM 3000")
+
+    def test_expanded_memory_on_a_386_is_not_a_card(self, client, computer):
+        made = survey(client, TAG=computer()["asset_id"], CPU="80386", EMS_KB="2048")
+        assert not [f for f in made["findings"] if f["thing"] == "EMS"]
+
+    def test_an_answer_for_a_sound_card_is_remembered(self, client, computer):
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], SOUND="220 3.02", SOUND_ANSWER="OUT")
+        again = survey(client, TAG=machine["asset_id"], SOUND="220 3.02")
+        assert finding(again, "SOUND")["answer"] == "out"
+
+    def test_the_page_says_a_built_in_card_is_on_the_motherboard(self, client, computer):
+        made = survey(client, TAG=computer()["asset_id"], VIDEO="VGA", VIDEO_ANSWER="MACHINE")
+        page = client.get(f"/surveys/{made['id']}")
+        assert page.status_code == 200, page.text
+        assert "built into the motherboard." in page.text
+
+
 # --- serial numbers and addresses --------------------------------------------------
 
 
