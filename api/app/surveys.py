@@ -814,6 +814,36 @@ def pnp_nic(keys: Mapping[str, str]) -> PnpCard | None:
     return named[0] if len(named) == 1 else None
 
 
+def folded(keys: Mapping[str, str]) -> dict[str, str]:
+    """What the survey program found twice, as {thing: the thing it is}: a Sound
+    Blaster, an AdLib, an UltraSound or an MPU-401 at a Plug and Play card's own port
+    is that card, a Sound Blaster 16's MPU-401 is the Sound Blaster's, and the Plug and
+    Play card that is the network card is the network card (ADR-0051). Each is one
+    finding, and the machine is told which so that it asks once."""
+    cards = pnp_cards(keys)
+
+    def card_at(port: str) -> str:
+        return next((f"PNP{c.n}" for c in cards if port and port in c.ports), "")
+
+    out: dict[str, str] = {}
+    sound = keys.get("SOUND", "").strip()
+    base, _, dsp = sound.partition(" ")
+    for thing, port in (
+        ("SOUND", _port(base) if sound else ""),
+        ("ADLIB", _port(keys.get("ADLIB", "").strip())),
+        ("GUS", _port(keys.get("GUS", "").strip().partition(" ")[0])),
+        ("MPU", _port(keys.get("MPU", "").strip())),
+    ):
+        if at := card_at(port):
+            out[thing] = at
+    sixteen = sound and (_int(dsp.partition(".")[0]) or 0) >= 4
+    if _port(keys.get("MPU", "").strip()) and "MPU" not in out and sixteen:
+        out["MPU"] = "SOUND"
+    if (plug := pnp_nic(keys)) is not None:
+        out[f"PNP{plug.n}"] = "NIC"
+    return out
+
+
 def _monitor_made(m: edid.Monitor) -> tuple[str, str]:
     """(maker, model) for a monitor: its maker by its code, and its own name without the
     maker's word it starts with. No model where it gave no name."""
@@ -1041,12 +1071,12 @@ def findings(
         )
 
     # Plug and Play cards (ADR-0051): known by their ID and serial number where they
-    # give one that says something, and otherwise per machine by their ID. The card
-    # that is the network card the survey ran through is that card, above.
-    taken: set[str] = set()
+    # give one that says something, and otherwise per machine by their ID. What was
+    # found twice is one finding: the card that is the network card is that card,
+    # above, and a sound card at a card's own port is that card, below.
+    fold = folded(keys)
     for card in pnp_cards(keys):
-        taken |= card.ports
-        if plug_nic is not None and card.n == plug_nic.n:
+        if f"PNP{card.n}" in fold:
             continue
         made_by, model = _pnp_made(card)
         out.append(
@@ -1066,11 +1096,10 @@ def findings(
 
     # A sound card and expanded memory, which the survey program looks for since neither
     # has a ROM or a PCI number (ADR-0050). A Sound Blaster's own FM chip answers at
-    # 388h too, so an AdLib is a card of its own only where no Sound Blaster is. One at
-    # a Plug and Play card's own port is that card (ADR-0051).
+    # 388h too, so an AdLib is a card of its own only where no Sound Blaster is.
     sound = keys.get("SOUND", "").strip()
     base, _, dsp = sound.partition(" ")
-    if sound and _port(base) not in taken:
+    if sound and "SOUND" not in fold:
         out.append(
             _finding(
                 "SOUND",
@@ -1081,7 +1110,7 @@ def findings(
                 ptype="sound",
             )
         )
-    elif (adlib := keys.get("ADLIB", "").strip()) and not sound and _port(adlib) not in taken:
+    elif (adlib := keys.get("ADLIB", "").strip()) and not sound and "ADLIB" not in fold:
         out.append(
             _finding(
                 "ADLIB",
@@ -1104,10 +1133,9 @@ def findings(
             )
         )
     # A Gravis UltraSound and an MPU-401, which the survey program looks for only where
-    # its network card is on the PCI bus (ADR-0051). A Sound Blaster whose DSP is 4 or
-    # later is a Sound Blaster 16, which has an MPU-401 of its own.
+    # its network card is on the PCI bus (ADR-0051).
     gus_base, _, gus_kb = keys.get("GUS", "").strip().partition(" ")
-    if _port(gus_base) and _port(gus_base) not in taken:
+    if _port(gus_base) and "GUS" not in fold:
         memory = f", {entry.fmt_kb(kb)}" if (kb := _int(gus_kb)) else ""
         out.append(
             _finding(
@@ -1120,8 +1148,7 @@ def findings(
             )
         )
     mpu = _port(keys.get("MPU", "").strip())
-    sixteen = (_int(dsp.partition(".")[0]) or 0) >= 4 if sound else False
-    if mpu and mpu not in taken and not sixteen:
+    if mpu and "MPU" not in fold:
         out.append(
             _finding(
                 "MPU",
@@ -2493,6 +2520,10 @@ def answer_question(
         if value:
             lines.append(f"{f['thing']}_ANSWER={value}")
             accounted.add(value.split()[0])
+    # What the survey program found twice, which the machine is told is the other so
+    # that it asks about it once (ADR-0051).
+    for thing, other in folded(keys).items():
+        lines.append(f"{thing}_ANSWER={other}")
     # The parts on record in the machine that nothing found accounts for, for the
     # machine to ask whether each is still fitted (ADR-0050).
     if machine is not None:

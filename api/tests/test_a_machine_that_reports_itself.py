@@ -954,6 +954,13 @@ class TestWhatTheHardwareSays:
         )
         assert [f["thing"] for f in made["findings"] if f["kind"] == "card"] == ["PNP1"]
 
+    def test_the_machine_is_told_so_it_asks_about_the_card_once(self, client):
+        answered = ask(client, SOUND="220 4.13", MPU="330", **AWE64)
+        assert (answered["SOUND_ANSWER"], answered["MPU_ANSWER"]) == ("PNP1", "PNP1")
+
+    def test_a_sound_blaster_16s_mpu_401_is_asked_about_once(self, client):
+        assert ask(client, SOUND="220 4.13", MPU="330")["MPU_ANSWER"] == "SOUND"
+
     def test_a_plug_and_play_network_card_is_the_network_card(self, client, computer):
         card = {
             "PNP1": "TCM5090 0012AB34",
@@ -962,7 +969,9 @@ class TestWhatTheHardwareSays:
         }
         made = survey(client, TAG=computer()["asset_id"], **NIC, **card)
         assert not [f for f in made["findings"] if f["thing"] == "PNP1"]
-        assert ask(client, **NIC, **card)["NIC_NAME"] == "3Com 3C509B EtherLink III"
+        answered = ask(client, **NIC, **card)
+        assert answered["NIC_NAME"] == "3Com 3C509B EtherLink III"
+        assert answered["PNP1_ANSWER"] == "NIC"
 
     # A monitor
 

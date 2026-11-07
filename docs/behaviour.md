@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3395 behaviours, from 98 files.*
+*3397 behaviours, from 98 files.*
 
 
 ## A barcode takes the room the words leave
@@ -166,7 +166,7 @@ Regenerate with:
 
 ## A machine that reports itself
 
-*test_a_machine_that_reports_itself.py — 247 behaviours*
+*test_a_machine_that_reports_itself.py — 249 behaviours*
 
 
 **What it takes**
@@ -313,6 +313,8 @@ Regenerate with:
 - one whose serial number says nothing is known per machine
 - a plug and play card says which machine it is
 - a sound blaster at its ports is that card
+- the machine is told so it asks about the card once
+- a sound blaster 16s mpu 401 is asked about once
 - a plug and play network card is the network card
 - a monitor is named by its maker and model
 - n makes a display with its serial number
