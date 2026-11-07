@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3350 behaviours, from 98 files.*
+*3356 behaviours, from 98 files.*
 
 
 ## A barcode takes the room the words leave
@@ -166,7 +166,7 @@ Regenerate with:
 
 ## A machine that reports itself
 
-*test_a_machine_that_reports_itself.py — 202 behaviours*
+*test_a_machine_that_reports_itself.py — 208 behaviours*
 
 
 **What it takes**
@@ -213,6 +213,15 @@ Regenerate with:
   A machine made at the machine has nothing to be called yet but its tag, and a screen reading "RH-9Q0D RH-9Q0D" looks like a fault.
 - the answer says how the tests went in the historys words  
   The tests' own names keep their capitals: RAM, not ram.
+
+**Labels for what is new**
+
+- the answer offers the printer the small label goes to
+- nothing is offered where the small label is a pdf
+- an agent with a printer of its own is not asked
+- yes queues the small label of everything the survey makes
+- without yes nothing is printed
+- the receipt says the labels were sent
 
 **Which machine it is**
 

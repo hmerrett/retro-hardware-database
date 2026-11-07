@@ -37,7 +37,8 @@ the board and offers the machine its make, and a card's ROM that names who made 
 CD-ROM drives and CompactFlash cards are asked about like any other thing: a tagged
 part, part of the machine (a row in its Drives list), or left out. A drive the
 machine's rows or fitted parts already record is taken for that, so nothing is
-recorded twice.
+recorded twice. Where the small label goes to a print agent, the machine offers to
+print the small label of everything the survey makes, once, and Y queues them.
 
 **Upgrading:** nothing to do unless you want surveys. Give an agent a key in
 `RHDB_SURVEY_AGENTS` in `.env`, run `tools/survey_agent.py` where the machines'

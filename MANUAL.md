@@ -4328,7 +4328,9 @@ RHDB_SURVEY_AGENTS=bench:1a7d…
 Each entry is `name:key`. Give it a third part naming a [print
 agent](#printing-to-a-printer-somewhere-else), as `bench:1a7d…:workshop-pi`, and
 the label for every tag a survey makes is printed there, so a new hard disk's
-label is waiting by the time the machine is switched off. Generate a key with
+label is waiting by the time the machine is switched off. Without one, a survey
+offers to print them at the machine, where the small label goes to a print
+agent ([at the machine](#at-the-machine)). Generate a key with
 `openssl rand -hex 32`, one for each agent. With nothing set the register takes
 no surveys.
 
@@ -4369,6 +4371,14 @@ hard disk by the name it gives itself, a later PC by what its BIOS says.
   it is, and is offered the company that wrote its BIOS as its make where that is
   who made it ([who made it, from its BIOS](#who-made-it-from-its-bios)). Nothing
   that already has a name is asked about.
+- **Labels for what is new.** Where the small label goes to a print agent's
+  queue (its **Goes to**, [where a label goes](#where-a-label-goes)) and the
+  survey is about to make something (**N** for the machine, or for anything it
+  found), it asks once, after everything else, whether to print a small label
+  for each new tag on that printer. **Y** puts them on its queue when the
+  report is filed: the machine's label and each new part's. Enter prints
+  none. A survey agent with a printer of its own prints them anyway ([what it
+  takes](#what-it-takes)), and is not asked.
 
 The tests run, the report is written and the agent sends it. The register's
 answer comes back to the screen, naming the machine and saying what it filled in

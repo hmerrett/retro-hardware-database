@@ -133,8 +133,9 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   [0034](0034-a-location-is-a-record-in-the-register.md); amended by
   [0044](0044-a-survey-asks-the-make-and-model-of-what-nobody-can-name.md),
   [0045](0045-a-machine-with-no-motherboard-on-record-is-asked-about-one.md),
-  [0046](0046-only-what-is-directly-on-a-bench-is-the-benchs.md) and
-  [0048](0048-a-survey-asks-about-every-drive-it-finds.md))
+  [0046](0046-only-what-is-directly-on-a-bench-is-the-benchs.md),
+  [0048](0048-a-survey-asks-about-every-drive-it-finds.md) and
+  [0049](0049-a-survey-offers-to-print-the-labels-of-what-it-makes.md))
 - [0044](0044-a-survey-asks-the-make-and-model-of-what-nobody-can-name.md) — A
   survey asks the make and model of what nobody can name — *Accepted* (amends
   [0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md); amended by
@@ -150,4 +151,7 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   [0044](0044-a-survey-asks-the-make-and-model-of-what-nobody-can-name.md))
 - [0048](0048-a-survey-asks-about-every-drive-it-finds.md) — A survey asks about
   every drive it finds — *Accepted* (amends
+  [0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md))
+- [0049](0049-a-survey-offers-to-print-the-labels-of-what-it-makes.md) — A survey
+  offers to print the labels of what it makes — *Accepted* (amends
   [0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md))

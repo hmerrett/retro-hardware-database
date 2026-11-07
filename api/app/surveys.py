@@ -42,6 +42,7 @@ from . import (
     printing,
     ramdb,
     romtext,
+    settings,
     specdb,
     surveyreport,
     tree,
@@ -2116,7 +2117,12 @@ def _shown(text: str) -> str:
     return " ".join(plain.split())[:60]
 
 
-def answer_question(db: Session, text: str, roms: Mapping[str, bytes] | None = None) -> str:
+def answer_question(
+    db: Session,
+    text: str,
+    roms: Mapping[str, bytes] | None = None,
+    agent: Agent | None = None,
+) -> str:
     """The answer to a machine's question before its tests (MANUAL §23, "At the
     machine"): which machine this is, when the register can tell, the answer it
     already has for each thing found, what it can call each thing, and which ROM is
@@ -2168,6 +2174,9 @@ def answer_question(db: Session, text: str, roms: Mapping[str, bytes] | None = N
     nic = next((f for f in found if f["kind"] == "nic"), None)
     if nic is not None and nic["segment"] and not keys.get("NIC_ROM", "").strip():
         lines.append(f"NIC_ROM={nic['segment']}")
+    # The printer the machine may offer to print the new tags' labels on (ADR-0049).
+    if (printer := label_printer(agent)) is not None:
+        lines.append(f"LABELS={_shown(printer.name)}")
     return "\r\n".join(lines) + "\r\n"
 
 
@@ -2279,6 +2288,39 @@ def receipt(db: Session, made: list[Survey]) -> str:
     return (
         "\r\n".join(line.encode("ascii", "replace").decode("ascii")[:79] for line in lines) + "\r\n"
     )
+
+
+def label_printer(agent: Agent | None) -> printing.Agent | None:
+    """The printer a survey offers to print the small labels of what it makes on
+    (ADR-0049): the print agent the small label goes to, by its **Goes to**. None where
+    it goes anywhere else, and for a survey agent with a printer of its own, which
+    prints them without asking."""
+    if agent is None or agent.printer:
+        return None
+    goes_to = settings.value("label_small_destination")
+    if not goes_to.startswith(settings.AGENT):
+        return None
+    return printing.agents().get(goes_to.removeprefix(settings.AGENT))
+
+
+def labels_asked(db: Session, agent: Agent, made: Iterable[tuple[Survey, Filing]]) -> str:
+    """Put the small label of each tag a survey made on the printer offered at the
+    machine, for each survey whose report says Y was answered there (`LABELS=YES`).
+    The receipt's line saying so, or "" for none. Called after the surveys are saved,
+    because putting a job on the queue saves it."""
+    printer = label_printer(agent)
+    if printer is None:
+        return ""
+    sent = 0
+    for s, filing in made:
+        if keys_of(s).get("LABELS", "").strip().upper() != "YES":
+            continue
+        for kind, tag in filing.made:
+            printing.add(db, printer, kind, tag)
+            sent += 1
+    if not sent:
+        return ""
+    return f"{sent} small label{'s' if sent != 1 else ''} sent to {printer.name}."
 
 
 def labels_for(db: Session, agent: Agent, made: Iterable[tuple[str, str]]) -> None:

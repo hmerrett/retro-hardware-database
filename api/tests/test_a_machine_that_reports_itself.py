@@ -16,6 +16,7 @@ from pathlib import Path
 
 import pytest
 
+from app import settings
 from conftest import log_out
 from survey_reports import (
     ADAPTEC_ROM,
@@ -313,6 +314,63 @@ class TestAQuestionBeforeTheTests:
         )
         assert r.status_code == 200, r.text
         assert "2 of 17 tests failed (RAM, floppy)." in r.json()["receipt"]
+
+
+# --- at the machine: labels for what is new -----------------------------------------
+
+
+def small_label_goes_to(client, destination: str) -> None:
+    """The small label's Goes to, set as the settings page sets it."""
+    rows = [d for d in settings.DEFINITIONS if d.section == settings.LABELS]
+    posted = {
+        d.key: settings.value(d.key)
+        for d in rows
+        if d.kind != settings.SWITCH or settings.on(d.key)
+    }
+    r = client.post("/settings/labels", data=posted | {"label_small_destination": destination})
+    assert r.status_code in (200, 303), r.text[:300]
+    settings.forget()
+
+
+class TestLabelsForWhatIsNew:
+    """Where the small label goes to a print agent's queue, a survey offers to print
+    the small label of everything it makes, once, at the machine (MANUAL §23, "At the
+    machine"; ADR-0049)."""
+
+    @pytest.fixture(autouse=True)
+    def printers(self, monkeypatch):
+        monkeypatch.setenv("RHDB_PRINT_AGENTS", PRINTERS)
+
+    def test_the_answer_offers_the_printer_the_small_label_goes_to(self, client):
+        small_label_goes_to(client, "agent:workshop-pi")
+        assert ask(client, **DISK)["LABELS"] == "workshop-pi"
+
+    def test_nothing_is_offered_where_the_small_label_is_a_pdf(self, client):
+        assert "LABELS" not in ask(client, **DISK)
+
+    def test_an_agent_with_a_printer_of_its_own_is_not_asked(self, client):
+        small_label_goes_to(client, "agent:workshop-pi")
+        assert "LABELS" not in ask(client, key="key-two", **DISK)
+
+    def test_yes_queues_the_small_label_of_everything_the_survey_makes(self, client):
+        small_label_goes_to(client, "agent:workshop-pi")
+        made = survey(client, TAG="NEW", DISK1_ANSWER="NEW", LABELS="YES", **DISK)
+        jobs = client.get("/api/print/jobs").json()
+        disk = finding(made, "DISK1")["part"]
+        assert sorted((j["agent"], j["asset_id"], j["label"]) for j in jobs) == sorted(
+            [("workshop-pi", made["machine"], "small"), ("workshop-pi", disk, "small")]
+        )
+
+    def test_without_yes_nothing_is_printed(self, client):
+        small_label_goes_to(client, "agent:workshop-pi")
+        survey(client, TAG="NEW", DISK1_ANSWER="NEW", **DISK)
+        assert client.get("/api/print/jobs").json() == []
+
+    def test_the_receipt_says_the_labels_were_sent(self, client):
+        small_label_goes_to(client, "agent:workshop-pi")
+        r = send(client, report(TAG="NEW", DISK1_ANSWER="NEW", LABELS="YES", **DISK))
+        assert r.status_code == 200, r.text
+        assert "2 small labels sent to workshop-pi." in r.json()["receipt"]
 
 
 # --- which machine it is ---------------------------------------------------------
