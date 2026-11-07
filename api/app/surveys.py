@@ -402,11 +402,53 @@ def nic_pci(keys: Mapping[str, str]) -> tuple[int, str, str, str] | None:
     return None
 
 
-def _board_name(keys: Mapping[str, str]) -> str:
-    """The motherboard as a later PC's SMBIOS tables name it: its maker and model, and
-    "" unless both are there and neither is a placeholder."""
+# The computer makers who wrote the BIOS in their own machines, as the BIOS's copy
+# (`romtext.bios`) or the survey program's BIOSVENDOR names them, and as the register
+# writes them. Such a BIOS says who made the board it is on and, unless a badge says
+# otherwise, the machine (ADR-0047). The BIOS houses (AMI, Award, Phoenix and the
+# rest) wrote BIOSes for everybody's boards, and name nobody.
+_BIOS_MAKERS = {
+    "compaq": "Compaq",
+    "ibm": "IBM",
+    "amstrad": "Amstrad",
+    "olivetti": "Olivetti",
+    "tandy": "Tandy",
+    "zenith": "Zenith Data Systems",
+    "toshiba": "Toshiba",
+    "commodore": "Commodore",
+}
+
+
+def _bios_text(keys: Mapping[str, str], texts: Mapping[str, list[str]]) -> list[str]:
+    """The words in the copy of the system BIOS, the ROM that reaches the top of the
+    first megabyte; none when no copy came."""
+    return [
+        line
+        for _, segment, size, _ in _roms(keys)
+        if _is_bios(segment, size)
+        for line in texts.get(segment, [])
+    ]
+
+
+def bios_maker(keys: Mapping[str, str], texts: Mapping[str, list[str]]) -> str:
+    """Who made the board, and nearly always the machine, as its BIOS says (ADR-0047):
+    the computer maker that wrote it, or the one whose name is in a BIOS somebody else
+    wrote. Who wrote it is read from its copy where one came, which knows the BIOS
+    houses first (so a clone carrying COMPAQ is Phoenix's), and from the survey
+    program's reading only where none did. "" for a BIOS house's."""
+    words = _bios_text(keys, texts)
+    wrote = romtext.bios(words)[0] or keys.get("BIOSVENDOR", "").strip()
+    return _BIOS_MAKERS.get(wrote.casefold(), "") or romtext.oem(words)
+
+
+def _board_name(keys: Mapping[str, str], texts: Mapping[str, list[str]]) -> str:
+    """The motherboard as a later PC's SMBIOS tables name it, its maker and model where
+    both are there and neither is a placeholder; otherwise the computer maker whose BIOS
+    is on it (ADR-0047); "" for a board nothing names."""
     maker, model = said(keys.get("BOARD_MAKER")), said(keys.get("BOARD_MODEL"))
-    return f"{maker} {model}" if maker and model else ""
+    if maker and model:
+        return f"{maker} {model}"
+    return bios_maker(keys, texts)
 
 
 def _display(keys: Mapping[str, str]) -> tuple[str, str] | None:
@@ -577,7 +619,7 @@ def findings(
             _finding(
                 "BOARD",
                 "board",
-                _board_name(keys) or "Motherboard",
+                _board_name(keys, texts or {}) or "Motherboard",
                 PART_OR_OUT,
                 signature="board",
                 ptype="motherboard",
@@ -751,7 +793,7 @@ def name_of(keys: Mapping[str, str], f: Finding, texts: Mapping[str, list[str]])
     is made (ADR-0044)."""
     kind = f["kind"]
     if kind == "board":
-        return _board_name(keys)
+        return _board_name(keys, texts)
     if kind == "disk":
         return keys.get(f"{f['thing']}_MODEL", "").strip()
     if kind == "nic":
@@ -1332,8 +1374,10 @@ def _new_part(
     was typed at the machine for one that names nothing is its name instead."""
     part = Part(asset_id=next_asset_id(db), type=f["ptype"] or "other")
     if f["kind"] == "board":
-        # Named by its SMBIOS tables or by what was typed, below; its BIOS and chipset
-        # are written on it when the survey fills what is empty.
+        # Named by the computer maker whose BIOS is on it, unless its SMBIOS tables or
+        # what was typed name it, below; its BIOS and chipset are written on it when
+        # the survey fills what is empty.
+        part.manufacturer = bios_maker(keys, texts or {})
         part.serial = said(keys.get("BOARD_SERIAL"))[:64]
     elif f["kind"] == "disk":
         part.model = f["name"]
@@ -1440,13 +1484,7 @@ def _fill_field(obj: Computer | Part, name: str, value: str, done: Filing, word:
 def _bios_line(keys: Mapping[str, str], texts: Mapping[str, list[str]]) -> str:
     """The BIOS as the motherboard's BIOS line says it: maker, version and date, the
     date as the BIOS writes it, month first."""
-    bios_text = [
-        line
-        for _, segment, size, _ in _roms(keys)
-        if _is_bios(segment, size)
-        for line in texts.get(segment, [])
-    ]
-    maker, version = romtext.bios(bios_text)
+    maker, version = romtext.bios(_bios_text(keys, texts))
     maker = maker or keys.get("BIOSVENDOR", "").strip()
     date = keys.get("BIOSDATE", "").strip()
     return " ".join(filter(None, (maker, version, date)))
@@ -1516,6 +1554,7 @@ def _fill(
                 )
         _fill_field(c, "os", keys.get("OS", "").strip(), done)
         _fill_field(c, "manufacturer", said(keys.get("SYSTEM_MAKER")), done)
+        _fill_maker(c, bios_maker(keys, texts), done, "maker")
         _fill_field(c, "model", said(keys.get("SYSTEM_MODEL")), done)
         _fill_field(c, "serial", said(keys.get("SYSTEM_SERIAL")), done)
         rows = drive_rows(keys)
@@ -1559,6 +1598,16 @@ def _fill(
         _spec_fill(db, board, on_board, done)
         if serial := said(keys.get("BOARD_SERIAL")):
             _fill_field(board, "serial", serial, done, "board's serial number")
+        _fill_maker(board, bios_maker(keys, texts), done, "board's maker")
+
+
+def _fill_maker(obj: Computer | Part, maker: str, done: Filing, word: str) -> None:
+    """The maker a BIOS names, written where nothing is recorded and never set against
+    what is: a badge can say otherwise, and an AT&T 6300 with its Olivetti BIOS is not
+    a difference worth showing (ADR-0047)."""
+    if maker and not (obj.manufacturer or "").strip():
+        obj.manufacturer = maker
+        done.filled.append(word)
 
 
 def _built_in_word(f: Finding) -> str:
@@ -1871,6 +1920,10 @@ def answer_question(db: Session, text: str, roms: Mapping[str, bytes] | None = N
     maker, model = said(keys.get("SYSTEM_MAKER")), said(keys.get("SYSTEM_MODEL"))
     if maker and model:
         lines.append(f"SYSTEM_NAME={_shown(f'{maker} {model}')}")
+    # The make a new machine is offered, which is what Enter keeps at the Make prompt:
+    # its BIOS's own word for its maker, or the computer maker whose BIOS it is.
+    elif offered := maker or bios_maker(keys, texts):
+        lines.append(f"SYSTEM_MAKER={_shown(offered)}")
     nic = next((f for f in found if f["kind"] == "nic"), None)
     if nic is not None and nic["segment"] and not keys.get("NIC_ROM", "").strip():
         lines.append(f"NIC_ROM={nic['segment']}")
@@ -2239,7 +2292,7 @@ def prefill(s: Survey) -> dict[str, str]:
     return {
         "cpu": cpu_line(keys),
         "os": keys.get("OS", "").strip(),
-        "manufacturer": said(keys.get("SYSTEM_MAKER")),
+        "manufacturer": said(keys.get("SYSTEM_MAKER")) or bios_maker(keys, _rom_texts(s)),
         "model": said(keys.get("SYSTEM_MODEL")),
         "serial": said(keys.get("SYSTEM_SERIAL")),
         "installed_ram": entry.fmt_kb(kb) if kb else "",

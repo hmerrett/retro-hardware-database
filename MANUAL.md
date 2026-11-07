@@ -4360,7 +4360,9 @@ hard disk by the name it gives itself, a later PC by what its BIOS says.
 - **N for something nobody can name** asks its make and then its model, so the
   new record has a name from the start. Type them from its label, or press Enter
   to leave either out. A new machine is asked the same, unless its BIOS says what
-  it is. Nothing that already has a name is asked about.
+  it is, and is offered the company that wrote its BIOS as its make where that is
+  who made it ([who made it, from its BIOS](#who-made-it-from-its-bios)). Nothing
+  that already has a name is asked about.
 
 The tests run, the report is written and the agent sends it. The register's
 answer comes back to the screen, naming the machine and saying what it filled in
@@ -4467,7 +4469,7 @@ say.
 | A maths coprocessor | the **FPU** socket, on a machine the catalogue gives one (`Intel 8087`); otherwise **FPU** on the motherboard fitted in it |
 | The memory the BIOS counts | **Installed RAM**, as a plain total, when nothing about the machine's memory is recorded yet. Above 1 MiB it is rounded up to whole MiB, because an AT's BIOS leaves out the 384 KiB under its ROMs. |
 | The operating system on the first hard disk | **Operating system** |
-| What a later PC's BIOS says the machine is: its maker, model and serial number | **Manufacturer**, **Model** and **Serial number**. A placeholder such as `To be filled by O.E.M.` or `System Product Name` says nothing, and is ignored. |
+| What a later PC's BIOS says the machine is: its maker, model and serial number | **Manufacturer**, **Model** and **Serial number**. A placeholder such as `To be filled by O.E.M.` or `System Product Name` says nothing, and is ignored. With no maker from there, the company that wrote its BIOS, where that is who made it ([who made it, from its BIOS](#who-made-it-from-its-bios)). |
 | Floppy drives as the BIOS has them, CD-ROM drives and CompactFlash cards | **Drives**, when the machine has none recorded |
 | The BIOS's maker, version and date | the **BIOS ROM** socket, on a machine the catalogue gives one (`BIOS 10/27/82` on an IBM 5150); otherwise **BIOS** on the motherboard fitted in it |
 | The chipset a later PC's bus names | **Chipset** on the motherboard fitted in it |
@@ -4501,7 +4503,8 @@ machine says which:
   geometry; a card by its ROM or its chip (`Tseng Labs ET4000`); a network card
   by its chip where it is on the PCI bus, and otherwise by the driver it was run
   with; the ports as an I/O card with them on it; a motherboard as a later PC's
-  BIOS names it (SMBIOS), with the serial number it keeps. One that names
+  BIOS names it (SMBIOS), with the serial number it keeps, or by the company that
+  wrote its BIOS where that is who made it (`Compaq`). One that names
   nothing is named by the make and model typed at the machine, into its
   **Manufacturer** and **Model**. Its label is printed on the agent's printer, if
   it has one.
@@ -4526,6 +4529,33 @@ A hard disk the survey can see only through the BIOS (MFM, RLL, ESDI, and SCSI
 behind most controllers), or an early IDE disk that reports no serial number,
 cannot say which one it is. It is answered like a card, and known the next time
 by its size in the same machine.
+
+### Who made it, from its BIOS
+
+Most PCs' BIOSes were written by a few companies (AMI, Award, Phoenix, Quadtel,
+MR BIOS, Chips and Technologies) for everybody's boards, and say nothing about
+whose board they are on. Some makers wrote their own: Compaq, IBM, Amstrad,
+Olivetti, Tandy, Zenith, Toshiba and Commodore. HP and Dell had theirs written
+by Phoenix and put their own name in it. A BIOS from one of those makers says who
+made the board it is on, and nearly always the machine:
+
+- **A new motherboard** is named by that maker (`Compaq`), unless a later PC's
+  BIOS names the board itself (SMBIOS). So it is not asked its make and model at
+  the machine. A board on record with no **Manufacturer** has it filled in.
+- **A new machine** is offered that maker at the machine (`Make (Enter for
+  Compaq):`). Press Enter to take it, or type what the badge says. A machine
+  with no **Manufacturer** recorded, new or not, has it filled in when nothing
+  was typed and a later PC's BIOS gives no maker of its own.
+
+The register reads the maker from the copy of the BIOS that comes with the
+survey, and from the survey program's own reading of the BIOS when no copy
+came. A BIOS from one of those houses that carries another maker's name for
+compatibility (some say `COMPAQ`) names nobody.
+
+A badge can say otherwise. An AT&T 6300 is an Olivetti inside, with an Olivetti
+BIOS, and a Sinclair PC200 is an Amstrad. Type the badge at the machine, or put
+it right on the form. A survey never changes a **Manufacturer** that is already
+recorded, and does not list its BIOS's maker as a difference from one.
 
 ### Bench cards
 

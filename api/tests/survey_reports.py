@@ -59,6 +59,33 @@ CHATTY_ROM = b"\x55\xaa\x40" + b"cirrus mode switch regular\0set VGA mode %x\0" 
 # A disk controller's ROM that names nobody.
 ANONYMOUS_ROM = b"\x55\xaa\x10" + b"Press F1 to continue\0Drive not ready\0" + b"\0" * 200
 
+# System BIOSes, as the copy of the top of the first megabyte reads. Compaq wrote its
+# own, and its words say so; HP and Dell had Phoenix write theirs and put their name
+# in it; a clone's carries COMPAQ for software that looks for it.
+COMPAQ_BIOS = (
+    b"\0" * 16 + b"COMPAQ\0102-System Board Failure\0You must load COMPAQ BASIC\0" + b"\0" * 200
+)
+HP_BIOS = (
+    b"\0" * 16
+    + b"Phoenix ROM BIOS PLUS Version 1.10 A.01\0"
+    + b"Copyright (C) 1985-1991 Phoenix Technologies Ltd.\0"
+    + b"(C) Copyright Hewlett-Packard Company 1991\0"
+    + b"\0" * 200
+)
+DELL_BIOS = (
+    b"\0" * 16
+    + b"Phoenix ROM BIOS PLUS Version 1.10 A07\0"
+    + b"Copyright 1985-1993 Phoenix Technologies Ltd.\0"
+    + b"Dell Computer Corporation\0"
+    + b"\0" * 200
+)
+CLONE_BIOS = (
+    b"\0" * 16
+    + b"Phoenix 80386 ROM BIOS PLUS Version 1.10 22\0"
+    + b"Copyright (C) 1985-1990 Phoenix Technologies Ltd.\0COMPAQ\0"
+    + b"\0" * 200
+)
+
 
 def report(**keys: str | None) -> str:
     """A report: words for the person reading it, then the [RHDB] section, one

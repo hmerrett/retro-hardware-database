@@ -1,6 +1,6 @@
 # 0044 — A survey asks the make and model of what nobody can name
 
-**Status:** Accepted
+**Status:** Accepted — amended by [ADR-0047](0047-a-computer-makers-bios-names-the-board-and-the-machine.md)
 **Date:** 2026-11-07
 **Amends:** [ADR-0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md)
 
