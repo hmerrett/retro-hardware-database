@@ -33,7 +33,11 @@ with no motherboard on record is asked about one, so its BIOS, chipset and board
 serial number have somewhere to go. A BIOS written by the company that made the
 machine (Compaq, IBM, Amstrad and others, or one carrying HP's or Dell's name) names
 the board and offers the machine its make, and a card's ROM that names who made it
-(Tseng Labs, Adaptec, Compaq) gives a new card its manufacturer.
+(Tseng Labs, Adaptec, Compaq) gives a new card its manufacturer. Floppy drives,
+CD-ROM drives and CompactFlash cards are asked about like any other thing: a tagged
+part, part of the machine (a row in its Drives list), or left out. A drive the
+machine's rows or fitted parts already record is taken for that, so nothing is
+recorded twice.
 
 **Upgrading:** nothing to do unless you want surveys. Give an agent a key in
 `RHDB_SURVEY_AGENTS` in `.env`, run `tools/survey_agent.py` where the machines'
