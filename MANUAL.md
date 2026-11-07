@@ -4528,7 +4528,7 @@ say.
 | A floppy drive, a CD-ROM drive or a CompactFlash card answered as part of the machine | a row in **Drives**: a floppy drive's bay and size as the BIOS has them (`3.5"`, `1.44MB`), the others' model. A row already there for it is left as it is. |
 | The BIOS's maker, version and date | the **BIOS ROM** socket, on a machine the catalogue gives one (`BIOS 10/27/82` on an IBM 5150); otherwise **BIOS** on the motherboard fitted in it |
 | The chipset a later PC's bus names | **Chipset** on the motherboard fitted in it |
-| A card, or the ports, answered as part of the machine | **Onboard video** or **Onboard I/O ports** on the motherboard fitted in it, or a line of their own for anything else (`Onboard sound`) |
+| A card, or the ports, answered as part of the machine | **Onboard video** or **Ports** on the motherboard fitted in it, or a line of their own for anything else (`Onboard sound`) |
 
 A machine with no motherboard on record is asked about one, as a thing of its
 own: the tag of a board the register has, **N** to make one, or **X** for none.
