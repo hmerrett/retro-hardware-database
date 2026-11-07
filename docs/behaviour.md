@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3283 behaviours, from 98 files.*
+*3302 behaviours, from 98 files.*
 
 
 ## A barcode takes the room the words leave
@@ -166,7 +166,7 @@ Regenerate with:
 
 ## A machine that reports itself
 
-*test_a_machine_that_reports_itself.py — 137 behaviours*
+*test_a_machine_that_reports_itself.py — 154 behaviours*
 
 
 **What it takes**
@@ -189,6 +189,22 @@ Regenerate with:
 - a question carrying the tag is answered for that machine  
   A thing with no serial number is known only in the machine it was answered in, so the answer for it needs the machine, which the person may have just typed.
 - something never seen has no answer
+- the answer names each thing the register can name  
+  So the machine shows each thing by that name, and asks its make and model only of what nobody can name: a card by its ROM, which comes with the question, a card on the PCI bus by its chip, a disk by its own model.
+- what the register can only describe has no name  
+  A ROM that names nobody, a chip the PCI table does not know, the ports, and a disk the BIOS knows by its size alone.
+- a message a rom prints is not the cards name  
+  QEMU's VGA BIOS prints "cirrus mode switch regular", which names a maker and says nothing about the card.
+- a machine is named by what its bios says
+- a bios that says nothing names nothing
+- a question without its roms is still answered  
+  As an agent from before ROMs went with the question sends one: what a ROM would have named is unnamed, and the rest is answered as ever.
+- a network boot rom the survey could not place is the cards  
+  netboot's ROM says neither that it is a network card's nor whose.
+- two roms that boot from the network are left to be answered
+- no rom is given to a card no packet driver ran
+- asking with roms keeps nothing  
+  The ROMs are read for what they say, and kept with the survey that sends them, not with the question.
 - asking records nothing  
   A question is not a survey.
 - the answer to a survey names the machine and what is waiting  
@@ -205,6 +221,9 @@ Regenerate with:
   A bare board on the bench, tested before it goes back in a case.
 - a motherboard fitted in a machine stands for the machine
 - n at the machine makes a new computer
+- a new machine is named by the make and model typed for it
+- what was typed chooses no catalogue model  
+  The catalogue names models its own way, and adopting one is a choice a person confirms.
 - a new computer has no name until somebody gives it one  
   So it is called by its tag, as any machine with nothing filled in is.
 - a machine is recognised by a hard disk fitted in it
@@ -279,6 +298,12 @@ Regenerate with:
 
 **A part of its own**
 
+- a new part that names nothing is named by what was typed
+- a disk the bios knows only by its size is named by what was typed
+- only what was typed is written  
+  Enter at the model leaves the name the register would have given it.
+- a typed name is never how the thing is known again  
+  The next survey of the machine finds the same card by what the card says about itself, and nobody types anything that time.
 - a tag answered at the machine joins the part to its serial number  
   How a disk catalogued by hand, before anything had read its serial number, is joined to its own record rather than added twice.
 - n makes a new hard disk named as it names itself
@@ -340,6 +365,8 @@ Regenerate with:
   It runs to the top of the first megabyte.
 - its maker and version are read wherever it starts
 - an option rom below the bios is still a card
+- a network boot rom is the cards in the report too  
+  Where the machine did not hear which ROM it is (the register was not reached, or an agent from before ROMs went with the question), the report's ROMs say it.
 - the text in each rom is kept with the survey
 - the bioss maker version and date are read from its text
 - a bios date is written month first  
@@ -5669,12 +5696,15 @@ Regenerate with:
 
 ## The survey agent
 
-*test_the_survey_agent.py — 26 behaviours*
+*test_the_survey_agent.py — 28 behaviours*
 
 - a question is answered beside it  
   The machine asks before it tests anything, so that a machine the register knows is named on its screen and nothing is asked of whoever is there.
 - a question is not a survey  
   Asking writes nothing: the serial number in a question is recorded when the survey that carries it arrives, and not before.
+- a question goes with the roms it names  
+  So the register can say what a card is by its ROM before the tests.
+- a question sends no rom from outside its own folder
 - a report is sent and its receipt written beside it
 - a report is sent once  
   SENT is a folder inside the one it watches, and what is in it has gone.

@@ -45,6 +45,19 @@ BIOS_ROM = (
 )
 VGA_ROM = b"\x55\xaa\x40" + b"Tseng Labs ET4000 VGA BIOS Version 8.00\0" + b"\0" * 200
 BOOT_ROM = b"\x55\xaa\x20" + b"netboot 0.8.1 NE2000 boot ROM\0" + b"\0" * 200
+# netboot 0.8.1's ROM as boot-lan builds it: everything but its author's copyright
+# line is compressed, and it carries neither a PCI class nor a Plug and Play type.
+NETBOOT_ROM = (
+    b"\x55\xaa\x20\xeb"
+    + b"\0" * 60
+    + b"Copyright (C) 1995-1998 G. Kuhlmann\0Uncompressing... \0Press a key to reboot\0"
+    + bytes(range(0x80, 0x100)) * 8
+)
+# A ROM whose only words naming a maker are a message it prints, as QEMU's VGA BIOS
+# has: nothing in it is the card's name.
+CHATTY_ROM = b"\x55\xaa\x40" + b"cirrus mode switch regular\0set VGA mode %x\0" + b"\0" * 200
+# A disk controller's ROM that names nobody.
+ANONYMOUS_ROM = b"\x55\xaa\x10" + b"Press F1 to continue\0Drive not ready\0" + b"\0" * 200
 
 
 def report(**keys: str | None) -> str:
@@ -83,15 +96,26 @@ def read(client, sid) -> dict:
     return r.json()
 
 
-def ask(client, key="key-one", **keys) -> dict[str, str]:
+def ask(client, key="key-one", roms=(), **keys) -> dict[str, str]:
     """The agent's other call: a machine's question, before its tests run, and the
-    register's answer, as the KEY=VALUE lines the agent writes beside it."""
-    body = "\r\n".join(["[RHDB]"] + [f"{k}={v}" for k, v in keys.items()]) + "\r\n"
-    r = client.post(
-        "/api/survey/agent/ask",
-        content=body.encode("cp437"),
-        headers={"Authorization": f"Bearer {key}", "content-type": "text/plain"},
+    register's answer, as the KEY=VALUE lines the agent writes beside it. With ROMs,
+    as the agent sends one: the question and the ROM copies it names, together; an
+    agent from before ROMs went with the question sends the question alone, as
+    text."""
+    body = ("\r\n".join(["[RHDB]"] + [f"{k}={v}" for k, v in keys.items()]) + "\r\n").encode(
+        "cp437"
     )
+    headers = {"Authorization": f"Bearer {key}"}
+    if roms:
+        files = [("question", ("RH0001.ASK", body, "text/plain"))]
+        files += [("roms", (name, data, "application/octet-stream")) for name, data in roms]
+        r = client.post("/api/survey/agent/ask", files=files, headers=headers)
+    else:
+        r = client.post(
+            "/api/survey/agent/ask",
+            content=body,
+            headers=headers | {"content-type": "text/plain"},
+        )
     assert r.status_code == 200, r.text
     return dict(line.split("=", 1) for line in r.text.splitlines() if "=" in line)
 

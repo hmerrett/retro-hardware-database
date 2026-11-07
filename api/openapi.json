@@ -3859,7 +3859,7 @@
     },
     "/api/survey/agent/ask": {
       "post": {
-        "description": "A machine's question before its tests: the lines it has found so far, and the\ntag once it has been typed. The answer is the lines the agent leaves beside it.\nAsking writes nothing.",
+        "description": "A machine's question before its tests: the lines it has found so far, and the\ntag once it has been typed, with the copies of its ROMs that it names. The answer\nis the lines the agent leaves beside it. Asking writes nothing.",
         "operationId": "ask_api_survey_agent_ask_post",
         "responses": {
           "200": {

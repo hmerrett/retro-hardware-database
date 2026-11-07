@@ -130,4 +130,8 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   [0028](0028-a-file-is-linked-to-the-things-it-is-for-by-their-ids.md))
 - [0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md) — A
   survey gives everything it finds one of three answers — *Accepted* (amends
-  [0034](0034-a-location-is-a-record-in-the-register.md))
+  [0034](0034-a-location-is-a-record-in-the-register.md); amended by
+  [0044](0044-a-survey-asks-the-make-and-model-of-what-nobody-can-name.md))
+- [0044](0044-a-survey-asks-the-make-and-model-of-what-nobody-can-name.md) — A
+  survey asks the make and model of what nobody can name — *Accepted* (amends
+  [0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md))

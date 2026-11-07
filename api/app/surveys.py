@@ -402,6 +402,42 @@ def nic_pci(keys: Mapping[str, str]) -> tuple[int, str, str, str] | None:
     return None
 
 
+def _display(keys: Mapping[str, str]) -> tuple[str, str] | None:
+    """The video card on the PCI bus, as (vendor, device): the first display device."""
+    for n in _numbers(keys, "PCI"):
+        vendor, device, cls = pciids.split(keys.get(f"PCI{n}", ""))
+        if vendor and device and cls.startswith("03"):
+            return vendor, device
+    return None
+
+
+def rom_texts(keys: Mapping[str, str], roms: Mapping[str, bytes]) -> dict[str, list[str]]:
+    """The text in each ROM a report or a question names, by segment, from the copies
+    that came with it. A ROM that did not come has no text."""
+    by_name = {name.upper(): data for name, data in roms.items()}
+    out: dict[str, list[str]] = {}
+    for _n, segment, _size, filename in _roms(keys):
+        data = by_name.get(filename.replace("\\", "/").rsplit("/", 1)[-1].upper(), b"")
+        if data:
+            out[segment] = romtext.strings(data)
+    return out
+
+
+def _boot_rom(keys: Mapping[str, str], texts: Mapping[str, list[str]]) -> str:
+    """The segment of the network card's boot ROM, where the survey program could not
+    tell and the ROM's own text can: in a machine whose card a packet driver ran, the
+    one ROM, and only one, that says it starts a machine from the network (ADR-0044).
+    netboot's ROM carries neither a PCI class nor a Plug and Play type to know it by."""
+    if keys.get("NIC_ROM", "").strip() or not mac(keys.get("NIC_MAC", "")):
+        return ""
+    found = [
+        segment
+        for _n, segment, size, _filename in _roms(keys)
+        if not _is_bios(segment, size) and romtext.boot_rom(texts.get(segment, []))
+    ]
+    return found[0] if len(found) == 1 else ""
+
+
 # --- findings --------------------------------------------------------------------------
 
 
@@ -472,8 +508,12 @@ def mac(value: str) -> str:
     return ":".join(digits[i : i + 2] for i in range(0, 12, 2)).upper()
 
 
-def findings(keys: Mapping[str, str]) -> list[Finding]:
-    """Everything a report says the machine has, in the register's terms."""
+def findings(
+    keys: Mapping[str, str], texts: Mapping[str, list[str]] | None = None
+) -> list[Finding]:
+    """Everything a report says the machine has, in the register's terms. `texts` is
+    the text in its ROMs, by segment, where they came with it: a network boot ROM the
+    survey program could not place is known by what it says."""
     out: list[Finding] = []
     roms = _roms(keys)
 
@@ -553,7 +593,7 @@ def findings(keys: Mapping[str, str]) -> list[Finding]:
                 )
             )
 
-    nic_rom = keys.get("NIC_ROM", "").strip().upper()
+    nic_rom = keys.get("NIC_ROM", "").strip().upper() or _boot_rom(keys, texts or {})
     on_pci = nic_pci(keys)
     if address := mac(keys.get("NIC_MAC", "")):
         named = pciids.known(on_pci[1], on_pci[2]) if on_pci else False
@@ -677,6 +717,44 @@ def _ports_spec(keys: Mapping[str, str]) -> str:
     if parallel:
         bits.append(f"{parallel}x Parallel")
     return ", ".join(bits)
+
+
+def name_of(keys: Mapping[str, str], f: Finding, texts: Mapping[str, list[str]]) -> str:
+    """What the register can call a thing found, from what the thing says of itself
+    and nothing else: a disk by its own model, a card on the PCI bus by its chip where
+    the table knows both maker and chip, a card or a video card by its ROM's banner.
+    "" for a thing it can only describe (a card with a ROM at C800, VGA, the ports, a
+    disk the BIOS knows by its size), whose make and model the machine asks when it
+    is made (ADR-0044)."""
+    kind = f["kind"]
+    if kind == "disk":
+        return keys.get(f"{f['thing']}_MODEL", "").strip()
+    if kind == "nic":
+        on_pci = nic_pci(keys)
+        if on_pci is not None and pciids.known(on_pci[1], on_pci[2]):
+            return pciids.name(on_pci[1], on_pci[2])
+        return ""
+    if f["signature"].startswith("pci:"):
+        vendor, device, _cls = pciids.split(f["signature"][4:])
+        return pciids.name(vendor, device) if pciids.known(vendor, device) else ""
+    if kind == "video":
+        display = _display(keys)
+        if display is not None and pciids.known(*display):
+            return pciids.name(*display)
+    if kind in ("video", "card") and f["segment"]:
+        return romtext.card(texts.get(f["segment"], []))
+    return ""
+
+
+def _typed(keys: Mapping[str, str], thing: str) -> tuple[str, str]:
+    """The make and model typed at the machine for a new thing nobody could name: what
+    a person said, so what the record is called, and never how the thing is known the
+    next time (ADR-0044)."""
+
+    def said_at(key: str) -> str:
+        return " ".join(keys.get(key, "").split())[:64]
+
+    return said_at(f"{thing}_MAKER"), said_at(f"{thing}_MODEL")
 
 
 def answer_in(keys: Mapping[str, str], f: Finding) -> tuple[str, str]:
@@ -889,6 +967,7 @@ def take(
     made: list[tuple[Survey, Filing]] = []
     for report in reports:
         keys = report.keys
+        texts = rom_texts(keys, roms)
         s = Survey(
             agent=agent.name,
             taken=when,
@@ -896,7 +975,7 @@ def take(
             report=report.text,
             keys=json.dumps(keys),
             result=keys.get("RESULT", "").strip().upper()[:16],
-            findings=json.dumps(findings(keys)),
+            findings=json.dumps(findings(keys, texts)),
             filled="[]",
             differs="[]",
             missing="[]",
@@ -1163,7 +1242,8 @@ def _new_part(
 ) -> Part:
     """A new part for a finding, fitted in the machine (or put where `into` is), named
     as it names itself: a disk by what IDENTIFY says, a card by its ROM or by its chip
-    on the PCI bus, a network card by the driver it was run with."""
+    on the PCI bus, a network card by its chip or by the driver it was run with. What
+    was typed at the machine for one that names nothing is its name instead."""
     part = Part(asset_id=next_asset_id(db), type=f["ptype"] or "other")
     if f["kind"] == "disk":
         part.model = f["name"]
@@ -1187,6 +1267,11 @@ def _new_part(
     else:
         own = (texts or {}).get(f["segment"], []) if f["segment"] else []
         part.model = romtext.card(own) or f["name"]
+    maker, model = _typed(keys, f["thing"])
+    if maker:
+        part.manufacturer = maker
+    if model:
+        part.model = model
     db.add(part)
     db.flush()
     specdb.write(db, part)
@@ -1637,12 +1722,23 @@ def _record_seen(db: Session, s: Survey, found: list[Finding], machine: str | No
 # --- the machine's question, and the register's answers -----------------------------------------
 
 
-def answer_question(db: Session, text: str) -> str:
+def _shown(text: str) -> str:
+    """A name as the machine shows it: printable ASCII, no `=` to end the key early,
+    and short enough for the line it is shown on."""
+    plain = "".join(c if " " <= c <= "~" else "?" for c in text.replace("=", "-"))
+    return " ".join(plain.split())[:60]
+
+
+def answer_question(db: Session, text: str, roms: Mapping[str, bytes] | None = None) -> str:
     """The answer to a machine's question before its tests (MANUAL §23, "At the
-    machine"): which machine this is, when the register can tell, and the answer it
-    already has for each thing found. Asking writes nothing."""
+    machine"): which machine this is, when the register can tell, the answer it
+    already has for each thing found, what it can call each thing, and which ROM is
+    the network card's where the ROM says so. `roms` are the copies the question
+    names, as the agent sends them; an agent from before they came with it sends none.
+    Asking writes nothing: the ROMs are read for their text and kept nowhere."""
     keys = surveyreport.question(text)
-    found = findings(keys)
+    texts = rom_texts(keys, roms or {})
+    found = findings(keys, texts)
     t = tree.load(db)
     lines = ["[RHDB]"]
     machine: str | None = None
@@ -1663,6 +1759,18 @@ def answer_question(db: Session, text: str) -> str:
         value = _held(db, f, machine, t)
         if value:
             lines.append(f"{f['thing']}_ANSWER={value}")
+    # What each thing is called, for the machine to show it by, and so that it asks the
+    # make and model only of what nobody can name (ADR-0044). The machine itself is
+    # named by its BIOS only when the BIOS says both who made it and what it is.
+    for f in found:
+        if f["kind"] != MACHINE and (named := name_of(keys, f, texts)):
+            lines.append(f"{f['thing']}_NAME={_shown(named)}")
+    maker, model = said(keys.get("SYSTEM_MAKER")), said(keys.get("SYSTEM_MODEL"))
+    if maker and model:
+        lines.append(f"SYSTEM_NAME={_shown(f'{maker} {model}')}")
+    nic = next((f for f in found if f["kind"] == "nic"), None)
+    if nic is not None and nic["segment"] and not keys.get("NIC_ROM", "").strip():
+        lines.append(f"NIC_ROM={nic['segment']}")
     return "\r\n".join(lines) + "\r\n"
 
 

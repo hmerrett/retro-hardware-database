@@ -19,10 +19,13 @@ import pytest
 from conftest import log_out
 from survey_reports import (
     AGENTS,
+    ANONYMOUS_ROM,
     BIOS_ROM,
     BOOT_ROM,
+    CHATTY_ROM,
     DISK,
     MAC,
+    NETBOOT_ROM,
     NIC,
     PRINTERS,
     VGA_ROM,
@@ -174,6 +177,93 @@ class TestAQuestionBeforeTheTests:
         answered = ask(client, DISK1_SERIAL="NEVER-SEEN")
         assert "DISK1_ANSWER" not in answered and "TAG" not in answered
 
+    def test_the_answer_names_each_thing_the_register_can_name(self, client):
+        """So the machine shows each thing by that name, and asks its make and model
+        only of what nobody can name: a card by its ROM, which comes with the
+        question, a card on the PCI bus by its chip, a disk by its own model."""
+        answered = ask(
+            client,
+            roms=[("VIDEO.C00", VGA_ROM)],
+            VIDEO="VGA",
+            ROM1="C000 32768 VIDEO.C00",
+            PCI1="8086:1229 0200",
+            **DISK,
+        )
+        assert answered["VIDEO_NAME"] == "Tseng Labs ET4000"
+        assert answered["PCI1_NAME"] == "Intel 82557 EtherExpress PRO/100"
+        assert answered["DISK1_NAME"] == "QUANTUM FIREBALL1080A"
+
+    def test_what_the_register_can_only_describe_has_no_name(self, client):
+        """A ROM that names nobody, a chip the PCI table does not know, the ports, and a
+        disk the BIOS knows by its size alone."""
+        answered = ask(
+            client,
+            roms=[("SCSI.C80", ANONYMOUS_ROM)],
+            ROM1="C800 16384 SCSI.C80",
+            PCI1="1234:5678 0401",
+            COM1="03F8",
+            DISK1_KB="21360",
+            DISK1_CHS="615/4/17",
+            DISK1_TYPE="BIOS",
+        )
+        assert [k for k in answered if k.endswith("_NAME")] == []
+
+    def test_a_message_a_rom_prints_is_not_the_cards_name(self, client):
+        """QEMU's VGA BIOS prints "cirrus mode switch regular", which names a maker and
+        says nothing about the card."""
+        answered = ask(
+            client, roms=[("VIDEO.C00", CHATTY_ROM)], VIDEO="VGA", ROM1="C000 32768 VIDEO.C00"
+        )
+        assert "VIDEO_NAME" not in answered
+
+    def test_a_machine_is_named_by_what_its_bios_says(self, client):
+        answered = ask(
+            client, SYSTEM_MAKER="Dell Computer Corporation", SYSTEM_MODEL="OptiPlex GX1"
+        )
+        assert answered["SYSTEM_NAME"] == "Dell Computer Corporation OptiPlex GX1"
+
+    def test_a_bios_that_says_nothing_names_nothing(self, client):
+        answered = ask(
+            client, SYSTEM_MAKER="System manufacturer", SYSTEM_MODEL="System Product Name"
+        )
+        assert "SYSTEM_NAME" not in answered
+
+    def test_a_question_without_its_roms_is_still_answered(self, client):
+        """As an agent from before ROMs went with the question sends one: what a ROM
+        would have named is unnamed, and the rest is answered as ever."""
+        answered = ask(client, VIDEO="VGA", ROM1="C000 32768 VIDEO.C00", PCI1="8086:1229 0200")
+        assert answered["PCI1_NAME"] == "Intel 82557 EtherExpress PRO/100"
+        assert "VIDEO_NAME" not in answered
+
+    def test_a_network_boot_rom_the_survey_could_not_place_is_the_cards(self, client):
+        """netboot's ROM says neither that it is a network card's nor whose. Its text
+        says it starts a machine from the network, so the register says which ROM it
+        is, and the machine asks about it nowhere."""
+        answered = ask(
+            client, roms=[("NETBOOT.C80", NETBOOT_ROM)], ROM1="C800 16384 NETBOOT.C80", **NIC
+        )
+        assert answered["NIC_ROM"] == "C800"
+
+    def test_two_roms_that_boot_from_the_network_are_left_to_be_answered(self, client):
+        answered = ask(
+            client,
+            roms=[("A.C80", NETBOOT_ROM), ("B.D00", NETBOOT_ROM)],
+            ROM1="C800 16384 A.C80",
+            ROM2="D000 16384 B.D00",
+            **NIC,
+        )
+        assert "NIC_ROM" not in answered
+
+    def test_no_rom_is_given_to_a_card_no_packet_driver_ran(self, client):
+        answered = ask(client, roms=[("A.C80", NETBOOT_ROM)], ROM1="C800 16384 A.C80")
+        assert "NIC_ROM" not in answered
+
+    def test_asking_with_roms_keeps_nothing(self, client):
+        """The ROMs are read for what they say, and kept with the survey that sends
+        them, not with the question."""
+        ask(client, roms=[("BIOS.E80", BIOS_ROM)], ROM1="E800 98304 BIOS.E80")
+        assert files(client) == []
+
     def test_asking_records_nothing(self, client):
         """A question is not a survey. Its serial numbers are recorded when the
         survey that carries them arrives."""
@@ -243,6 +333,17 @@ class TestWhichMachineItIs:
         assert made["how"] == "new"
         assert len(computers(client)) == before + 1
         assert get(client, "computers", made["machine"])["cpu"] == "80286-12"
+
+    def test_a_new_machine_is_named_by_the_make_and_model_typed_for_it(self, client):
+        made = survey(client, TAG="NEW", SYSTEM_MAKER="IBM", SYSTEM_MODEL="5160")
+        machine = get(client, "computers", made["machine"])
+        assert (machine["manufacturer"], machine["model"]) == ("IBM", "5160")
+
+    def test_what_was_typed_chooses_no_catalogue_model(self, client):
+        """The catalogue names models its own way, and adopting one is a choice a
+        person confirms."""
+        made = survey(client, TAG="NEW", SYSTEM_MAKER="IBM", SYSTEM_MODEL="PC XT")
+        assert get(client, "computers", made["machine"])["machine"] is None
 
     def test_a_new_computer_has_no_name_until_somebody_gives_it_one(self, client):
         """So it is called by its tag, as any machine with nothing filled in is."""
@@ -705,6 +806,63 @@ class TestPartOfTheMachine:
 
 
 class TestAPartOfItsOwn:
+    def test_a_new_part_that_names_nothing_is_named_by_what_was_typed(self, client, computer):
+        made = survey(
+            client,
+            roms=[("SCSI.C80", ANONYMOUS_ROM)],
+            TAG=computer()["asset_id"],
+            ROM1="C800 16384 SCSI.C80",
+            ROM1_ANSWER="NEW",
+            ROM1_MAKER="Adaptec",
+            ROM1_MODEL="AHA-1542CF",
+        )
+        card = get(client, "parts", finding(made, "ROM1")["part"])
+        assert (card["manufacturer"], card["model"]) == ("Adaptec", "AHA-1542CF")
+
+    def test_a_disk_the_bios_knows_only_by_its_size_is_named_by_what_was_typed(
+        self, client, computer
+    ):
+        made = survey(
+            client,
+            TAG=computer()["asset_id"],
+            DISK1_KB="21360",
+            DISK1_CHS="615/4/17",
+            DISK1_TYPE="BIOS",
+            DISK1_ANSWER="NEW",
+            DISK1_MAKER="Seagate",
+            DISK1_MODEL="ST-225",
+        )
+        disk = get(client, "parts", finding(made, "DISK1")["part"])
+        assert (disk["manufacturer"], disk["model"]) == ("Seagate", "ST-225")
+        assert "Capacity" in disk["specs"]
+
+    def test_only_what_was_typed_is_written(self, client, computer):
+        """Enter at the model leaves the name the register would have given it."""
+        made = survey(
+            client,
+            TAG=computer()["asset_id"],
+            COM1="03F8",
+            PORTS_ANSWER="NEW",
+            PORTS_MAKER="Everex",
+        )
+        card = get(client, "parts", finding(made, "PORTS")["part"])
+        assert (card["manufacturer"], card["model"]) == ("Everex", "I/O card")
+
+    def test_a_typed_name_is_never_how_the_thing_is_known_again(self, client, computer):
+        """The next survey of the machine finds the same card by what the card says
+        about itself, and nobody types anything that time."""
+        machine = computer()
+        first = survey(
+            client,
+            TAG=machine["asset_id"],
+            COM1="03F8",
+            PORTS_ANSWER="NEW",
+            PORTS_MAKER="Everex",
+            PORTS_MODEL="EV-170",
+        )
+        again = survey(client, TAG=machine["asset_id"], COM1="03F8")
+        assert finding(again, "PORTS")["part"] == finding(first, "PORTS")["part"]
+
     def test_a_tag_answered_at_the_machine_joins_the_part_to_its_serial_number(
         self, client, computer, part
     ):
@@ -1139,6 +1297,22 @@ class TestROMs:
             ROM1="E000 16384 SCSI.BIN",
         )
         assert finding(made, "ROM1")["kind"] == "card"
+
+    def test_a_network_boot_rom_is_the_cards_in_the_report_too(self, client, computer, bench_card):
+        """Where the machine did not hear which ROM it is (the register was not
+        reached, or an agent from before ROMs went with the question), the report's
+        ROMs say it."""
+        card, _ = bench_card()
+        made = survey(
+            client,
+            roms=[("NETBOOT.C80", NETBOOT_ROM)],
+            TAG=computer()["asset_id"],
+            ROM1="C800 16384 NETBOOT.C80",
+            **NIC,
+        )
+        assert all(f["thing"] != "ROM1" for f in made["findings"])
+        assert made["waiting"] is None
+        assert files(client)[0]["assets"] == [card["asset_id"]]
 
     def test_the_text_in_each_rom_is_kept_with_the_survey(self, client, computer):
         made = survey(
