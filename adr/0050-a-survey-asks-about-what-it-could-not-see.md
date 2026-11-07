@@ -1,6 +1,6 @@
 # 0050 — A survey asks about what it could not see
 
-**Status:** Accepted
+**Status:** Accepted — amended by [ADR-0051](0051-a-survey-asks-the-hardware-what-it-is.md)
 **Date:** 2026-11-07
 **Amends:** [ADR-0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md)
 

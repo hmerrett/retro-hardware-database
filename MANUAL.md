@@ -4348,8 +4348,9 @@ report written while the register cannot be reached.
 
 Before it tests anything, the survey reads what it can about what the machine is
 made of, including whatever can say which one it is: each hard disk's serial
-number, the network card's Ethernet address, and on a later PC the serial
-numbers its BIOS keeps for the machine and its board. It asks the register,
+number, the network card's Ethernet address, a Plug and Play card's and a
+monitor's serial numbers, and on a later PC the serial numbers its BIOS keeps for
+the machine and its board. It asks the register,
 through the agent, which machine this is and which of the things it found
 already have an answer. The agent sends the machine's ROMs with the question, so
 the register can also say what each thing is: a card by its ROM or its chip, a
@@ -4407,9 +4408,10 @@ The register works it out in this order:
 1. **The answer at the machine.** A machine's tag or a motherboard's (a
    motherboard fitted in a machine stands for the machine), or **N** for a new
    computer.
-2. **What is inside it.** A hard disk, a CD-ROM drive, a CompactFlash card or a
-   network card the register has in a machine, as a part fitted in it or as part
-   of it, says it is that machine. So
+2. **What is inside it.** A hard disk, a CD-ROM drive, a CompactFlash card, a
+   network card or a Plug and Play card the register has in a machine, as a part
+   fitted in it or as part of it, says it is that machine. A monitor does not:
+   one is moved from machine to machine more often than anything inside them. So
    does a serial number from the BIOS that matches a machine's, or a
    motherboard's fitted in one. A motherboard the register has in no machine,
    known by that serial number, says this is that board when nothing was typed
@@ -4448,7 +4450,10 @@ machine](#two-ways-of-describing-a-machine), [drives](#8-drives)):
 | A floppy drive, a CD-ROM drive or a CompactFlash card | A part of its own, part of the machine (a row in its **Drives**), or left out |
 | The network card, the video card, any other card seen through its ROM or on a PCI bus (a disk controller, a sound card), and the serial and parallel ports | A part of its own, built into the motherboard, or left out |
 | A sound card that answers as a Sound Blaster does (at 220h to 280h), or an AdLib's sound chip (at 388h) | the same |
+| A Gravis UltraSound (at 220h to 260h), or an MPU-401 MIDI interface (at 330h) on a card of its own | the same |
+| A Plug and Play card | the same |
 | Expanded memory on a PC, an XT or an AT, through the memory card's own driver | the same |
+| A monitor that says what it is | A part of its own, or left out |
 | Anything else fitted, given at the machine | A part of its own |
 
 A sound card and expanded memory are looked for, since neither has a ROM or a
@@ -4459,6 +4464,36 @@ through the driver of the card that provides it, so a card whose driver is not
 loaded is not found, and on a 386 or later expanded memory is EMM386's, made by
 the processor, and is not a card at all. What none of this finds is asked for
 under **Anything else**.
+
+The rest is found the way DOS diagnostic programs always found it, by asking the
+hardware itself:
+
+- **Plug and Play cards** answer the isolation every Plug and Play BIOS and
+  driver uses. Each gives its maker's code (`CTL` is Creative Labs), its model,
+  a serial number and, nearly always, its own name (`Creative SB AWE64 PnP`).
+  The survey program reads them where the BIOS or a driver set them up, and
+  changes none of it. A Sound Blaster, an AdLib, an MPU-401 or a Gravis
+  UltraSound found at a Plug and Play card's own ports is that card, not a second
+  one, and a Plug and Play network card the survey runs through is the network
+  card.
+- **A monitor** says what it is through the video card (DDC, which most monitors
+  made since 1994 have, with a video card whose BIOS can ask): its maker, its
+  model and its serial number.
+- **The video card's chip** answers in its own registers, so a VGA card that
+  neither the PCI bus nor its ROM names is named by its chip (`Tseng Labs
+  ET4000`). Every register the survey program looks at is left as it was found.
+- **A Gravis UltraSound** is found by its sound memory, and **an MPU-401** by its
+  reset. Both answer at addresses a network card can be set to, and the survey
+  reports through its network card, so they are only looked for where that card
+  is on the PCI bus. Elsewhere, give either under **Anything else**. A Sound
+  Blaster 16 has an MPU-401 of its own (any Sound Blaster whose DSP is 4 or
+  later), so one found beside it is that card's.
+- **The ports**: which chip each serial port has (the `16550A` a fast modem
+  needs, or the `8250` of the first PCs), and whether a parallel port is an ECP
+  port or a bidirectional one (which a parallel-port Zip drive wants).
+
+A game port is not looked for. It says nothing until a joystick is plugged into
+it, and it could be the sound card's or the I/O card's.
 
 The network card a survey runs through is one thing, however the survey sees
 it: by its Ethernet address, on the PCI bus, and through its boot ROM where the
@@ -4493,7 +4528,9 @@ Nothing is changed. It is there to be looked at.
 ### Serial numbers and addresses
 
 Every serial number and Ethernet address is recorded the first time a survey
-sends it, whatever its answer, with the machine it was in and when. Each survey
+sends it, whatever its answer, with the machine it was in and when: a hard
+disk's, a CD-ROM drive's or a CompactFlash card's, a network card's address, a
+Plug and Play card's serial number and a monitor's. Each survey
 that reads it again moves where and when it was last seen. So a thing is only
 ever new once: a disk left out is known the next time, wherever it turns up,
 and stays left out until you change its answer.
@@ -4528,7 +4565,7 @@ say.
 | A floppy drive, a CD-ROM drive or a CompactFlash card answered as part of the machine | a row in **Drives**: a floppy drive's bay and size as the BIOS has them (`3.5"`, `1.44MB`), the others' model. A row already there for it is left as it is. |
 | The BIOS's maker, version and date | the **BIOS ROM** socket, on a machine the catalogue gives one (`BIOS 10/27/82` on an IBM 5150); otherwise **BIOS** on the motherboard fitted in it |
 | The chipset a later PC's bus names | **Chipset** on the motherboard fitted in it |
-| A card, or the ports, answered as part of the machine | **Onboard video** or **Ports** on the motherboard fitted in it, or a line of their own for anything else (`Onboard sound`) |
+| A card, or the ports, answered as part of the machine | **Onboard video** or **Ports** on the motherboard fitted in it (`2× Serial (16550A), Parallel (ECP)`), or a line of their own for anything else (`Onboard sound`) |
 
 A machine with no motherboard on record is asked about one, as a thing of its
 own: the tag of a board the register has, **N** to make one, or **X** for none.
@@ -4560,11 +4597,16 @@ machine says which:
   (`1.44MB`, for 3.5" disks), since a floppy drive cannot say what it is, so
   the make and model typed at the machine are its name; a sound card or an
   expanded memory card the same way, since neither can say who made it (a
-  Sound Blaster clone answers just as a Sound Blaster does); anything else given
-  at the machine by its make and model; a card by its ROM or its
-  chip (`Tseng Labs ET4000`); a network card
+  Sound Blaster clone answers just as a Sound Blaster does), and an MPU-401 the
+  same; a Gravis UltraSound as itself; a Plug and Play card by its maker's code
+  and its own name (`Creative Labs`, `SB AWE64 PnP`); a monitor by its maker and
+  model (`Dell`, `P1110`), with its serial number; anything else given at the
+  machine by its make and model; a card by its ROM, its chip on the PCI bus or
+  its chip's registers (`Tseng Labs`, `ET4000`); a network card
   by its chip where it is on the PCI bus, and otherwise by the driver it was run
-  with; the ports as an I/O card with them on it; a motherboard as a later PC's
+  with, or the Plug and Play card it is; the ports as an I/O card with them on
+  it, its **Ports** saying what they are (`2× Serial (16550A), Parallel
+  (ECP)`); a motherboard as a later PC's
   BIOS names it (SMBIOS), with the serial number it keeps, or by the company that
   wrote its BIOS where that is who made it (`Compaq`). One that names
   nothing is named by the make and model typed at the machine, into its
