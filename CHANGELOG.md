@@ -25,7 +25,9 @@ serial number or a card's Ethernet address. It fills in what the record is missi
 records every serial number and address it is shown, and marks the machine Working
 when every test passed. Anything it cannot place waits on the new Surveys page for
 an answer: part of the machine, a part of its own, or left out. A card kept on a
-bench is never fitted in the machines it tests.
+bench is never fitted in the machines it tests. Something new that nobody can name
+(an MFM disk, a card with no ROM, a machine whose BIOS does not say what it is) is
+asked its make and model at the machine, so it is named when it is made.
 
 **Upgrading:** nothing to do unless you want surveys. Give an agent a key in
 `RHDB_SURVEY_AGENTS` in `.env`, run `tools/survey_agent.py` where the machines'

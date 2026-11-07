@@ -42,6 +42,7 @@ import time
 import urllib.error
 import urllib.request
 import uuid
+from collections.abc import Sequence
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -138,8 +139,17 @@ class Server:
             # an earlier mistake rather than anything this attempt did.
             raise Undelivered("the register is rate-limiting this address; it clears in 5 minutes")
 
-    def ask(self, question: bytes) -> str:
-        status, body = self._open("/api/survey/agent/ask", question, "text/plain")
+    def ask(self, question: bytes, roms: Sequence[Path] = ()) -> str:
+        """The register's answer to a machine's question. The ROM copies the question
+        names go with it, so the register can say what a card is by its ROM before the
+        tests (ADR-0044)."""
+        if roms:
+            parts = [("question", "QUESTION.ASK", question)]
+            parts += [("roms", rom.name, rom.read_bytes()) for rom in roms]
+            body, content_type = multipart({}, parts)
+        else:
+            body, content_type = question, "text/plain"
+        status, body = self._open("/api/survey/agent/ask", body, content_type)
         self._refused_key(status)
         if status != 200:
             raise Undelivered(f"the question was answered {status}: {body[:200]!r}")
@@ -363,7 +373,8 @@ def answer_questions(server: Server, watch: Watch, files: list[Path]) -> int:
                 continue
             if watch.answered.get(path) == signature and reply.exists():
                 continue
-            answer = server.ask(path.read_bytes()[:65536])
+            question = path.read_bytes()[:65536]
+            answer = server.ask(question, roms_named(path, sections(decode(question)) or []))
         except FileNotFoundError:
             continue
         write_dos(reply, answer)

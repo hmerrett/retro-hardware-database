@@ -4183,10 +4183,13 @@ It watches that folder and every folder inside it.
 
 - **A question** is a file ending `.ASK`, holding the lines a report would hold
   about what the machine has found so far, and the machine's `TAG` once it has
-  been typed. Within a few seconds the answer is beside it, ending `.ANS`:
-  `TAG=` with the machine, when the register can tell which it is, and an
-  `_ANSWER` line for each thing found that already has one (a tag, with `BENCH`
-  after it for one kept on a bench, or `MACHINE`, or `OUT`).
+  been typed. The agent sends it with the ROM copies it names. Within a few
+  seconds the answer is beside it, ending `.ANS`: `TAG=` with the machine, when
+  the register can tell which it is; an `_ANSWER` line for each thing found that
+  already has one (a tag, with `BENCH` after it for one kept on a bench, or
+  `MACHINE`, or `OUT`); a `_NAME` line for each thing the register can name
+  (`SYSTEM_NAME` for the machine itself); and `NIC_ROM=` with the network card's
+  boot ROM, when its text says which one that is.
 - **A report** is any other file with an `[RHDB]` section. It is sent once it
   has been left alone for ten seconds, and the register's answer is written
   beside it, ending `.RCT`: a few short lines for the survey program to show as
@@ -4340,16 +4343,23 @@ made of, including whatever can say which one it is: each hard disk's serial
 number, the network card's Ethernet address, and on a later PC the serial
 numbers its BIOS keeps for the machine and its board. It asks the register,
 through the agent, which machine this is and which of the things it found
-already have an answer.
+already have an answer. The agent sends the machine's ROMs with the question, so
+the register can also say what each thing is: a card by its ROM or its chip, a
+hard disk by the name it gives itself, a later PC by what its BIOS says.
 
 - **A machine the register recognises** is named on the screen, and nothing is
   asked about it.
 - **Otherwise the survey asks for the machine's tag.** Type it from the label,
   **N** for a new machine, or Enter to leave it for later.
-- **For each thing found that has no answer yet**, it asks for one: the tag on
-  its label, **N** for a new part, **M** if it is part of the machine, **X** to
-  leave it out, or Enter to decide later. It offers only the answers that fit
+- **For each thing found that has no answer yet**, it asks for one, showing the
+  thing by the register's name for it where there is one: the tag on its label,
+  **N** for a new part, **M** if it is part of the machine, **X** to leave it
+  out, or Enter to decide later. It offers only the answers that fit
   ([what it does with what it finds](#what-it-does-with-what-it-finds)).
+- **N for something nobody can name** asks its make and then its model, so the
+  new record has a name from the start. Type them from its label, or press Enter
+  to leave either out. A new machine is asked the same, unless its BIOS says what
+  it is. Nothing that already has a name is asked about.
 
 The tests run, the report is written and the agent sends it. The register's
 answer comes back to the screen, naming the machine and saying what it filled in
@@ -4357,7 +4367,8 @@ and what is waiting for you.
 
 With nobody at the keyboard, nothing is asked. The tests run, the report goes,
 and whatever needed an answer waits on [the Surveys page](#the-surveys-page). If
-the register cannot be reached, the survey asks only for the machine's tag.
+the register cannot be reached, the survey asks only for the machine's tag, and
+a new machine's make and model.
 
 ### Which machine it is
 
@@ -4479,8 +4490,16 @@ machine says which:
   hard disk as `QUANTUM FIREBALL1080A`, with its interface, capacity and
   geometry; a card by its ROM or its chip (`Tseng Labs ET4000`); a network card
   by its chip where it is on the PCI bus, and otherwise by the driver it was run
-  with; the ports as an I/O card with them on it. Its
-  label is printed on the agent's printer, if it has one.
+  with; the ports as an I/O card with them on it. One that names nothing is
+  named by the make and model typed at the machine, into its **Manufacturer**
+  and **Model**. Its label is printed on the agent's printer, if it has one.
+
+A make and model typed for a new machine go into its **Manufacturer** and
+**Model** the same way. They do not choose a catalogue model for it, because the
+catalogue names models its own way (`PC XT` for a 5160): pick that on the form, or
+with [adopt_machines.py](#adopt_machinespy), and the next survey fills in the BIOS
+and the rest. What was typed names the record and nothing else. It is never how
+the thing is known the next time.
 
 Then, wherever the register has that part:
 
@@ -4558,7 +4577,10 @@ as a [file](#11-files), with a note saying what it is (`BIOS, Award 4.51PG
 machine or its motherboard, and a card's ROM to the card, or to the machine if
 the card is part of it. The ROM of something left out is not kept. A network
 card's boot ROM goes with the card wherever the survey can tell which ROM that
-is, so a bench card's boot ROM is the bench card's in every machine.
+is, so a bench card's boot ROM is the bench card's in every machine. Where the
+survey program cannot tell (netboot's ROM says neither that it is a network
+card's nor whose), the register reads the ROM's text, and one ROM that says it
+starts a machine from the network is the card's.
 
 The BIOS is the ROM that runs to the top of the first megabyte, wherever it
 starts. On an XT that is F000. A later board's BIOS is bigger, and starts lower
@@ -4686,7 +4708,7 @@ does not know is ignored, so a program is free to say more than this.
 | `RAMKB`, `EXTKB` | conventional and extended memory as the BIOS counts it, in KiB |
 | `FLOPPY<n>` | a floppy drive as the BIOS has it: `360K`, `1.2M`, `720K`, `1.44M` or `2.88M` |
 | `BIOSVENDOR`, `BIOSDATE` | the BIOS's maker and date |
-| `SYSTEM_MAKER`, `SYSTEM_MODEL`, `SYSTEM_SERIAL` | what a later PC's BIOS says about the machine (SMBIOS) |
+| `SYSTEM_MAKER`, `SYSTEM_MODEL`, `SYSTEM_SERIAL` | what a later PC's BIOS says about the machine (SMBIOS), or for a new machine whose BIOS does not say, the make and model typed at the machine |
 | `BOARD_MAKER`, `BOARD_MODEL`, `BOARD_SERIAL` | and what it says about the board |
 | `DISK<n>_MODEL`, `DISK<n>_SERIAL`, `DISK<n>_KB`, `DISK<n>_CHS`, `DISK<n>_TYPE` | each drive: its name, serial number, capacity, geometry, and `ATA`, `ATAPI`, `CFA`, or `BIOS` for one seen only through the BIOS |
 | `NIC_MAC`, `NIC_DRIVER`, `NIC_ROM` | the network card the survey ran through, its driver's name, and the segment of its boot ROM where the survey can tell |
@@ -4696,6 +4718,7 @@ does not know is ignored, so a program is free to say more than this.
 | `ROM<n>` | a ROM copied beside the report, as `segment size filename` |
 | `OS` | the operating system on the first hard disk |
 | `DISK<n>_ANSWER`, `NIC_ANSWER`, `VIDEO_ANSWER`, `PCI<n>_ANSWER`, `ROM<n>_ANSWER`, `PORTS_ANSWER` | the answer given at the machine for that thing: a tag, `NEW`, `MACHINE`, `OUT`, or empty for later |
+| `DISK<n>_MAKER`, `DISK<n>_MODEL`, `NIC_MAKER`, `VIDEO_MAKER`, `ROM<n>_MODEL` and so on | the make and model typed at the machine for a new part nobody could name. A disk with a model of its own is never asked, so `DISK<n>_MODEL` is the one or the other |
 
 ---
 

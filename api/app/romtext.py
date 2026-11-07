@@ -121,12 +121,42 @@ _AFTER_NAME = re.compile(
 )
 
 
+# The words of a ROM's banner: the line that says what the card is, as against the
+# messages the ROM prints while it works. QEMU's VGA BIOS carries "cirrus mode switch
+# regular", which names a maker and is not a name.
+_BANNER = re.compile(r"\b(?:BIOS|ROM|Version|Copyright)\b|\b(?:Ver|Rev)\.|\(C\)", re.I)
+
+# What may come before a banner's first word and is no part of the name.
+_LEADING = re.compile(r"^[^A-Za-z0-9]+")
+
+
 def card(texts: list[str]) -> str:
-    """What a card's ROM calls the card: its first line naming a maker, with the words
-    about versions and copyright taken off. "" when no line names one."""
+    """What a card's ROM calls the card: its first banner line naming a maker, with the
+    words about versions and copyright taken off. "" when no banner names one, so that
+    a card whose ROM says nothing of itself is one nobody can name (ADR-0044)."""
     for text in texts:
+        if not _BANNER.search(text):
+            continue
         if any(maker.lower() in text.lower() for maker in _MAKERS):
-            name = _AFTER_NAME.sub("", text).strip(" ,.-")
+            # A ROM's header can run straight into its banner: the size byte of a 32 KiB
+            # ROM is "@", and is not part of the card's name.
+            name = _LEADING.sub("", _AFTER_NAME.sub("", text)).strip(" ,.-")
             if len(name) >= 3:
                 return name[:120]
     return ""
+
+
+# What a network card's boot ROM says of itself: the boot code's own name, or its
+# author's. netboot 0.8.1, which the boot network's machines start from, compresses
+# everything but its copyright line, and says neither that it is a network card's nor
+# whose, so its author's name is the one word it has.
+_BOOT_ROM = re.compile(
+    r"\b(?:i?PXE|gPXE|PXENV|Etherboot|netboot|Boot ?ROM|Boot Agent|BootWare|"
+    r"Remote Program Load|Lanworks)\b|G\. Kuhlmann",
+    re.I,
+)
+
+
+def boot_rom(texts: list[str]) -> bool:
+    """Whether a ROM's text says it starts a machine from the network."""
+    return any(_BOOT_ROM.search(text) for text in texts)

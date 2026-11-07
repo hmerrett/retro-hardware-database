@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from .. import auth, surveyreport, surveys
 from ..db import get_db
+from ..forms import posted
 from ..models import Survey
 
 router = APIRouter()
@@ -25,6 +26,8 @@ router = APIRouter()
 MOST_REPORT = 4 * 1024 * 1024
 MOST_ROM = 1024 * 1024
 MOST_QUESTION = 64 * 1024
+# A PC's first megabyte holds at most a few dozen option ROMs on 2 KiB boundaries.
+MOST_ROMS = 32
 
 
 def agent_from_key(request: Request) -> surveys.Agent:
@@ -59,10 +62,27 @@ async def ask(
     db: Session = Depends(get_db),
 ) -> PlainTextResponse:
     """A machine's question before its tests: the lines it has found so far, and the
-    tag once it has been typed. The answer is the lines the agent leaves beside it.
-    Asking writes nothing."""
-    body = (await request.body())[:MOST_QUESTION]
-    return PlainTextResponse(surveys.answer_question(db, surveyreport.decode(body)))
+    tag once it has been typed, with the copies of its ROMs that it names. The answer
+    is the lines the agent leaves beside it. Asking writes nothing."""
+    question, roms = await _question(request)
+    return PlainTextResponse(surveys.answer_question(db, surveyreport.decode(question), roms))
+
+
+async def _question(request: Request) -> tuple[bytes, dict[str, bytes]]:
+    """The question and the ROMs that came with it: a multipart body (`question`, then
+    `roms`) from an agent that sends them, plain text from one from before it did
+    (ADR-0044)."""
+    if not request.headers.get("content-type", "").lower().startswith("multipart/form-data"):
+        return (await request.body())[:MOST_QUESTION], {}
+    form = await posted(request)
+    asked = form.uploads("question")
+    question = await asked[0].read(MOST_QUESTION) if asked else b""
+    roms: dict[str, bytes] = {}
+    for rom in form.uploads("roms")[:MOST_ROMS]:
+        data = await rom.read(MOST_ROM + 1)
+        if 0 < len(data) <= MOST_ROM:
+            roms[Path(rom.filename or "").name] = data
+    return question, roms
 
 
 @router.post("/api/survey/agent/surveys", tags=["surveys"])

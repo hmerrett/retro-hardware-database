@@ -21,6 +21,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
+from survey_reports import VGA_ROM
 
 TOOLS = Path(__file__).resolve().parent.parent.parent / "tools"
 AGENTS = "bench:key-one"
@@ -164,6 +165,25 @@ def test_a_question_is_not_a_survey(agent, served, folder, client):
     seen = client.get("/surveys/seen")
     assert seen.status_code == 200, seen.text
     assert "QX123" not in seen.text
+
+
+def test_a_question_goes_with_the_roms_it_names(agent, served, folder):
+    """So the register can say what a card is by its ROM before the tests. The ROMs
+    stay where they are, for the report that sends them."""
+    rom = folder / "M1.C00"
+    rom.write_bytes(VGA_ROM)
+    leave(folder, "M1.ASK", "[RHDB]\nVIDEO=VGA\nROM1=C000 32768 M1.C00\n")
+    assert run(agent, served, folder) == 0
+    answer = (folder / "M1.ANS").read_text(encoding="cp437")
+    assert "VIDEO_NAME=Tseng Labs ET4000" in answer
+    assert rom.exists()
+
+
+def test_a_question_sends_no_rom_from_outside_its_own_folder(agent, served, folder):
+    (folder.parent / "M1.C00").write_bytes(VGA_ROM)
+    leave(folder, "M1.ASK", "[RHDB]\nVIDEO=VGA\nROM1=C000 32768 ..\\M1.C00\n")
+    assert run(agent, served, folder) == 0
+    assert "VIDEO_NAME" not in (folder / "M1.ANS").read_text(encoding="cp437")
 
 
 # --- a report, sent once it is finished ---------------------------------------
