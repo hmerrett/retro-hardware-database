@@ -83,13 +83,25 @@ register reads it, and refuses one whose header or checksum is wrong.
 
 ### The video card's chip
 
-`VIDEO_CHIP=ET4000`, only on a VGA with no display device on the PCI bus. The
-survey program tries each family's test in the order svgalib and XFree86 used,
-saving every register it writes and putting it back. The register names the
-video card by it (`Tseng Labs ET4000`) where neither the PCI bus nor the ROM does,
-and makes a new card of it with the chip's maker and the chip. The chip is never
-part of what the video card is known by, so an answer given before it was read
-still holds.
+`VIDEO_CHIP=TSENG 40`: the family whose test answered and the ID it read, in
+hex, only on a VGA with no display device on the PCI bus. The register holds the
+tables that turn that into a name (`vgachips.py`), since the survey program has
+48K to fit in. The tests are SuperProbe's, XFree86's and whatvga's, in the order
+they settled on so that one cannot misfire on another family's chip: first what
+needs no register written (ATI's BIOS signature, and the Video Seven and Chips
+and Technologies BIOS calls), then the tests where a register must refuse a write
+while locked and take one unlocked (Western Digital and Paradise, Trident, S3,
+Cirrus Logic, Genoa's signature, Compaq), then Tseng Labs, then Oak. Every register
+written is saved first and put back, with interrupts off and the index registers
+restored. Two cannot be read back: a Trident chip is left in the register mode its
+own software uses, and a Tseng Labs chip's extensions are locked again (3D8h=29h,
+3BFh=01h), as XFree86 left them. 3BFh is a Hercules card's setting too, so the
+Tseng test is not run beside a second display adapter.
+
+The register names the video card by it (`Tseng Labs ET4000`) where neither the
+PCI bus nor the ROM does, and makes a new card of it with the chip's maker and the
+chip. The chip is never part of what the video card is known by, so an answer
+given before it was read still holds.
 
 ### Ports
 

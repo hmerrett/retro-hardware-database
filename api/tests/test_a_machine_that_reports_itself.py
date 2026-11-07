@@ -1043,14 +1043,30 @@ class TestWhatTheHardwareSays:
     # The video card's chip
 
     def test_a_vga_card_is_named_by_its_chip_where_nothing_else_names_it(self, client, computer):
-        assert ask(client, VIDEO="VGA", VIDEO_CHIP="ET4000")["VIDEO_NAME"] == "Tseng Labs ET4000"
+        assert ask(client, VIDEO="VGA", VIDEO_CHIP="TSENG 40")["VIDEO_NAME"] == "Tseng Labs ET4000"
+
+    def test_qemus_isa_cirrus_card_is_named_by_its_chip(self, client, computer):
+        assert ask(client, VIDEO="VGA", VIDEO_CHIP="CIRRUS A0")["VIDEO_NAME"] == (
+            "Cirrus Logic CL-GD5430"
+        )
+
+    def test_a_later_s3_is_named_by_its_second_id(self, client, computer):
+        assert ask(client, VIDEO="VGA", VIDEO_CHIP="S3 E1 11")["VIDEO_NAME"] == "S3 Trio64"
+
+    def test_a_wd_chip_is_named_by_the_digits_in_its_registers(self, client, computer):
+        name = ask(client, VIDEO="VGA", VIDEO_CHIP="WD 33 31")["VIDEO_NAME"]
+        assert name == "Western Digital WD90C31"
+
+    def test_a_chip_on_the_pci_bus_is_named_by_the_bus(self, client, computer):
+        answered = ask(client, VIDEO="VGA", VIDEO_CHIP="TSENG 40", PCI1="5333:8811 0300")
+        assert "Tseng" not in answered.get("VIDEO_NAME", "")
 
     def test_n_makes_a_video_card_of_its_chip(self, client, computer):
         made = survey(
             client,
             TAG=computer()["asset_id"],
             VIDEO="VGA",
-            VIDEO_CHIP="ET4000",
+            VIDEO_CHIP="TSENG 40",
             VIDEO_ANSWER="NEW",
         )
         card = get(client, "parts", finding(made, "VIDEO")["part"])
@@ -1065,7 +1081,7 @@ class TestWhatTheHardwareSays:
             client,
             roms=[("RH0001.C00", CIRRUS_ROM)],
             VIDEO="VGA",
-            VIDEO_CHIP="ET4000",
+            VIDEO_CHIP="TSENG 40",
             ROM1="C000 32768 RH0001.C00",
         )
         assert answered["VIDEO_NAME"] == "Cirrus Logic CL-GD5428"
@@ -1073,7 +1089,7 @@ class TestWhatTheHardwareSays:
     def test_an_answer_given_before_its_chip_was_read_still_holds(self, client, computer):
         machine = computer()
         survey(client, TAG=machine["asset_id"], VIDEO="VGA", VIDEO_ANSWER="OUT")
-        again = survey(client, TAG=machine["asset_id"], VIDEO="VGA", VIDEO_CHIP="ET4000")
+        again = survey(client, TAG=machine["asset_id"], VIDEO="VGA", VIDEO_CHIP="TSENG 40")
         assert finding(again, "VIDEO")["answer"] == "out"
 
     # A Gravis UltraSound and an MPU-401

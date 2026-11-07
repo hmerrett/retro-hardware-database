@@ -48,6 +48,7 @@ from . import (
     specdb,
     surveyreport,
     tree,
+    vgachips,
 )
 from .common import to_dict
 from .history import SURVEY_ENTRY, add_log
@@ -707,36 +708,12 @@ def _before_386(keys: Mapping[str, str]) -> bool:
     return cpu.startswith(("808", "8018", "V2", "V3")) or cpu == "80286"
 
 
-# Who made a VGA chip the survey program named by its registers, by the start of the
-# name it gives (ADR-0051), so a variant the table has not met still finds its maker.
-_VGA_CHIP_MAKERS = (
-    ("ET", "Tseng Labs"),
-    ("CL-", "Cirrus Logic"),
-    ("86C", "S3"),
-    ("VISION", "S3"),
-    ("TRIO", "S3"),
-    ("TVGA", "Trident"),
-    ("TGUI", "Trident"),
-    ("PVGA", "Paradise"),
-    ("WD90", "Western Digital"),
-    ("OTI", "Oak Technology"),
-    ("V7", "Video Seven"),
-    ("HT2", "Headland"),
-    ("82C4", "Chips and Technologies"),
-    ("F655", "Chips and Technologies"),
-    ("ATI", "ATI"),
-)
-
-
 def vga_chip(keys: Mapping[str, str]) -> tuple[str, str]:
     """(maker, chip) for the VGA chip the survey program named by its registers, which
     it reads only where no video card is on the PCI bus: ("", "") for none."""
-    chip = " ".join(keys.get("VIDEO_CHIP", "").split())[:32]
-    if not chip or _display(keys) is not None:
+    if _display(keys) is not None:
         return "", ""
-    upper = chip.upper()
-    made_by = next((m for prefix, m in _VGA_CHIP_MAKERS if upper.startswith(prefix)), "")
-    return made_by, pnpids.model(chip, made_by)
+    return vgachips.name(keys.get("VIDEO_CHIP", ""))
 
 
 class PnpCard(NamedTuple):

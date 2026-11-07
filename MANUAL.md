@@ -4481,7 +4481,13 @@ hardware itself:
   model and its serial number.
 - **The video card's chip** answers in its own registers, so a VGA card that
   neither the PCI bus nor its ROM names is named by its chip (`Tseng Labs
-  ET4000`). Every register the survey program looks at is left as it was found.
+  ET4000`): Tseng Labs, Cirrus Logic, S3, Trident, Western Digital and Paradise,
+  Oak, Video Seven and Headland, Chips and Technologies, ATI, Compaq and Genoa.
+  The registers the survey program changes to ask are put back. Two cannot be
+  read back, and are left as each card's own software leaves them: a Trident
+  chip's register mode, and a Tseng Labs chip's extensions, locked. A Tseng Labs
+  chip is not asked for beside a second, monochrome display adapter, whose
+  setting shares its port.
 - **A Gravis UltraSound** is found by its sound memory, and **an MPU-401** by its
   reset. Both answer at addresses a network card can be set to, and the survey
   reports through its network card, so they are only looked for where that card
