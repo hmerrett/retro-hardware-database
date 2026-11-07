@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3339 behaviours, from 98 files.*
+*3356 behaviours, from 98 files.*
 
 
 ## A barcode takes the room the words leave
@@ -166,7 +166,7 @@ Regenerate with:
 
 ## A machine that reports itself
 
-*test_a_machine_that_reports_itself.py — 191 behaviours*
+*test_a_machine_that_reports_itself.py — 208 behaviours*
 
 
 **What it takes**
@@ -214,6 +214,15 @@ Regenerate with:
 - the answer says how the tests went in the historys words  
   The tests' own names keep their capitals: RAM, not ram.
 
+**Labels for what is new**
+
+- the answer offers the printer the small label goes to
+- nothing is offered where the small label is a pdf
+- an agent with a printer of its own is not asked
+- yes queues the small label of everything the survey makes
+- without yes nothing is printed
+- the receipt says the labels were sent
+
 **Which machine it is**
 
 - the tag typed at the machine files the survey there
@@ -259,6 +268,23 @@ Regenerate with:
 - what the register expected and did not find is listed and left  
   A disk recorded in the machine that did not answer when the others did.
 
+**Drives**
+
+- each drive is asked about with all three answers
+- n makes a floppy drive named by what was typed
+- n makes a cd rom drive or a card named by itself
+- m writes a row in the machines drives
+- a drive its rows already record is part of the machine
+- a row stands for as many drives as it counts
+- a gotek row stands for a floppy drive
+- rows for cd rom drives and cards stand for them
+- a drive its rows do not record is asked  
+  The BIOS has a 1.44MB drive where the record has a 1.2MB one.
+- a drive fitted in it as a part is that part
+- a fitted drive with another serial is another drive
+- an answer for a floppy drive is remembered
+- a cd rom drive is known by its serial and says which machine
+
 **Serial numbers and addresses**
 
 - every serial number and address is recorded whatever its answer
@@ -286,8 +312,6 @@ Regenerate with:
 - the operating system on the first hard disk is written
 - what a later pcs bios says fills its maker model and serial number
 - a placeholder from the bios says nothing
-- drives are written when the machine has none
-- drives already recorded are left alone
 - the bios goes in the catalogues bios socket
 - otherwise the bios goes on the motherboard
 - the chipset a later pc names goes on the motherboard

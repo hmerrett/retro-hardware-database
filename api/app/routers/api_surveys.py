@@ -65,7 +65,9 @@ async def ask(
     tag once it has been typed, with the copies of its ROMs that it names. The answer
     is the lines the agent leaves beside it. Asking writes nothing."""
     question, roms = await _question(request)
-    return PlainTextResponse(surveys.answer_question(db, surveyreport.decode(question), roms))
+    return PlainTextResponse(
+        surveys.answer_question(db, surveyreport.decode(question), roms, agent)
+    )
 
 
 async def _question(request: Request) -> tuple[bytes, dict[str, bytes]]:
@@ -111,6 +113,8 @@ async def send(
     answer = surveys.receipt(db, [s for s, _ in made])
     db.commit()
     surveys.labels_for(db, agent, [tag for _, filing in made for tag in filing.made])
+    if said := surveys.labels_asked(db, agent, made):
+        answer += said + "\r\n"
     return {
         "receipt": answer,
         "surveys": [{"id": s.id, "machine": s.machine, "waiting": s.waiting} for s, _ in made],

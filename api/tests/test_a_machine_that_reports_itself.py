@@ -16,6 +16,7 @@ from pathlib import Path
 
 import pytest
 
+from app import settings
 from conftest import log_out
 from survey_reports import (
     ADAPTEC_ROM,
@@ -315,6 +316,63 @@ class TestAQuestionBeforeTheTests:
         assert "2 of 17 tests failed (RAM, floppy)." in r.json()["receipt"]
 
 
+# --- at the machine: labels for what is new -----------------------------------------
+
+
+def small_label_goes_to(client, destination: str) -> None:
+    """The small label's Goes to, set as the settings page sets it."""
+    rows = [d for d in settings.DEFINITIONS if d.section == settings.LABELS]
+    posted = {
+        d.key: settings.value(d.key)
+        for d in rows
+        if d.kind != settings.SWITCH or settings.on(d.key)
+    }
+    r = client.post("/settings/labels", data=posted | {"label_small_destination": destination})
+    assert r.status_code in (200, 303), r.text[:300]
+    settings.forget()
+
+
+class TestLabelsForWhatIsNew:
+    """Where the small label goes to a print agent's queue, a survey offers to print
+    the small label of everything it makes, once, at the machine (MANUAL §23, "At the
+    machine"; ADR-0049)."""
+
+    @pytest.fixture(autouse=True)
+    def printers(self, monkeypatch):
+        monkeypatch.setenv("RHDB_PRINT_AGENTS", PRINTERS)
+
+    def test_the_answer_offers_the_printer_the_small_label_goes_to(self, client):
+        small_label_goes_to(client, "agent:workshop-pi")
+        assert ask(client, **DISK)["LABELS"] == "workshop-pi"
+
+    def test_nothing_is_offered_where_the_small_label_is_a_pdf(self, client):
+        assert "LABELS" not in ask(client, **DISK)
+
+    def test_an_agent_with_a_printer_of_its_own_is_not_asked(self, client):
+        small_label_goes_to(client, "agent:workshop-pi")
+        assert "LABELS" not in ask(client, key="key-two", **DISK)
+
+    def test_yes_queues_the_small_label_of_everything_the_survey_makes(self, client):
+        small_label_goes_to(client, "agent:workshop-pi")
+        made = survey(client, TAG="NEW", DISK1_ANSWER="NEW", LABELS="YES", **DISK)
+        jobs = client.get("/api/print/jobs").json()
+        disk = finding(made, "DISK1")["part"]
+        assert sorted((j["agent"], j["asset_id"], j["label"]) for j in jobs) == sorted(
+            [("workshop-pi", made["machine"], "small"), ("workshop-pi", disk, "small")]
+        )
+
+    def test_without_yes_nothing_is_printed(self, client):
+        small_label_goes_to(client, "agent:workshop-pi")
+        survey(client, TAG="NEW", DISK1_ANSWER="NEW", **DISK)
+        assert client.get("/api/print/jobs").json() == []
+
+    def test_the_receipt_says_the_labels_were_sent(self, client):
+        small_label_goes_to(client, "agent:workshop-pi")
+        r = send(client, report(TAG="NEW", DISK1_ANSWER="NEW", LABELS="YES", **DISK))
+        assert r.status_code == 200, r.text
+        assert "2 small labels sent to workshop-pi." in r.json()["receipt"]
+
+
 # --- which machine it is ---------------------------------------------------------
 
 
@@ -452,10 +510,9 @@ class TestWhatItDoesWithWhatItFinds:
             CPUKHZ="12000",
             RAMKB="640",
             OS="MS-DOS 6.22",
-            FLOPPY1="1.44M",
         )
         assert made["waiting"] is None
-        for thing in ("CPU", "MEMORY", "OS", "FLOPPY1"):
+        for thing in ("CPU", "MEMORY", "OS"):
             assert finding(made, thing)["answer"] == "machine"
 
     def test_a_hard_disk_cannot_be_part_of_the_machine(self, client, computer):
@@ -554,6 +611,163 @@ class TestWhatItDoesWithWhatItFinds:
         )
         assert disk["asset_id"] in made["missing"]
         assert get(client, "parts", disk["asset_id"])["computer_id"] == machine["asset_id"]
+
+
+# --- drives -------------------------------------------------------------------------
+
+# A floppy drive as the BIOS has it, and a CD-ROM drive and a CompactFlash card as
+# they describe themselves through IDENTIFY.
+FLOPPY = {"FLOPPY1": "1.44M"}
+CDROM = {"DISK2_MODEL": "MITSUMI CRMC-FX001D", "DISK2_SERIAL": "CD-77", "DISK2_TYPE": "ATAPI"}
+CFCARD = {
+    "DISK1_MODEL": "SanDisk SDCFB-128",
+    "DISK1_SERIAL": "CF-123",
+    "DISK1_TYPE": "CFA",
+    "DISK1_KB": "125184",
+    "DISK1_CHS": "978/8/32",
+}
+FLOPPY_SPECS = 'Kind: Floppy/Gotek | Interface: 34-pin floppy | Media: 3.5" | Size: 1.44MB'
+
+
+class TestDrives:
+    """A floppy drive, a CD-ROM drive and a CompactFlash card are asked about like any
+    other thing, and what the register already has of them is not asked (MANUAL §23,
+    "What it does with what it finds"; ADR-0048)."""
+
+    def test_each_drive_is_asked_about_with_all_three_answers(self, client, computer):
+        made = survey(client, TAG=computer()["asset_id"], **FLOPPY, **CDROM, **CFCARD)
+        for thing in ("FLOPPY1", "DISK2", "DISK1"):
+            assert finding(made, thing)["fits"] == ["part", "machine", "out"]
+            assert finding(made, thing)["answer"] is None
+        assert made["waiting"] == "answer"
+
+    def test_n_makes_a_floppy_drive_named_by_what_was_typed(self, client, computer):
+        machine = computer()
+        made = survey(
+            client,
+            TAG=machine["asset_id"],
+            FLOPPY1_ANSWER="NEW",
+            FLOPPY1_MAKER="TEAC",
+            FLOPPY1_MODEL="FD-235HF",
+            **FLOPPY,
+        )
+        drive = get(client, "parts", finding(made, "FLOPPY1")["part"])
+        assert (drive["type"], drive["manufacturer"], drive["model"]) == (
+            "storage",
+            "TEAC",
+            "FD-235HF",
+        )
+        assert "Kind: Floppy/Gotek" in drive["specs"] and "Size: 1.44MB" in drive["specs"]
+        assert drive["computer_id"] == machine["asset_id"]
+
+    def test_n_makes_a_cd_rom_drive_or_a_card_named_by_itself(self, client, computer):
+        made = survey(
+            client,
+            TAG=computer()["asset_id"],
+            DISK2_ANSWER="NEW",
+            DISK1_ANSWER="NEW",
+            **CDROM,
+            **CFCARD,
+        )
+        cd = get(client, "parts", finding(made, "DISK2")["part"])
+        assert (cd["model"], cd["serial"]) == ("MITSUMI CRMC-FX001D", "CD-77")
+        assert "Kind: Optical" in cd["specs"]
+        card = get(client, "parts", finding(made, "DISK1")["part"])
+        assert (card["model"], card["serial"]) == ("SanDisk SDCFB-128", "CF-123")
+        assert "Kind: SD/CF card" in card["specs"] and "978/8/32" in card["specs"]
+
+    def test_m_writes_a_row_in_the_machines_drives(self, client, computer):
+        machine = computer()
+        survey(
+            client,
+            TAG=machine["asset_id"],
+            FLOPPY1="1.44M",
+            FLOPPY2="1.2M",
+            DISK3_MODEL="MITSUMI CRMC-FX001D",
+            DISK3_TYPE="ATAPI",
+            FLOPPY1_ANSWER="MACHINE",
+            FLOPPY2_ANSWER="MACHINE",
+            DISK3_ANSWER="MACHINE",
+        )
+        drives = get(client, "computers", machine["asset_id"])["drives"]
+        assert "1.44MB" in drives and "1.2MB" in drives and "CRMC-FX001D" in drives
+
+    def test_a_drive_its_rows_already_record_is_part_of_the_machine(self, client, computer):
+        machine = computer(drives='3.5" 1.44MB floppy')
+        before = get(client, "computers", machine["asset_id"])["drives"]
+        assert ask(client, TAG=machine["asset_id"], **FLOPPY)["FLOPPY1_ANSWER"] == "MACHINE"
+        made = survey(client, TAG=machine["asset_id"], **FLOPPY)
+        assert finding(made, "FLOPPY1")["answer"] == "machine"
+        assert made["waiting"] is None
+        assert get(client, "computers", machine["asset_id"])["drives"] == before
+
+    def test_a_row_stands_for_as_many_drives_as_it_counts(self, client, computer):
+        machine = computer(drives='2 x 3.5" 1.44MB floppy')
+        made = survey(client, TAG=machine["asset_id"], FLOPPY1="1.44M", FLOPPY2="1.44M")
+        assert [finding(made, t)["answer"] for t in ("FLOPPY1", "FLOPPY2")] == [
+            "machine",
+            "machine",
+        ]
+
+    def test_a_gotek_row_stands_for_a_floppy_drive(self, client, computer):
+        machine = computer(drives="Gotek")
+        made = survey(client, TAG=machine["asset_id"], **FLOPPY)
+        assert finding(made, "FLOPPY1")["answer"] == "machine"
+
+    def test_rows_for_cd_rom_drives_and_cards_stand_for_them(self, client, computer):
+        machine = computer(drives="CD-ROM; CF card")
+        made = survey(client, TAG=machine["asset_id"], **CDROM, **CFCARD)
+        assert [finding(made, t)["answer"] for t in ("DISK2", "DISK1")] == [
+            "machine",
+            "machine",
+        ]
+
+    def test_a_drive_its_rows_do_not_record_is_asked(self, client, computer):
+        """The BIOS has a 1.44MB drive where the record has a 1.2MB one."""
+        machine = computer(drives='5.25" 1.2MB floppy')
+        before = get(client, "computers", machine["asset_id"])["drives"]
+        made = survey(client, TAG=machine["asset_id"], **FLOPPY)
+        assert finding(made, "FLOPPY1")["answer"] is None
+        assert get(client, "computers", machine["asset_id"])["drives"] == before
+
+    def test_a_drive_fitted_in_it_as_a_part_is_that_part(self, client, computer, part):
+        machine = computer()
+        drive = part(
+            type="storage",
+            manufacturer="NEC",
+            model="FD1231T",
+            specs=FLOPPY_SPECS,
+            computer_id=machine["asset_id"],
+        )
+        assert ask(client, TAG=machine["asset_id"], **FLOPPY)["FLOPPY1_ANSWER"] == drive["asset_id"]
+        made = survey(client, TAG=machine["asset_id"], **FLOPPY)
+        assert finding(made, "FLOPPY1")["part"] == drive["asset_id"]
+        assert get(client, "computers", machine["asset_id"])["drives"] == ""
+
+    def test_a_fitted_drive_with_another_serial_is_another_drive(self, client, computer, part):
+        machine = computer()
+        part(
+            type="storage",
+            model="MITSUMI CRMC-FX001D",
+            serial="CD-OTHER",
+            specs="Kind: Optical | Interface: IDE",
+            computer_id=machine["asset_id"],
+        )
+        made = survey(client, TAG=machine["asset_id"], **CDROM)
+        assert finding(made, "DISK2")["answer"] is None
+
+    def test_an_answer_for_a_floppy_drive_is_remembered(self, client, computer):
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], FLOPPY1_ANSWER="OUT", **FLOPPY)
+        again = survey(client, TAG=machine["asset_id"], **FLOPPY)
+        assert finding(again, "FLOPPY1")["answer"] == "out"
+
+    def test_a_cd_rom_drive_is_known_by_its_serial_and_says_which_machine(self, client, computer):
+        machine = computer()
+        first = survey(client, TAG=machine["asset_id"], DISK2_ANSWER="NEW", **CDROM)
+        again = survey(client, **CDROM)
+        assert again["machine"] == machine["asset_id"]
+        assert finding(again, "DISK2")["part"] == finding(first, "DISK2")["part"]
 
 
 # --- serial numbers and addresses --------------------------------------------------
@@ -724,25 +938,6 @@ class TestPartOfTheMachine:
         )
         got = get(client, "computers", machine["asset_id"])
         assert (got["model"], got["serial"]) == ("", "")
-
-    def test_drives_are_written_when_the_machine_has_none(self, client, computer):
-        machine = computer()
-        survey(
-            client,
-            TAG=machine["asset_id"],
-            FLOPPY1="1.44M",
-            FLOPPY2="1.2M",
-            DISK3_MODEL="MITSUMI CRMC-FX001D",
-            DISK3_TYPE="ATAPI",
-        )
-        drives = get(client, "computers", machine["asset_id"])["drives"]
-        assert "1.44MB" in drives and "1.2MB" in drives and "CRMC-FX001D" in drives
-
-    def test_drives_already_recorded_are_left_alone(self, client, computer):
-        machine = computer(drives='5.25" 360K floppy')
-        before = get(client, "computers", machine["asset_id"])["drives"]
-        survey(client, TAG=machine["asset_id"], FLOPPY1="1.44M")
-        assert get(client, "computers", machine["asset_id"])["drives"] == before
 
     def test_the_bios_goes_in_the_catalogues_bios_socket(self, client, computer):
         machine = computer(machine={"model_key": "ibm-5150"})
@@ -1944,6 +2139,8 @@ class TestAReportAsTinydiagWritesIt:
                 TAG="NEW",
                 BOARD_ANSWER="NEW",
                 DISK1_ANSWER="NEW",
+                DISK2_ANSWER="MACHINE",
+                FLOPPY1_ANSWER="NEW",
                 VIDEO_ANSWER="NEW",
                 PORTS_ANSWER="MACHINE",
             ),
@@ -1952,6 +2149,8 @@ class TestAReportAsTinydiagWritesIt:
         (sent,) = r.json()["surveys"]
         made = read(client, sent["id"])
         assert made["waiting"] is None
+        floppy = get(client, "parts", finding(made, "FLOPPY1")["part"])
+        assert "Size: 1.44MB" in floppy["specs"]
         board = get(client, "parts", finding(made, "BOARD")["part"])
         assert board["computer_id"] == made["machine"]
         assert "06/23/99" in board["specs"]

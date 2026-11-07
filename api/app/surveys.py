@@ -42,6 +42,7 @@ from . import (
     printing,
     ramdb,
     romtext,
+    settings,
     specdb,
     surveyreport,
     tree,
@@ -344,23 +345,151 @@ def _numbers(keys: Mapping[str, str], prefix: str) -> list[int]:
     return sorted({int(m.group(1)) for k in keys if (m := pattern.match(k))})
 
 
-def drive_rows(keys: Mapping[str, str]) -> list[drivedb.Drive]:
-    """The drives a machine keeps as rows on its own record: floppy drives as the
-    BIOS has them, CD-ROM drives and CompactFlash cards."""
-    rows = []
-    for n in _numbers(keys, "FLOPPY"):
-        said_as = keys[f"FLOPPY{n}"].strip().upper().replace("MB", "M").replace("KB", "K")
-        if said_as:
-            form, size = _FLOPPIES.get(said_as, ("", keys[f"FLOPPY{n}"].strip()))
-            rows.append(_drive("floppy", form, size))
-    for n in _numbers(keys, "DISK"):
-        kind = keys.get(f"DISK{n}_TYPE", "").strip().upper()
-        model = keys.get(f"DISK{n}_MODEL", "").strip()
-        if kind == "ATAPI":
-            rows.append(_drive("optical", model=model))
-        elif kind == "CFA":
-            rows.append(_drive("CF", model=model))
-    return rows
+# The drives a survey asks about (ADR-0048): a floppy drive, as the BIOS has it, and a
+# CD-ROM drive and a CompactFlash card, as the survey program's IDENTIFY sees them.
+# What each is called; the rows of a machine's Drives that stand for one, the first
+# being the kind a new row is written as; and the Kind a part of it has, in the part
+# form's words, so that a survey's part and a typed one are described alike.
+FLOPPY, OPTICAL, CARD = "floppy", "optical", "CF"
+_DRIVE_TYPES = {"ATAPI": OPTICAL, "CFA": CARD}
+_DRIVE_WORDS = {FLOPPY: "floppy drive", OPTICAL: "CD-ROM drive", CARD: "CompactFlash card"}
+_DRIVE_ROWS = {FLOPPY: ("floppy", "Gotek"), OPTICAL: ("optical",), CARD: ("CF", "SD")}
+_DRIVE_PARTS = {FLOPPY: entry.FLOPPY_KIND, OPTICAL: entry.OPTICAL_KIND, CARD: entry.CARD_KIND}
+
+
+def _floppy(keys: Mapping[str, str], n: int) -> tuple[str, str]:
+    """Floppy drive n as the BIOS has it, as (bay, size) in the drives table's words:
+    ('3.5"', '1.44MB'), or ("", what it said) for a size the table does not know."""
+    said_as = keys.get(f"FLOPPY{n}", "").strip()
+    folded = said_as.upper().replace("MB", "M").replace("KB", "K")
+    return _FLOPPIES.get(folded, ("", said_as))
+
+
+def _drive_of(keys: Mapping[str, str], f: Finding) -> tuple[str, str, str]:
+    """A drive found, as (kind, bay, size): a floppy drive's bay and size, and only the
+    kind of a CD-ROM drive or a CompactFlash card."""
+    thing = f["thing"]
+    if thing.startswith("FLOPPY"):
+        bay, size = _floppy(keys, int(thing.removeprefix("FLOPPY")))
+        return FLOPPY, bay, size
+    return _DRIVE_TYPES.get(keys.get(f"{thing}_TYPE", "").strip().upper(), ""), "", ""
+
+
+def _drive_specs(keys: Mapping[str, str], f: Finding) -> str:
+    """A drive part's specification, as the part form asks it of that kind of drive:
+    a floppy drive's disk and size, a CD-ROM drive's interface, a card's capacity and
+    geometry. A floppy drive's ribbon is not asked: the BIOS cannot tell a 34-pin
+    drive from a laptop's 26-pin one."""
+    kind, bay, size = _drive_of(keys, f)
+    pairs = [("Kind", _DRIVE_PARTS.get(kind, ""))]
+    if kind == FLOPPY:
+        pairs += [("Media", bay), ("Size", size)]
+    elif kind == OPTICAL:
+        pairs += [("Interface", "IDE"), ("Protocol", "ATAPI")]
+    elif kind == CARD:
+        n = f["thing"].removeprefix("DISK")
+        pairs += [("Interface", "CF"), ("Protocol", "ATA")]
+        if (kb := _int(keys.get(f"DISK{n}_KB"))) is not None:
+            pairs.append(("Capacity", entry.fmt_kb(kb)))
+        pairs.append(("CHS", keys.get(f"DISK{n}_CHS", "").strip()))
+    return entry.build_specs([(k, v) for k, v in pairs if v])
+
+
+def _row_fits(row: drivedb.Drive, kind: str, size: str) -> bool:
+    """Whether a row of a machine's Drives stands for a drive of this kind: a floppy
+    drive's or a Gotek's of the same size, or of none recorded."""
+    if row["kind"] not in _DRIVE_ROWS.get(kind, ()):
+        return False
+    return kind != FLOPPY or not row["size"] or row["size"] == size
+
+
+def _part_fits(part: Part, kind: str, bay: str, size: str, serial: str) -> bool:
+    """Whether a drive part fitted in a machine is the drive found: the same Kind, the
+    same size and disk for a floppy drive where it has them, and never a part whose
+    serial number says it is another."""
+    specs = {k.lower(): v for k, v in entry.parse_specs(part.specs or "")}
+    if part.type != "storage" or specs.get("kind") != _DRIVE_PARTS.get(kind):
+        return False
+    if part.serial and serial and part.serial != serial:
+        return False
+    if kind == FLOPPY:
+        if specs.get("size") and size and specs["size"] != size:
+            return False
+        if specs.get("media") and bay and specs["media"] != bay:
+            return False
+    return True
+
+
+class _Kept:
+    """What a machine already records of its drives (ADR-0048): each row of its Drives
+    as many times as it counts, and the parts fitted in it, for the drives a survey
+    finds to be taken for, one each, so that nothing is recorded twice."""
+
+    def __init__(self, db: Session, t: tree.Tree, machine: str | None) -> None:
+        self.rows: list[drivedb.Drive] = []
+        self.parts: list[Part] = []
+        computer = db.get(Computer, machine) if machine else None
+        if not isinstance(computer, Computer) or machine is None:
+            return
+        for row in drivedb.read(db, computer):
+            self.rows += [row] * max(row["count"], 1)
+        for tag in t.within(machine):
+            found = db.get(Thing, tag)
+            if isinstance(found, Part) and found.type == "storage" and not found.disposed:
+                self.parts.append(found)
+
+    def take(self, keys: Mapping[str, str], f: Finding, answer: str | None, part: str) -> None:
+        """What an answer already given to a drive stands for: its part, or a row."""
+        kind, _bay, size = _drive_of(keys, f)
+        if answer == PART and part:
+            self.parts = [p for p in self.parts if p.asset_id.upper() != part.upper()]
+        elif answer == MACHINE:
+            spent = next((i for i, row in enumerate(self.rows) if _row_fits(row, kind, size)), None)
+            if spent is not None:
+                del self.rows[spent]
+
+    def claim(self, keys: Mapping[str, str], f: Finding) -> tuple[str, str | None] | None:
+        """The answer what the machine records gives a drive: a fitted part of its
+        kind, or a row of its kind; None when nothing recorded stands for it."""
+        kind, bay, size = _drive_of(keys, f)
+        for i, part in enumerate(self.parts):
+            if _part_fits(part, kind, bay, size, f["identifier"]):
+                del self.parts[i]
+                return PART, part.asset_id.upper()
+        for i, row in enumerate(self.rows):
+            if _row_fits(row, kind, size):
+                del self.rows[i]
+                return MACHINE, None
+        return None
+
+
+def _rows_to_add(
+    db: Session, computer: Computer, keys: Mapping[str, str], found: list[Finding]
+) -> list[drivedb.Drive]:
+    """The rows to write for the drives answered as part of the machine: one for each
+    that no row already stands for. A floppy drive's row has its bay and size, the
+    others' their model, and a card's its capacity."""
+    rows: list[drivedb.Drive] = []
+    for row in drivedb.read(db, computer):
+        rows += [row] * max(row["count"], 1)
+    out: list[drivedb.Drive] = []
+    for f in found:
+        if f["kind"] != "drive" or f["answer"] != MACHINE:
+            continue
+        kind, bay, size = _drive_of(keys, f)
+        spent = next((i for i, row in enumerate(rows) if _row_fits(row, kind, size)), None)
+        if spent is not None:
+            del rows[spent]
+            continue
+        if kind == FLOPPY:
+            out.append(_drive("floppy", bay, size))
+        elif kind in _DRIVE_ROWS:
+            model = keys.get(f"{f['thing']}_MODEL", "").strip()
+            kb = _int(keys.get(f"{f['thing']}_KB")) if kind == CARD else None
+            out.append(
+                _drive(_DRIVE_ROWS[kind][0], size=entry.fmt_kb(kb) if kb else "", model=model)
+            )
+    return out
 
 
 def _roms(keys: Mapping[str, str]) -> list[tuple[int, str, int, str]]:
@@ -589,9 +718,6 @@ def findings(
                 filter(None, (said(keys.get("SYSTEM_MAKER")), said(keys.get("SYSTEM_MODEL"))))
             ),
         )
-    for n in _numbers(keys, "FLOPPY"):
-        if keys.get(f"FLOPPY{n}", "").strip():
-            machine_thing(f"FLOPPY{n}", keys[f"FLOPPY{n}"].strip())
 
     # The PCI bus: the chipset's bridges are the board's, and say which chipset it is.
     pci = []
@@ -630,8 +756,21 @@ def findings(
         model = keys.get(f"DISK{n}_MODEL", "").strip()
         serial = said(keys.get(f"DISK{n}_SERIAL"))
         kind = keys.get(f"DISK{n}_TYPE", "").strip().upper() or ("ATA" if serial else "BIOS")
-        if kind in ("ATAPI", "CFA"):
-            machine_thing(f"DISK{n}", model or kind)
+        if kind in _DRIVE_TYPES:
+            # A CD-ROM drive or a CompactFlash card: known by its serial number, as a
+            # disk is, and otherwise by what it says it is (ADR-0048).
+            out.append(
+                _finding(
+                    f"DISK{n}",
+                    "drive",
+                    model or _DRIVE_WORDS[_DRIVE_TYPES[kind]],
+                    ALL,
+                    id_kind="disk" if serial else "",
+                    identifier=serial,
+                    signature="" if serial else f"drive:{kind}:{model}",
+                    ptype="storage",
+                )
+            )
         elif serial:
             out.append(
                 _finding(
@@ -654,6 +793,21 @@ def findings(
                     model or f"Hard disk {chs}".strip(),
                     PART_OR_OUT,
                     signature=f"disk:{chs}:{size}",
+                    ptype="storage",
+                )
+            )
+
+    # Each floppy drive the BIOS has, known in the machine by its size (ADR-0048).
+    for n in _numbers(keys, "FLOPPY"):
+        bay, size = _floppy(keys, n)
+        if size:
+            out.append(
+                _finding(
+                    f"FLOPPY{n}",
+                    "drive",
+                    " ".join(filter(None, (bay, size, _DRIVE_WORDS[FLOPPY]))),
+                    ALL,
+                    signature=f"floppy:{size}",
                     ptype="storage",
                 )
             )
@@ -796,6 +950,11 @@ def name_of(keys: Mapping[str, str], f: Finding, texts: Mapping[str, list[str]])
         return _board_name(keys, texts)
     if kind == "disk":
         return keys.get(f"{f['thing']}_MODEL", "").strip()
+    if kind == "drive":
+        # A CD-ROM drive or a card by its own model; a floppy drive cannot say.
+        return (
+            "" if f["thing"].startswith("FLOPPY") else keys.get(f"{f['thing']}_MODEL", "").strip()
+        )
     if kind == "nic":
         on_pci = nic_pci(keys)
         if on_pci is not None and pciids.known(on_pci[1], on_pci[2]):
@@ -1141,7 +1300,7 @@ def _apply(
         return
     texts = _rom_texts(s)
     for f in found:
-        if f["kind"] == MACHINE:
+        if f["kind"] in (MACHINE, "drive"):
             continue
         if f["kind"] == "board":
             _answer_board(db, keys, f, subject, machine, who, t, done, texts)
@@ -1151,6 +1310,8 @@ def _apply(
             _answer_remembered(db, keys, f, machine, who, t, done, texts)
         if f["kind"] == "nic" and f["bench"] and f["part"]:
             s.bench_card = f["part"]
+    drives = [f for f in found if f["kind"] == "drive"]
+    _answer_drives(db, keys, drives, machine, who, t, done, texts)
     # The board, found only now: it may have been made, or joined to the machine, by
     # the answer just given for it.
     board = subject if isinstance(subject, Part) else _board_of(db, tree.load(db), machine)
@@ -1198,6 +1359,80 @@ def _identify_part(part: Part, f: Finding) -> None:
         part.ethernet_address = f["identifier"]
 
 
+def _identified(
+    db: Session, keys: Mapping[str, str], f: Finding, machine: str, who: str, t: tree.Tree
+) -> bool:
+    """A thing that says which one it is, answered by what the register knows of its
+    serial number or address: the part that has it, or the answer it was given
+    before. False when the register knows nothing of it."""
+    part = known_part(db, f)
+    if part is not None:
+        _identify_part(part, f)
+        _place(db, f, part, machine, who, t)
+        if f["answer"] == PART and not f["bench"] and f["kind"] in ("disk", "drive"):
+            _fill_disk(db, part, keys, f)
+        return True
+    row = seen_row(db, f["id_kind"], f["identifier"])
+    if row is not None and row.answer in (MACHINE, OUT) and row.answer in f["fits"]:
+        f["answer"] = row.answer
+        return True
+    return False
+
+
+def _remembered(db: Session, f: Finding, machine: str, t: tree.Tree) -> bool:
+    """A thing with no serial number, answered as it was in this machine before. False
+    when it was not, and when the part it named has been taken out since: that answer
+    no longer holds, and the thing is asked again."""
+    row = (
+        db.query(SurveyAnswer)
+        .filter(
+            SurveyAnswer.machine == machine,
+            SurveyAnswer.thing == f["signature"][:191],
+            SurveyAnswer.nth == f["nth"],
+        )
+        .first()
+    )
+    if row is None:
+        return False
+    if row.answer != PART:
+        f["answer"] = row.answer
+        return True
+    part = _part(db, row.part)
+    if part is not None:
+        tag = part.asset_id.upper()
+        if on_bench(db, t, tag):
+            f["answer"], f["part"], f["bench"] = PART, tag, True
+            return True
+        if t.machine(tag) == machine or t.holder(tag) == machine:
+            f["answer"], f["part"] = PART, tag
+            return True
+    db.delete(row)
+    db.flush()
+    return False
+
+
+def _answered_at_machine(
+    db: Session,
+    keys: Mapping[str, str],
+    f: Finding,
+    machine: str,
+    who: str,
+    t: tree.Tree,
+    done: Filing,
+    texts: Mapping[str, list[str]],
+) -> None:
+    """The answer given at the machine, for a thing the register had none for."""
+    how, tag = answer_in(keys, f)
+    if how == "link" and (linked := _part(db, tag)) is not None:
+        _identify_part(linked, f)
+        _place(db, f, linked, machine, who, t)
+    elif how == "new":
+        made = _new_part(db, keys, f, machine, who, t, done, texts=texts)
+        f["answer"], f["part"] = PART, made.asset_id
+    elif how in (MACHINE, OUT):
+        f["answer"] = how
+
+
 def _answer_identified(
     db: Session,
     keys: Mapping[str, str],
@@ -1208,26 +1443,8 @@ def _answer_identified(
     done: Filing,
     texts: Mapping[str, list[str]],
 ) -> None:
-    part = known_part(db, f)
-    if part is not None:
-        _identify_part(part, f)
-        _place(db, f, part, machine, who, t)
-        if f["answer"] == PART and not f["bench"] and f["kind"] == "disk":
-            _fill_disk(db, part, keys, f)
-        return
-    row = seen_row(db, f["id_kind"], f["identifier"])
-    if row is not None and row.answer in (MACHINE, OUT) and row.answer in f["fits"]:
-        f["answer"] = row.answer
-        return
-    how, tag = answer_in(keys, f)
-    if how == "link" and (linked := _part(db, tag)) is not None:
-        _identify_part(linked, f)
-        _place(db, f, linked, machine, who, t)
-    elif how == "new":
-        made = _new_part(db, keys, f, machine, who, t, done, texts=texts)
-        f["answer"], f["part"] = PART, made.asset_id
-    elif how in (MACHINE, OUT):
-        f["answer"] = how
+    if not _identified(db, keys, f, machine, who, t):
+        _answered_at_machine(db, keys, f, machine, who, t, done, texts)
 
 
 def _answer_remembered(
@@ -1240,42 +1457,50 @@ def _answer_remembered(
     done: Filing,
     texts: Mapping[str, list[str]],
 ) -> None:
-    row = (
-        db.query(SurveyAnswer)
-        .filter(
-            SurveyAnswer.machine == machine,
-            SurveyAnswer.thing == f["signature"][:191],
-            SurveyAnswer.nth == f["nth"],
-        )
-        .first()
-    )
-    if row is not None:
-        if row.answer != PART:
-            f["answer"] = row.answer
-            return
-        part = _part(db, row.part)
-        if part is not None:
-            tag = part.asset_id.upper()
-            if on_bench(db, t, tag):
-                f["answer"], f["part"], f["bench"] = PART, tag, True
-                return
-            if t.machine(tag) == machine or t.holder(tag) == machine:
-                f["answer"], f["part"] = PART, tag
-                return
-        # The part it named has been taken out since: the answer no longer holds, and
-        # is asked again.
-        db.delete(row)
-        db.flush()
-    how, tag = answer_in(keys, f)
-    if how == "link" and (linked := _part(db, tag)) is not None:
-        _place(db, f, linked, machine, who, t)
-    elif how == "new":
-        made = _new_part(db, keys, f, machine, who, t, done, texts=texts)
-        f["answer"], f["part"] = PART, made.asset_id
-    elif how in (MACHINE, OUT):
-        f["answer"] = how
+    if _remembered(db, f, machine, t):
+        return
+    _answered_at_machine(db, keys, f, machine, who, t, done, texts)
     if f["answer"] is not None:
         remember(db, machine, f)
+
+
+def _answer_drives(
+    db: Session,
+    keys: Mapping[str, str],
+    drives: list[Finding],
+    machine: str,
+    who: str,
+    t: tree.Tree,
+    done: Filing,
+    texts: Mapping[str, list[str]],
+) -> None:
+    """The drives a survey found, answered (ADR-0048): first as anything is, by what
+    the register knows of each (its serial number, or its answer remembered in this
+    machine); then by what the machine already records, a fitted drive part or a row
+    of its Drives, one each; and last as answered at the machine."""
+    kept = _Kept(db, t, machine)
+    still: list[Finding] = []
+    for f in drives:
+        known = (
+            _identified(db, keys, f, machine, who, t)
+            if f["identifier"]
+            else _remembered(db, f, machine, t)
+        )
+        if known:
+            kept.take(keys, f, f["answer"], f["part"] or "")
+        else:
+            still.append(f)
+    for f in still:
+        claimed = kept.claim(keys, f)
+        if claimed is None:
+            _answered_at_machine(db, keys, f, machine, who, t, done, texts)
+        else:
+            f["answer"], f["part"] = claimed
+            if (part := _part(db, f["part"])) is not None:
+                _identify_part(part, f)
+                _fill_disk(db, part, keys, f)
+        if not f["identifier"] and f["answer"] is not None:
+            remember(db, machine, f)
 
 
 def keeps_bios(db: Session, subject: Computer | Part | None) -> bool:
@@ -1383,6 +1608,12 @@ def _new_part(
         part.model = f["name"]
         part.serial = f["identifier"][:64]
         part.specs = _disk_specs(keys, f)
+    elif f["kind"] == "drive":
+        # A CD-ROM drive or a card by its own model; a floppy drive by its size until
+        # what was typed at the machine names it, below (ADR-0048).
+        part.model = f["name"]
+        part.serial = f["identifier"][:64]
+        part.specs = _drive_specs(keys, f)
     elif f["kind"] == "nic":
         on_pci = nic_pci(keys)
         if on_pci is not None and pciids.known(on_pci[1], on_pci[2]):
@@ -1437,11 +1668,12 @@ def _disk_specs(keys: Mapping[str, str], f: Finding) -> str:
 
 
 def _fill_disk(db: Session, part: Part, keys: Mapping[str, str], f: Finding) -> None:
-    """What a disk's record is missing, from what it said about itself: its capacity
-    and its geometry."""
+    """What a disk's or a drive's record is missing, from what it said about itself:
+    a disk's capacity and geometry, a floppy drive's size, a card's capacity."""
     have = {k.lower() for k, _ in entry.parse_specs(part.specs or "")}
     specs = part.specs or ""
-    for k, v in entry.parse_specs(_disk_specs(keys, f)):
+    said_of_it = _drive_specs(keys, f) if f["kind"] == "drive" else _disk_specs(keys, f)
+    for k, v in entry.parse_specs(said_of_it):
         if k.lower() not in have:
             specs = entry.merge_spec(specs, k, v)
     if specs != (part.specs or ""):
@@ -1563,9 +1795,10 @@ def _fill(
         _fill_maker(c, bios_maker(keys, texts), done, "maker")
         _fill_field(c, "model", said(keys.get("SYSTEM_MODEL")), done)
         _fill_field(c, "serial", said(keys.get("SYSTEM_SERIAL")), done)
-        rows = drive_rows(keys)
-        if rows and not drivedb.read(db, c):
-            drivedb.write(db, c, rows)
+        # A row for each drive answered as part of the machine that no row already
+        # stands for (ADR-0048).
+        if added := _rows_to_add(db, c, keys, found):
+            drivedb.write(db, c, [*drivedb.read(db, c), *added])
             done.filled.append("drives")
         identity = machinedb.read(db, c)
         model_key = identity["model_key"]
@@ -1884,7 +2117,12 @@ def _shown(text: str) -> str:
     return " ".join(plain.split())[:60]
 
 
-def answer_question(db: Session, text: str, roms: Mapping[str, bytes] | None = None) -> str:
+def answer_question(
+    db: Session,
+    text: str,
+    roms: Mapping[str, bytes] | None = None,
+    agent: Agent | None = None,
+) -> str:
     """The answer to a machine's question before its tests (MANUAL §23, "At the
     machine"): which machine this is, when the register can tell, the answer it
     already has for each thing found, what it can call each thing, and which ROM is
@@ -1908,11 +2146,14 @@ def answer_question(db: Session, text: str, roms: Mapping[str, bytes] | None = N
             machine = next(iter(pointed))
     if machine is not None:
         lines.append(f"TAG={machine}")
+    drives = _held_drives(db, keys, found, machine, t)
     for f in found:
         if f["kind"] == MACHINE:
             continue
         if f["kind"] == "board":
             value = _held_board(db, keys, f, machine, t)
+        elif f["kind"] == "drive":
+            value = drives[f["thing"]]
         else:
             value = _held(db, f, machine, t)
         if value:
@@ -1933,6 +2174,9 @@ def answer_question(db: Session, text: str, roms: Mapping[str, bytes] | None = N
     nic = next((f for f in found if f["kind"] == "nic"), None)
     if nic is not None and nic["segment"] and not keys.get("NIC_ROM", "").strip():
         lines.append(f"NIC_ROM={nic['segment']}")
+    # The printer the machine may offer to print the new tags' labels on (ADR-0049).
+    if (printer := label_printer(agent)) is not None:
+        lines.append(f"LABELS={_shown(printer.name)}")
     return "\r\n".join(lines) + "\r\n"
 
 
@@ -1956,6 +2200,26 @@ def _held_board(
     if known is not None:
         return known.asset_id.upper()
     return _held(db, f, machine, t)
+
+
+def _held_drives(
+    db: Session, keys: Mapping[str, str], found: list[Finding], machine: str | None, t: tree.Tree
+) -> dict[str, str]:
+    """What the register already has for each drive found, by thing, as
+    `_answer_drives` would file it: what it knows of the drive itself, then what the
+    machine records of its drives, one each (ADR-0048)."""
+    kept = _Kept(db, t, machine)
+    drives = [f for f in found if f["kind"] == "drive"]
+    held: dict[str, str] = {}
+    for f in drives:
+        held[f["thing"]] = value = _held(db, f, machine, t)
+        if value:
+            answer = value.lower() if value in (MACHINE.upper(), OUT.upper()) else PART
+            kept.take(keys, f, answer, value.split()[0] if answer == PART else "")
+    for f in drives:
+        if not held[f["thing"]] and (claimed := kept.claim(keys, f)) is not None:
+            held[f["thing"]] = claimed[1] or MACHINE.upper()
+    return held
 
 
 def _held(db: Session, f: Finding, machine: str | None, t: tree.Tree) -> str:
@@ -2024,6 +2288,39 @@ def receipt(db: Session, made: list[Survey]) -> str:
     return (
         "\r\n".join(line.encode("ascii", "replace").decode("ascii")[:79] for line in lines) + "\r\n"
     )
+
+
+def label_printer(agent: Agent | None) -> printing.Agent | None:
+    """The printer a survey offers to print the small labels of what it makes on
+    (ADR-0049): the print agent the small label goes to, by its **Goes to**. None where
+    it goes anywhere else, and for a survey agent with a printer of its own, which
+    prints them without asking."""
+    if agent is None or agent.printer:
+        return None
+    goes_to = settings.value("label_small_destination")
+    if not goes_to.startswith(settings.AGENT):
+        return None
+    return printing.agents().get(goes_to.removeprefix(settings.AGENT))
+
+
+def labels_asked(db: Session, agent: Agent, made: Iterable[tuple[Survey, Filing]]) -> str:
+    """Put the small label of each tag a survey made on the printer offered at the
+    machine, for each survey whose report says Y was answered there (`LABELS=YES`).
+    The receipt's line saying so, or "" for none. Called after the surveys are saved,
+    because putting a job on the queue saves it."""
+    printer = label_printer(agent)
+    if printer is None:
+        return ""
+    sent = 0
+    for s, filing in made:
+        if keys_of(s).get("LABELS", "").strip().upper() != "YES":
+            continue
+        for kind, tag in filing.made:
+            printing.add(db, printer, kind, tag)
+            sent += 1
+    if not sent:
+        return ""
+    return f"{sent} small label{'s' if sent != 1 else ''} sent to {printer.name}."
 
 
 def labels_for(db: Session, agent: Agent, made: Iterable[tuple[str, str]]) -> None:

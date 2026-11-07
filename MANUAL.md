@@ -1199,6 +1199,12 @@ and it becomes a part with its own tag.
 (A floppy drive on a shelf, with no machine to fit it to, becomes a part after
 all — there is nowhere else to put it.)
 
+A [survey](#23-surveys) asks about every drive it finds instead, so a floppy
+drive, a CD-ROM drive or a CompactFlash card it finds can be made a tagged part
+there, or answered as part of the machine, which is a row here. The part form
+keeps filing those kinds as rows. A drive a machine's rows already describe is
+taken for that row by a survey, so it is never recorded twice.
+
 ### The drives table
 
 On the machine form, each row has: how many, kind, form factor, size, media,
@@ -4322,7 +4328,9 @@ RHDB_SURVEY_AGENTS=bench:1a7d…
 Each entry is `name:key`. Give it a third part naming a [print
 agent](#printing-to-a-printer-somewhere-else), as `bench:1a7d…:workshop-pi`, and
 the label for every tag a survey makes is printed there, so a new hard disk's
-label is waiting by the time the machine is switched off. Generate a key with
+label is waiting by the time the machine is switched off. Without one, a survey
+offers to print them at the machine, where the small label goes to a print
+agent ([at the machine](#at-the-machine)). Generate a key with
 `openssl rand -hex 32`, one for each agent. With nothing set the register takes
 no surveys.
 
@@ -4363,6 +4371,14 @@ hard disk by the name it gives itself, a later PC by what its BIOS says.
   it is, and is offered the company that wrote its BIOS as its make where that is
   who made it ([who made it, from its BIOS](#who-made-it-from-its-bios)). Nothing
   that already has a name is asked about.
+- **Labels for what is new.** Where the small label goes to a print agent's
+  queue (its **Goes to**, [where a label goes](#where-a-label-goes)) and the
+  survey is about to make something (**N** for the machine, or for anything it
+  found), it asks once, after everything else, whether to print a small label
+  for each new tag on that printer. **Y** puts them on its queue when the
+  report is filed: the machine's label and each new part's. Enter prints
+  none. A survey agent with a printer of its own prints them anyway ([what it
+  takes](#what-it-takes)), and is not asked.
 
 The tests run, the report is written and the agent sends it. The register's
 answer comes back to the screen, naming the machine and saying what it filled in
@@ -4380,8 +4396,9 @@ The register works it out in this order:
 1. **The answer at the machine.** A machine's tag or a motherboard's (a
    motherboard fitted in a machine stands for the machine), or **N** for a new
    computer.
-2. **What is inside it.** A hard disk or a network card the register has in a
-   machine, as a part fitted in it or as part of it, says it is that machine. So
+2. **What is inside it.** A hard disk, a CD-ROM drive, a CompactFlash card or a
+   network card the register has in a machine, as a part fitted in it or as part
+   of it, says it is that machine. So
    does a serial number from the BIOS that matches a machine's, or a
    motherboard's fitted in one. A motherboard the register has in no machine,
    known by that serial number, says this is that board when nothing was typed
@@ -4414,9 +4431,10 @@ machine](#two-ways-of-describing-a-machine), [drives](#8-drives)):
 
 | Found | Its answer |
 |---|---|
-| The processor and its maths coprocessor, the memory, the operating system, the BIOS, the chipset, the machine's own maker, model and serial number, floppy drives, CD-ROM drives and CompactFlash cards | Always part of the machine. Nobody is asked. |
+| The processor and its maths coprocessor, the memory, the operating system, the BIOS, the chipset, the machine's own maker, model and serial number | Always part of the machine. Nobody is asked. |
 | A hard disk | A part of its own, or left out |
 | The motherboard, in a machine with none on record | A part of its own, or left out |
+| A floppy drive, a CD-ROM drive or a CompactFlash card | A part of its own, part of the machine (a row in its **Drives**), or left out |
 | The network card, the video card, any other card seen through its ROM or on a PCI bus (a disk controller, a sound card), and the serial and parallel ports | A part of its own, part of the machine (built into its board), or left out |
 
 The network card a survey runs through is one thing, however the survey sees
@@ -4427,9 +4445,23 @@ An answer is remembered. The next survey that finds the same thing in the same
 machine gives it the same answer without asking. A thing with a serial number
 or an address is known by that wherever it turns up, and anything else by what
 it says it is: the name in its ROM, its maker and model on the PCI bus, the
-addresses of the ports. Two of the same in one machine are counted, since the
-survey cannot tell which is which. An answer that no longer holds, because the
-part it named has been taken out since, is asked again.
+addresses of the ports, a floppy drive's size. Two of the same in one machine
+are counted, since the survey cannot tell which is which. An answer that no
+longer holds, because the part it named has been taken out since, is asked
+again.
+
+A drive the register already has in the machine is not asked about either:
+
+- **A row in its Drives** of the same kind (a floppy drive's or a Gotek's of
+  the same size, an optical drive's, a CF or SD card's) means the drive is part
+  of the machine. Each row stands for as many drives as it counts.
+- **A part fitted in it** of the same kind (`Floppy/Gotek` of the same size,
+  `Optical`, `SD/CF card`) is that drive, unless the part's serial number says
+  it is another.
+
+So a machine whose drives were written down before surveys asked about them is
+never recorded twice. A drive that matches neither is asked about, which is also
+how a survey says the BIOS has a 1.44MB drive where the record has a 1.2MB one.
 
 A survey also lists what the register has in the machine that it would expect
 to find and did not: a hard disk that did not answer, a card that has gone.
@@ -4470,7 +4502,7 @@ say.
 | The memory the BIOS counts | **Installed RAM**, as a plain total, when nothing about the machine's memory is recorded yet. Above 1 MiB it is rounded up to whole MiB, because an AT's BIOS leaves out the 384 KiB under its ROMs. |
 | The operating system on the first hard disk | **Operating system** |
 | What a later PC's BIOS says the machine is: its maker, model and serial number | **Manufacturer**, **Model** and **Serial number**. A placeholder such as `To be filled by O.E.M.` or `System Product Name` says nothing, and is ignored. With no maker from there, the company that wrote its BIOS, where that is who made it ([who made it, from its BIOS](#who-made-it-from-its-bios)). |
-| Floppy drives as the BIOS has them, CD-ROM drives and CompactFlash cards | **Drives**, when the machine has none recorded |
+| A floppy drive, a CD-ROM drive or a CompactFlash card answered as part of the machine | a row in **Drives**: a floppy drive's bay and size as the BIOS has them (`3.5"`, `1.44MB`), the others' model. A row already there for it is left as it is. |
 | The BIOS's maker, version and date | the **BIOS ROM** socket, on a machine the catalogue gives one (`BIOS 10/27/82` on an IBM 5150); otherwise **BIOS** on the motherboard fitted in it |
 | The chipset a later PC's bus names | **Chipset** on the motherboard fitted in it |
 | A card, or the ports, answered as part of the machine | **Onboard video** or **Onboard I/O ports** on the motherboard fitted in it, or a line of their own for anything else (`Onboard sound`) |
@@ -4500,7 +4532,11 @@ machine says which:
   rather than added twice.
 - **N** makes a new one, fitted in the machine and named as it names itself: a
   hard disk as `QUANTUM FIREBALL1080A`, with its interface, capacity and
-  geometry; a card by its ROM or its chip (`Tseng Labs ET4000`); a network card
+  geometry; a CD-ROM drive (`Optical`) or a CompactFlash card (`SD/CF card`,
+  with its capacity and geometry) the same way; a floppy drive by its size
+  (`1.44MB`, for 3.5" disks), since a floppy drive cannot say what it is, so
+  the make and model typed at the machine are its name; a card by its ROM or its
+  chip (`Tseng Labs ET4000`); a network card
   by its chip where it is on the PCI bus, and otherwise by the driver it was run
   with; the ports as an I/O card with them on it; a motherboard as a later PC's
   BIOS names it (SMBIOS), with the serial number it keeps, or by the company that
