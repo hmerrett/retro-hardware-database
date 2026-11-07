@@ -12,6 +12,8 @@ are sent the way the agent sends them, through its own door with its own key, an
 what became of them is read back through the API, as anything else is.
 """
 
+from pathlib import Path
+
 import pytest
 
 from conftest import log_out
@@ -198,6 +200,22 @@ class TestAQuestionBeforeTheTests:
         (made,) = r.json()["surveys"]
         assert r.json()["receipt"].splitlines()[0] == made["machine"]
 
+    def test_the_answer_says_how_the_tests_went_in_the_historys_words(self, client, computer):
+        """The tests' own names keep their capitals: RAM, not ram."""
+        r = send(
+            client,
+            report(
+                TAG=computer()["asset_id"],
+                RESULT="FAIL",
+                TESTS="17",
+                FAILED="2",
+                TEST_RAM="FAIL",
+                TEST_FDC="FAIL",
+            ),
+        )
+        assert r.status_code == 200, r.text
+        assert "2 of 17 tests failed (RAM, floppy)." in r.json()["receipt"]
+
 
 # --- which machine it is ---------------------------------------------------------
 
@@ -381,6 +399,28 @@ class TestWhatItDoesWithWhatItFinds:
         assert answers == ["None", "part"]
         assert again["waiting"] == "answer"
 
+    def test_the_network_card_is_one_thing_however_the_survey_sees_it(self, client, computer):
+        """By its address, and on the PCI bus: the card the survey ran through is asked
+        about once, and a new one is named by its chip where the register knows it."""
+        made = survey(
+            client, TAG=computer()["asset_id"], PCI1="8086:1229 0200", NIC_ANSWER="NEW", **NIC
+        )
+        assert [f["thing"] for f in made["findings"] if f["kind"] != "machine"] == ["NIC"]
+        assert made["waiting"] is None
+        card = get(client, "parts", finding(made, "NIC")["part"])
+        assert (card["manufacturer"], card["model"]) == ("Intel", "82557 EtherExpress PRO/100")
+
+    def test_a_second_network_card_on_the_pci_bus_is_a_card_of_its_own(self, client, computer):
+        made = survey(
+            client,
+            TAG=computer()["asset_id"],
+            PCI1="8086:1229 0200",
+            PCI2="10EC:8029 0200",
+            **NIC,
+        )
+        assert all(f["thing"] != "PCI1" for f in made["findings"])
+        assert finding(made, "PCI2")["answer"] is None
+
     def test_an_answer_that_no_longer_holds_is_asked_again(self, client, computer, part):
         machine = computer()
         card = part(type="video", model="ET4000", computer_id=machine["asset_id"])
@@ -445,23 +485,68 @@ class TestSerialNumbersAndAddresses:
 
 class TestPartOfTheMachine:
     def test_the_processor_is_written_the_way_the_form_asks_for_it(self, client, computer):
+        """From what a survey program sends: the family it says (80486), the CPUID
+        signature that says which 486 it is, and the speed it measured."""
         machine = computer()
         survey(
-            client, TAG=machine["asset_id"], CPU="486DX2", CPUVENDOR="GenuineIntel", CPUKHZ="66667"
+            client,
+            TAG=machine["asset_id"],
+            CPU="80486",
+            CPUVENDOR="GenuineIntel",
+            CPUSIG="0435",
+            CPUKHZ="66667",
         )
         assert get(client, "computers", machine["asset_id"])["cpu"] == "Intel 486DX2-66"
+
+    @pytest.mark.parametrize(
+        ("cpu", "vendor", "signature", "khz", "written"),
+        [
+            ("80486", "GenuineIntel", "0480", "100000", "Intel 486DX4-100"),
+            ("80486", "AuthenticAMD", "04F4", "133333", "AMD 5x86-133"),
+            ("PENTIUM", "GenuineIntel", "052C", "133000", "Intel Pentium-133"),
+            ("PENTIUM", "GenuineIntel", "0543", "233000", "Intel Pentium MMX-233"),
+            ("PENTIUM", "AuthenticAMD", "058C", "300000", "AMD K6-2-300"),
+            ("PENTIUM", "CyrixInstead", "0520", "120000", "Cyrix 6x86-120"),
+            ("P6", "GenuineIntel", "0652", "350000", "Intel Pentium II-350"),
+            ("P6", "GenuineIntel", "0683", "733000", "Intel Pentium III-733"),
+            # A model nobody has told the register about is called by its family.
+            ("PENTIUM", "GenuineIntel", "05F0", "100000", "Intel Pentium-100"),
+        ],
+    )
+    def test_a_chip_that_answers_cpuid_is_named_by_what_it_answers(
+        self, client, computer, cpu, vendor, signature, khz, written
+    ):
+        """An AMD K6-2 says it is of the Pentium's family, and is written as itself."""
+        made = survey(
+            client,
+            TAG=computer()["asset_id"],
+            CPU=cpu,
+            CPUVENDOR=vendor,
+            CPUSIG=signature,
+            CPUKHZ=khz,
+        )
+        assert finding(made, "CPU")["name"] == written
 
     def test_a_chip_too_old_to_say_who_made_it_is_written_without_a_maker(self, client, computer):
         machine = computer()
         survey(client, TAG=machine["asset_id"], CPU="80286", CPUKHZ="12000")
         assert get(client, "computers", machine["asset_id"])["cpu"] == "80286-12"
 
+    def test_a_486_too_early_for_cpuid_is_written_as_the_survey_says_it(self, client, computer):
+        made = survey(client, TAG=computer()["asset_id"], CPU="80486", CPUKHZ="33000")
+        assert finding(made, "CPU")["name"] == "80486-33"
+
     def test_the_speed_written_is_the_speed_measured(self, client, computer):
         """So a machine surveyed with its turbo switched off is written at its slower
         speed."""
         machine = computer()
         survey(
-            client, TAG=machine["asset_id"], CPU="486DX2", CPUVENDOR="GenuineIntel", CPUKHZ="8000"
+            client,
+            TAG=machine["asset_id"],
+            CPU="80486",
+            CPUVENDOR="GenuineIntel",
+            CPUSIG="0435",
+            CPUKHZ="8000",
         )
         assert get(client, "computers", machine["asset_id"])["cpu"] == "Intel 486DX2-8"
 
@@ -1017,6 +1102,44 @@ class TestROMs:
         assert made["waiting"] is None
         assert files(client)[0]["assets"] == [card["asset_id"]]
 
+    def test_a_later_boards_bios_is_the_bios_wherever_it_starts(self, client, computer):
+        """It runs to the top of the first megabyte. One that starts at E800 is the
+        BIOS, and never a card to be asked about."""
+        machine = computer()
+        made = survey(
+            client,
+            roms=[("BIOS.BIN", BIOS_ROM)],
+            TAG=machine["asset_id"],
+            ROM1="E800 98304 BIOS.BIN",
+        )
+        assert all(f["thing"] != "ROM1" for f in made["findings"])
+        assert made["waiting"] is None
+        (kept,) = files(client)
+        assert kept["note"].startswith("BIOS")
+        assert kept["assets"] == [machine["asset_id"]]
+
+    def test_its_maker_and_version_are_read_wherever_it_starts(self, client, computer, part):
+        machine = computer()
+        board = part(type="motherboard", computer_id=machine["asset_id"])
+        survey(
+            client,
+            roms=[("BIOS.BIN", BIOS_ROM)],
+            TAG=machine["asset_id"],
+            BIOSDATE="08/22/96",
+            ROM1="E800 98304 BIOS.BIN",
+        )
+        specs = get(client, "parts", board["asset_id"])["specs"]
+        assert "Award" in specs and "4.51PG" in specs
+
+    def test_an_option_rom_below_the_bios_is_still_a_card(self, client, computer):
+        made = survey(
+            client,
+            roms=[("SCSI.BIN", BOOT_ROM)],
+            TAG=computer()["asset_id"],
+            ROM1="E000 16384 SCSI.BIN",
+        )
+        assert finding(made, "ROM1")["kind"] == "card"
+
     def test_the_text_in_each_rom_is_kept_with_the_survey(self, client, computer):
         made = survey(
             client,
@@ -1103,6 +1226,21 @@ class TestInTheHistory:
         assert "2 of 17 tests failed" in line["message"]
         assert "RAM" in line["message"]
 
+    def test_the_line_says_how_many_tests_were_skipped(self, client, computer):
+        """A skipped test has not been run, so the line never says every test
+        passed."""
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], **PASSED | {"TESTS": "3", "TEST_FDC": "SKIP"})
+        (line,) = lines(client, machine["asset_id"], "survey")
+        assert "2 of 3 tests passed, 1 skipped" in line["message"]
+        assert "every test passed" not in line["message"]
+
+    def test_a_test_that_does_not_apply_still_lets_it_say_every_test_passed(self, client, computer):
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], **PASSED | {"TEST_RTC": "NA"})
+        (line,) = lines(client, machine["asset_id"], "survey")
+        assert "every test passed" in line["message"]
+
     def test_a_soaks_line_says_how_long_it_ran(self, client, computer):
         machine = computer()
         survey(
@@ -1142,8 +1280,9 @@ class TestWhatASurveyNeverDoes:
         survey(
             client,
             TAG=machine["asset_id"],
-            CPU="486DX2",
+            CPU="80486",
             CPUVENDOR="GenuineIntel",
+            CPUSIG="0435",
             CPUKHZ="66000",
             OS="MS-DOS 6.22",
             SYSTEM_SERIAL="XYZ",
@@ -1202,3 +1341,55 @@ class TestWhatAReportSays:
         )
         assert made["clock"] == "01/01/1980 00:01:12"
         assert made["taken"].startswith("2026-11-06T10:00")
+
+
+# --- a report as tinydiag writes it ----------------------------------------------------
+
+TINYDIAG = Path(__file__).parent / "data" / "tinydiag-0.8.0-qemu.txt"
+
+
+def tinydiag_report(**answers: str) -> str:
+    """The report tinydiag 0.8.0 wrote in QEMU, with the answers given at the machine
+    where the program puts them: the tag in its own line, the rest before [END]."""
+    text = TINYDIAG.read_bytes().decode("cp437")
+    if tag := answers.pop("TAG", ""):
+        text = text.replace("\r\nTAG=\r\n", f"\r\nTAG={tag}\r\n", 1)
+    added = "".join(f"{k}={v}\r\n" for k, v in answers.items())
+    return text.replace("[END]\r\n", added + "[END]\r\n")
+
+
+class TestAReportAsTinydiagWritesIt:
+    """A survey program's own report rather than the register's idea of one: what
+    tinydiag 0.8.0 wrote on QEMU's PC, with an IDE disk, a CD-ROM, a BIOS that starts at
+    E800, and three tests skipped."""
+
+    def test_n_at_the_machine_makes_a_computer_of_what_it_found(self, client):
+        r = send(
+            client,
+            tinydiag_report(
+                TAG="NEW", DISK1_ANSWER="NEW", VIDEO_ANSWER="NEW", PORTS_ANSWER="MACHINE"
+            ),
+        )
+        assert r.status_code == 200, r.text
+        (sent,) = r.json()["surveys"]
+        made = read(client, sent["id"])
+        assert made["waiting"] is None
+        machine = get(client, "computers", made["machine"])
+        # QEMU's clock, measured faithfully.
+        assert machine["cpu"] == "Intel 486DX4-3857"
+        assert machine["installed_ram"] == "4 MiB"
+        assert machine["os"] == "MS-DOS with Windows"
+        assert "DVD-ROM" in machine["drives"]
+        disk = get(client, "parts", finding(made, "DISK1")["part"])
+        assert (disk["model"], disk["serial"]) == ("QEMU HARDDISK", "QM00001")
+
+    def test_its_receipt_says_three_tests_were_skipped(self, client):
+        r = send(client, tinydiag_report(TAG="NEW"))
+        assert r.status_code == 200, r.text
+        assert "14 of 17 tests passed, 3 skipped." in r.json()["receipt"]
+
+    def test_left_alone_it_waits_to_be_told_which_machine_it_is(self, client):
+        r = send(client, tinydiag_report())
+        assert r.status_code == 200, r.text
+        (sent,) = r.json()["surveys"]
+        assert sent["waiting"] == "machine"

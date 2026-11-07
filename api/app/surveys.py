@@ -217,10 +217,76 @@ def _mhz(khz: int) -> str:
     return f"{value:g}"
 
 
+# What CPUID's family and model call a chip, by its maker: the chips a register of old
+# machines meets. A survey program says only the family (tinydiag's PENTIUM is anything
+# of the Pentium's generation, an AMD K6-2 included), so the model is what tells them
+# apart. One the table does not know is called by the family the program said.
+_CPU_MODELS: dict[tuple[str, int], dict[int, str]] = {
+    ("Intel", 4): {
+        0: "486DX",
+        1: "486DX",
+        2: "486SX",
+        3: "486DX2",
+        4: "486SL",
+        5: "486SX2",
+        7: "486DX2",
+        8: "486DX4",
+        9: "486DX4",
+    },
+    ("Intel", 5): {
+        1: "Pentium",
+        2: "Pentium",
+        3: "Pentium OverDrive",
+        4: "Pentium MMX",
+        7: "Pentium",
+        8: "Pentium MMX",
+    },
+    ("Intel", 6): {
+        1: "Pentium Pro",
+        3: "Pentium II",
+        5: "Pentium II",
+        6: "Celeron",
+        7: "Pentium III",
+        8: "Pentium III",
+        9: "Pentium M",
+        10: "Pentium III",
+        11: "Pentium III",
+        13: "Pentium M",
+    },
+    ("AMD", 4): {3: "486DX2", 7: "486DX2", 8: "486DX4", 9: "486DX4", 14: "5x86", 15: "5x86"},
+    ("AMD", 5): {0: "K5", 1: "K5", 2: "K5", 3: "K5", 6: "K6", 7: "K6", 8: "K6-2", 9: "K6-III"},
+    ("AMD", 6): {1: "Athlon", 2: "Athlon", 3: "Duron", 4: "Athlon", 6: "Athlon XP", 7: "Duron"},
+    ("Cyrix", 4): {4: "MediaGX", 9: "5x86"},
+    ("Cyrix", 5): {2: "6x86", 4: "MediaGX"},
+    ("Cyrix", 6): {0: "6x86MX"},
+    ("IDT", 5): {4: "WinChip C6", 8: "WinChip 2", 9: "WinChip 3"},
+    ("UMC", 4): {1: "U5D", 2: "U5S"},
+    ("NexGen", 5): {0: "Nx586"},
+    ("Rise", 5): {0: "mP6", 2: "mP6"},
+}
+
+# A family as the program says it, as the CPU box would write it.
+_CPU_FAMILIES = {"PENTIUM": "Pentium"}
+
+
+def _chip(chip: str, maker: str, signature: str) -> str:
+    """Which chip it is: from CPUID's family and model where the table knows them,
+    otherwise the family the survey program said."""
+    sig = signature.strip()
+    if len(sig) == 4 and all(c in "0123456789ABCDEFabcdef" for c in sig):
+        value = int(sig, 16)
+        family, model = (value >> 8) & 0xF, (value >> 4) & 0xF
+        named = _CPU_MODELS.get((maker, family), {}).get(model)
+        if named:
+            return named
+    return _CPU_FAMILIES.get(chip.upper(), chip)
+
+
 def cpu_line(keys: Mapping[str, str]) -> str:
     """The processor the way the CPU box asks for it: maker, model and speed, as
-    `Intel 486DX2-66`. A chip too old to say who made it is written without a maker,
-    and the speed is the one measured."""
+    `Intel 486DX2-66`. A chip that answers CPUID is named by what it answers; one too
+    old to say who made it is written without a maker, and the speed is the one
+    measured."""
     chip = keys.get("CPU", "").strip()
     if not chip:
         return ""
@@ -229,7 +295,7 @@ def cpu_line(keys: Mapping[str, str]) -> str:
     if not maker and vendor and vendor.isalpha() and len(vendor) <= 12:
         maker = vendor
     khz = _int(keys.get("CPUKHZ"))
-    line = f"{maker} {chip}".strip()
+    line = f"{maker} {_chip(chip, maker, keys.get('CPUSIG', ''))}".strip()
     return f"{line}-{_mhz(khz)}" if khz else line
 
 
@@ -307,8 +373,33 @@ def _roms(keys: Mapping[str, str]) -> list[tuple[int, str, int, str]]:
     return out
 
 
-def _is_bios(segment: str) -> bool:
-    return segment in ("F000", "E000")
+# The top of the first megabyte, where the system BIOS ends.
+_TOP = 0x100000
+
+
+def _is_bios(segment: str, size: int) -> bool:
+    """The system BIOS: the ROM that runs to the top of the first megabyte. An XT's
+    starts at F000; a later board's is bigger and starts lower, at E000 or E800, where
+    the survey program copied it from. An option ROM never reaches the top."""
+    try:
+        start = int(segment, 16) * 16
+    except ValueError:
+        return False
+    return start + size >= _TOP
+
+
+def nic_pci(keys: Mapping[str, str]) -> tuple[int, str, str, str] | None:
+    """The network card on the PCI bus that the survey ran through, as (n, vendor,
+    device, class): the first one, when a packet driver ran a card at all. The survey
+    program counts it as the network card rather than a card of its own (tinydiag's
+    docs/survey.md), and so does the register."""
+    if not mac(keys.get("NIC_MAC", "")):
+        return None
+    for n in _numbers(keys, "PCI"):
+        vendor, device, cls = pciids.split(keys.get(f"PCI{n}", ""))
+        if vendor and device and cls.startswith("02"):
+            return n, vendor, device, cls
+    return None
 
 
 # --- findings --------------------------------------------------------------------------
@@ -463,12 +554,16 @@ def findings(keys: Mapping[str, str]) -> list[Finding]:
             )
 
     nic_rom = keys.get("NIC_ROM", "").strip().upper()
+    on_pci = nic_pci(keys)
     if address := mac(keys.get("NIC_MAC", "")):
+        named = pciids.known(on_pci[1], on_pci[2]) if on_pci else False
         out.append(
             _finding(
                 "NIC",
                 "nic",
-                keys.get("NIC_DRIVER", "").strip() or "Network card",
+                (pciids.name(on_pci[1], on_pci[2]) if on_pci and named else "")
+                or keys.get("NIC_DRIVER", "").strip()
+                or "Network card",
                 ALL,
                 id_kind="mac",
                 identifier=address,
@@ -498,6 +593,8 @@ def findings(keys: Mapping[str, str]) -> list[Finding]:
             continue
         if video and display is not None and n == display[0]:
             continue
+        if on_pci is not None and n == on_pci[0]:
+            continue
         # The disk and USB controllers built into the chipset are the chipset's too.
         if vendor in chip_vendors and cls[:2] in ("01", "0C"):
             continue
@@ -515,7 +612,7 @@ def findings(keys: Mapping[str, str]) -> list[Finding]:
 
     claimed = {f["segment"] for f in out if f["segment"]}
     for rom_n, segment, rom_size, _filename in roms:
-        if _is_bios(segment) or segment in claimed or (video and segment == "C000"):
+        if _is_bios(segment, rom_size) or segment in claimed or (video and segment == "C000"):
             continue
         out.append(
             _finding(
@@ -1073,7 +1170,12 @@ def _new_part(
         part.serial = f["identifier"][:64]
         part.specs = _disk_specs(keys, f)
     elif f["kind"] == "nic":
-        part.model = f["name"]
+        on_pci = nic_pci(keys)
+        if on_pci is not None and pciids.known(on_pci[1], on_pci[2]):
+            part.manufacturer = pciids.maker(on_pci[1])
+            part.model = pciids.model(on_pci[1], on_pci[2])
+        else:
+            part.model = f["name"]
         part.ethernet_address = f["identifier"]
     elif f["kind"] == "ports":
         part.model = "I/O card"
@@ -1163,7 +1265,12 @@ def _fill_field(obj: Computer | Part, name: str, value: str, done: Filing, word:
 def _bios_line(keys: Mapping[str, str], texts: Mapping[str, list[str]]) -> str:
     """The BIOS as the motherboard's BIOS line says it: maker, version and date, the
     date as the BIOS writes it, month first."""
-    bios_text = texts.get("F000", []) + texts.get("E000", [])
+    bios_text = [
+        line
+        for _, segment, size, _ in _roms(keys)
+        if _is_bios(segment, size)
+        for line in texts.get(segment, [])
+    ]
     maker, version = romtext.bios(bios_text)
     maker = maker or keys.get("BIOSVENDOR", "").strip()
     date = keys.get("BIOSDATE", "").strip()
@@ -1354,7 +1461,8 @@ def _keep_roms(
         data = by_name.get(str(rom.get("filename", "")).upper(), b"")
         if not data:
             continue
-        if _is_bios(segment):
+        size = rom.get("size")
+        if _is_bios(segment, size if isinstance(size, int) else len(data)):
             owner: str | None = (board or subject).asset_id
             note = "BIOS, " + (_bios_line(keys, texts) or "as read by a survey")
         else:
@@ -1456,7 +1564,18 @@ def tests_line(keys: Mapping[str, str]) -> str:
         named = f" ({', '.join(failed)})" if failed else ""
         return f"{n} of {total} test{'s' if total != 1 else ''} failed{named}"
     if result == "PASS":
-        line = "every test passed"
+        # Every test that applies, that is: one that was skipped or never run has not
+        # passed, and the line says so rather than calling the run clean.
+        passed = sum(1 for v in tests.values() if v == "PASS")
+        skipped = sum(1 for v in tests.values() if v == "SKIP")
+        not_run = sum(1 for v in tests.values() if v == "NOTRUN")
+        if skipped or not_run:
+            bits = [f"{passed} of {total} test{'s' if total != 1 else ''} passed"]
+            bits += [f"{skipped} skipped"] if skipped else []
+            bits += [f"{not_run} not run"] if not_run else []
+            line = ", ".join(bits)
+        else:
+            line = "every test passed"
         if keys.get("MODE", "").strip().upper() == "SOAK":
             passes = _int(keys.get("PASSES"))
             how_long = _hours(keys.get("ELAPSED", ""))
@@ -1598,7 +1717,9 @@ def receipt(db: Session, made: list[Survey]) -> str:
             lines.append(f"{s.machine} {name}".strip())
         else:
             lines.append("Not filed yet: which machine this is waits on the Surveys page.")
-        lines.append(tests_line(keys).capitalize() + ".")
+        # Only the first letter: capitalize() would also lower the tests' own names.
+        said_of_tests = tests_line(keys)
+        lines.append(said_of_tests[:1].upper() + said_of_tests[1:] + ".")
         filled = [w for w in cast(list[str], json.loads(s.filled or "[]")) if w != "condition"]
         if filled:
             lines.append(f"Filled in {_joined(filled)}.")

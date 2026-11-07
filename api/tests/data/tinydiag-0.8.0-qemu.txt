@@ -1,0 +1,131 @@
+TINYDIAG v0.8.0 (b2dbd7a)  PC/XT/AT diagnostic    Asset tag : none (DIAG02.TXT)
+===============================================================================
+Date/time : 2026-11-06 01:22:57  (RTC present)
+Machine   : AT class                   Model byte: FC, sub 00, rev 01
+BIOS      : vendor not recognised, dated 06/23/99
+CPU       : 80486 (CPUID)              Clock     : about 3856.78 MHz
+CPUID     : GenuineIntel family 4 model 8 stepping 0
+FPU       : on-chip                    V86 mode  : no
+RAM       : 639K (INT 12h)             Free      : 529K, 109K in use
+Video     : VGA colour                 Text mode : 03h, 80 columns
+AT parts  : 2nd PIC yes, 8042 yes (status 1Ch), RTC yes
+DOS       : 3.30, run from A:
+Command   : DIAG /SURVEY /OUT:A:\SURVEY /ONCE /SKIP:RAM+RAMSYS+FDC
+Run mode  : single pass in 0:00:04
+-------------------------------------------------------------------------------
+Test                 Result Fails  Detail
+Timer tick (IRQ0)    PASS       0  BIOS tick count is advancing
+CPU                  PASS       0  80486 (CPUID): flags, registers, ALU ok
+FPU                  PASS       0  on-chip: sqrt and pi checks ok
+BIOS and BASIC ROMs  PASS       0  BIOS 64K sum ok
+Option ROMs          PASS       0  1 ok at C000
+8253 timer           PASS       0  3 channels ok, ch1 not set for refresh
+8237 DMA             PASS       0  refresh running, ch0-3 5-7 and pages ok
+8259 interrupts      PASS       0  both 8259s: mask, ISR, no hot IRQ, IRQ0 ok
+NMI and parity       PASS       0  latches clear, no NMI
+RAM, free area       SKIP          skipped by /SKIP
+RAM in use           SKIP          skipped by /SKIP
+Serial ports         PASS       0  COM1 16550A IRQ4, no plug
+Parallel ports       PASS       0  LPT1 latch ok, no plug
+Keyboard             PASS       0  8042, A20 gate and keyboard ok, no stuck key
+Video RAM            PASS       0  VGA 32K: page and off-screen ok
+Floppy               SKIP          skipped by /SKIP
+RTC and CMOS         PASS       0  no CMOS sum, 1 s = 1000 ms, IRQ8 at 664 Hz
+-------------------------------------------------------------------------------
+Result    : PASS (17 tests: 14 passed, 0 failed, 3 skipped)
+
+[RHDB]
+TOOL=TINYDIAG
+VERSION=0.8.0
+REV=b2dbd7a
+TAG=
+FILE=DIAG02.TXT
+TAGTIMEOUT=0
+DATE=2026-11-06
+TIME=01:22:57
+RTC=1
+CLASS=AT
+MODEL=FC
+SUBMODEL=00
+BIOSREV=01
+BIOSDATE=06/23/99
+BIOSVENDOR=
+CPU=80486
+CPUVENDOR=GenuineIntel
+CPUSIG=0480
+CPUKHZ=3856780
+FPU=ONCHIP
+V86=0
+RAMKB=639
+FREEKB=529
+VIDEO=VGA
+VIDEOMONO=0
+PIC2=1
+KBC=1
+DOS=3.30
+COMMAND=/SURVEY /OUT:A:\SURVEY /ONCE /SKIP:RAM+RAMSYS+FDC
+MODE=ONCE
+PASSES=1
+ELAPSED=4
+STOPPED=
+TESTS=17
+PASSED=14
+FAILED=0
+SKIPPED=3
+NA=0
+NOTRUN=0
+RESULT=PASS
+TEST_TICK=PASS
+DETAIL_TICK=BIOS tick count is advancing
+TEST_CPU=PASS
+DETAIL_CPU=80486 (CPUID): flags, registers, ALU ok
+TEST_FPU=PASS
+DETAIL_FPU=on-chip: sqrt and pi checks ok
+TEST_ROM=PASS
+DETAIL_ROM=BIOS 64K sum ok
+TEST_OPTROM=PASS
+DETAIL_OPTROM=1 ok at C000
+TEST_PIT=PASS
+DETAIL_PIT=3 channels ok, ch1 not set for refresh
+TEST_DMA=PASS
+DETAIL_DMA=refresh running, ch0-3 5-7 and pages ok
+TEST_PIC=PASS
+DETAIL_PIC=both 8259s: mask, ISR, no hot IRQ, IRQ0 ok
+TEST_NMI=PASS
+DETAIL_NMI=latches clear, no NMI
+TEST_RAM=SKIP
+DETAIL_RAM=skipped by /SKIP
+TEST_RAMSYS=SKIP
+DETAIL_RAMSYS=skipped by /SKIP
+TEST_COM=PASS
+DETAIL_COM=COM1 16550A IRQ4, no plug
+TEST_LPT=PASS
+DETAIL_LPT=LPT1 latch ok, no plug
+TEST_KBD=PASS
+DETAIL_KBD=8042, A20 gate and keyboard ok, no stuck key
+TEST_VRAM=PASS
+DETAIL_VRAM=VGA 32K: page and off-screen ok
+TEST_FDC=SKIP
+DETAIL_FDC=skipped by /SKIP
+TEST_RTC=PASS
+DETAIL_RTC=no CMOS sum, 1 s = 1000 ms, IRQ8 at 664 Hz
+COM1=03F8 16550A IRQ4 BAUD9600=NOT-TIMED PLUG:NONE
+LPT1=0378 PLUG:NONE
+KBC_PORTS=CMD:61 OUT:CF IN:80 A20:OK
+RTC_CHECKS=SECOND_MS:1000 IRQ8_HZ:664 CMOS_SUM:NONE
+EXTKB=3072
+FLOPPY1=1.44M
+SYSTEM_MAKER=Bochs
+SYSTEM_MODEL=Bochs
+DISK1_MODEL=QEMU HARDDISK
+DISK1_SERIAL=QM00001
+DISK1_KB=20480
+DISK1_CHS=40/16/63
+DISK1_TYPE=ATA
+DISK2_MODEL=QEMU DVD-ROM
+DISK2_SERIAL=QM00003
+DISK2_TYPE=ATAPI
+OS=MS-DOS with Windows
+ROM1=C000 39424 DIAG02.C00
+ROM2=E800 98304 DIAG02.E80
+[END]

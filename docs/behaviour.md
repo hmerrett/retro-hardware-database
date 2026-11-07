@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3270 behaviours, from 98 files.*
+*3283 behaviours, from 98 files.*
 
 
 ## A barcode takes the room the words leave
@@ -166,7 +166,7 @@ Regenerate with:
 
 ## A machine that reports itself
 
-*test_a_machine_that_reports_itself.py — 124 behaviours*
+*test_a_machine_that_reports_itself.py — 137 behaviours*
 
 
 **What it takes**
@@ -195,6 +195,8 @@ Regenerate with:
   It comes back to the machine's screen, so whoever is there knows it went and whether anything needs them.
 - the answer names a machine with no name by its tag once  
   A machine made at the machine has nothing to be called yet but its tag, and a screen reading "RH-9Q0D RH-9Q0D" looks like a fault.
+- the answer says how the tests went in the historys words  
+  The tests' own names keep their capitals: RAM, not ram.
 
 **Which machine it is**
 
@@ -231,6 +233,9 @@ Regenerate with:
   A VGA card in one machine says nothing about the VGA card in another.
 - two of the same in one machine are counted  
   The survey cannot tell which is which, so the second is the new one.
+- the network card is one thing however the survey sees it  
+  By its address, and on the PCI bus: the card the survey ran through is asked about once, and a new one is named by its chip where the register knows it.
+- a second network card on the pci bus is a card of its own
 - an answer that no longer holds is asked again
 - what the register expected and did not find is listed and left  
   A disk recorded in the machine that did not answer when the others did.
@@ -245,8 +250,12 @@ Regenerate with:
 
 **Part of the machine**
 
-- the processor is written the way the form asks for it
+- the processor is written the way the form asks for it  
+  From what a survey program sends: the family it says (80486), the CPUID signature that says which 486 it is, and the speed it measured.
+- a chip that answers cpuid is named by what it answers  
+  An AMD K6-2 says it is of the Pentium's family, and is written as itself.
 - a chip too old to say who made it is written without a maker
+- a 486 too early for cpuid is written as the survey says it
 - the speed written is the speed measured  
   So a machine surveyed with its turbo switched off is written at its slower speed.
 - the coprocessor goes in the catalogues fpu socket
@@ -327,6 +336,10 @@ Regenerate with:
   A BIOS is somebody's copyright, and publishing one should be a decision.
 - a network cards boot rom goes with the card  
   So a bench card's boot ROM is the bench card's in every machine, and is never asked about.
+- a later boards bios is the bios wherever it starts  
+  It runs to the top of the first megabyte.
+- its maker and version are read wherever it starts
+- an option rom below the bios is still a card
 - the text in each rom is kept with the survey
 - the bioss maker version and date are read from its text
 - a bios date is written month first  
@@ -341,6 +354,9 @@ Regenerate with:
   Its history reads in the order it happened: made, then surveyed.
 - the line says every test passed and what was filled in
 - the line says how many tests failed and which
+- the line says how many tests were skipped  
+  A skipped test has not been run, so the line never says every test passed.
+- a test that does not apply still lets it say every test passed
 - a soaks line says how long it ran
 - the line says nothing a visitor is not shown  
   No serial number, no address, nowhere anything is kept: the history is public.
@@ -361,6 +377,12 @@ Regenerate with:
 - the report is kept as the program wrote it
 - the machines own clock is kept beside the real one  
   A machine whose clock thinks it is 1980 has a flat battery.
+
+**A report as tinydiag writes it**
+
+- n at the machine makes a computer of what it found
+- its receipt says three tests were skipped
+- left alone it waits to be told which machine it is
 
 
 ## A second of a model
