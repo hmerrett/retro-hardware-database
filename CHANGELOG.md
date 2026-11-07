@@ -30,7 +30,9 @@ tests. Something new that nobody can name
 (an MFM disk, a card with no ROM, a machine whose BIOS does not say what it is) is
 asked its make and model at the machine, so it is named when it is made. A machine
 with no motherboard on record is asked about one, so its BIOS, chipset and board
-serial number have somewhere to go.
+serial number have somewhere to go. A BIOS written by the company that made the
+machine (Compaq, IBM, Amstrad and others, or one carrying HP's or Dell's name) names
+the board and offers the machine its make.
 
 **Upgrading:** nothing to do unless you want surveys. Give an agent a key in
 `RHDB_SURVEY_AGENTS` in `.env`, run `tools/survey_agent.py` where the machines'

@@ -76,6 +76,23 @@ def bios(texts: list[str]) -> tuple[str, str]:
     return "", ""
 
 
+# The computer makers who had a BIOS written for them and put their own name in it,
+# as it is printed there. Looked for whoever wrote the BIOS, because the writer's
+# name (Phoenix's) is in it too (ADR-0047).
+_OEMS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("HP", re.compile(r"Hewlett[- ]?Packard", re.I)),
+    ("Dell", re.compile(r"\bDell (?:Computer|Inc\b)", re.I)),
+)
+
+
+def oem(texts: list[str]) -> str:
+    """The computer maker whose name is in a BIOS somebody else wrote for it, or ""."""
+    for maker, pattern in _OEMS:
+        if any(pattern.search(text) for text in texts):
+            return maker
+    return ""
+
+
 # Who made the cards that carry a ROM of their own, as their ROMs name themselves:
 # video chips first, then disk controllers and boot ROMs.
 _MAKERS = (

@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3320 behaviours, from 98 files.*
+*3335 behaviours, from 98 files.*
 
 
 ## A barcode takes the room the words leave
@@ -166,7 +166,7 @@ Regenerate with:
 
 ## A machine that reports itself
 
-*test_a_machine_that_reports_itself.py — 172 behaviours*
+*test_a_machine_that_reports_itself.py — 187 behaviours*
 
 
 **What it takes**
@@ -339,6 +339,27 @@ Regenerate with:
 - a part in another machine is never taken out
 - a disk that cannot say which one it is is known by its size in the same machine  
   An MFM disk seen only through the BIOS, answered like a card.
+
+**Who made it from its bios**
+
+- a new board is named by the maker that wrote its bios
+- hp and dell are known by their name in a bios phoenix wrote
+- a bios house names nobody
+- the copy of the bios is read for its maker  
+  With no word from the survey program about who wrote it.
+- a clone bios that says compaq names nobody  
+  The copy says Phoenix wrote it, and is believed over the survey program, which found COMPAQ first.
+- the answer names the board so it is not asked
+- smbios names the board before its bios maker
+- a board on record with no maker has it filled in
+- a new machine is offered its bios maker
+- the maker offered is the one smbios gives where it gives one
+- a new machine takes its bios maker when nothing was typed
+- the badge typed at the machine wins  
+  An AT&T 6300 is an Olivetti inside.
+- a machine with no maker recorded has it filled in
+- the new computer form starts with its bios maker
+- a recorded maker is never changed or called a difference
 
 **Bench cards**
 

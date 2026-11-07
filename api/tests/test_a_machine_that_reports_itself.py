@@ -23,7 +23,11 @@ from survey_reports import (
     BIOS_ROM,
     BOOT_ROM,
     CHATTY_ROM,
+    CLONE_BIOS,
+    COMPAQ_BIOS,
+    DELL_BIOS,
     DISK,
+    HP_BIOS,
     MAC,
     NETBOOT_ROM,
     NIC,
@@ -1136,6 +1140,154 @@ class TestAPartOfItsOwn:
         again = survey(client, TAG=machine["asset_id"], **mfm)
         assert finding(again, "DISK1")["part"] == finding(first, "DISK1")["part"]
         assert len(parts_in(client, machine["asset_id"])) == 1
+
+
+# --- who made it, from its BIOS ------------------------------------------------------
+
+
+def with_bios(rom: bytes) -> dict:
+    """A report's copy of its system BIOS, as the survey program sends it."""
+    return {"roms": [("BIOS.BIN", rom)], "ROM1": "F000 65536 BIOS.BIN"}
+
+
+def new_board(client, made: dict) -> dict:
+    return get(client, "parts", finding(made, "BOARD")["part"])
+
+
+class TestWhoMadeItFromItsBios:
+    """A BIOS a computer maker wrote, or put its name in, says who made the board it
+    is on, and nearly always the machine (MANUAL §23, "Who made it, from its BIOS";
+    ADR-0047)."""
+
+    @pytest.mark.parametrize(
+        "vendor, maker",
+        [
+            ("Compaq", "Compaq"),
+            ("IBM", "IBM"),
+            ("Amstrad", "Amstrad"),
+            ("Olivetti", "Olivetti"),
+            ("Tandy", "Tandy"),
+            ("Zenith", "Zenith Data Systems"),
+            ("Toshiba", "Toshiba"),
+            ("Commodore", "Commodore"),
+        ],
+    )
+    def test_a_new_board_is_named_by_the_maker_that_wrote_its_bios(
+        self, client, computer, vendor, maker
+    ):
+        made = survey(
+            client, TAG=computer()["asset_id"], BOARD_ANSWER="NEW", BIOSVENDOR=vendor, **BOARDISH
+        )
+        board = new_board(client, made)
+        assert (board["manufacturer"], board["model"]) == (maker, "")
+
+    @pytest.mark.parametrize(
+        "rom, maker", [(HP_BIOS, "HP"), (DELL_BIOS, "Dell")], ids=["HP", "Dell"]
+    )
+    def test_hp_and_dell_are_known_by_their_name_in_a_bios_phoenix_wrote(
+        self, client, computer, rom, maker
+    ):
+        made = survey(
+            client,
+            TAG=computer()["asset_id"],
+            BOARD_ANSWER="NEW",
+            BIOSVENDOR="Phoenix",
+            **with_bios(rom),
+            **BOARDISH,
+        )
+        assert new_board(client, made)["manufacturer"] == maker
+
+    @pytest.mark.parametrize("vendor", ["AMI", "Award", "Phoenix", "Quadtel"])
+    def test_a_bios_house_names_nobody(self, client, computer, vendor):
+        made = survey(
+            client, TAG=computer()["asset_id"], BOARD_ANSWER="NEW", BIOSVENDOR=vendor, **BOARDISH
+        )
+        assert new_board(client, made)["manufacturer"] == ""
+        answered = ask(client, BIOSVENDOR=vendor, **BOARDISH)
+        assert "BOARD_NAME" not in answered and "SYSTEM_MAKER" not in answered
+
+    def test_the_copy_of_the_bios_is_read_for_its_maker(self, client, computer):
+        """With no word from the survey program about who wrote it."""
+        made = survey(
+            client, TAG=computer()["asset_id"], BOARD_ANSWER="NEW", **with_bios(COMPAQ_BIOS)
+        )
+        assert new_board(client, made)["manufacturer"] == "Compaq"
+
+    def test_a_clone_bios_that_says_compaq_names_nobody(self, client, computer):
+        """The copy says Phoenix wrote it, and is believed over the survey program,
+        which found COMPAQ first."""
+        made = survey(
+            client,
+            TAG=computer()["asset_id"],
+            BOARD_ANSWER="NEW",
+            BIOSVENDOR="Compaq",
+            **with_bios(CLONE_BIOS),
+            **BOARDISH,
+        )
+        assert new_board(client, made)["manufacturer"] == ""
+
+    def test_the_answer_names_the_board_so_it_is_not_asked(self, client):
+        assert ask(client, BIOSVENDOR="Compaq", **BOARDISH)["BOARD_NAME"] == "Compaq"
+
+    def test_smbios_names_the_board_before_its_bios_maker(self, client):
+        answered = ask(
+            client,
+            BOARD_MAKER="Dell Computer Corporation",
+            BOARD_MODEL="0X1234",
+            **with_bios(DELL_BIOS),
+            **BOARDISH,
+        )
+        assert answered["BOARD_NAME"] == "Dell Computer Corporation 0X1234"
+
+    def test_a_board_on_record_with_no_maker_has_it_filled_in(self, client, computer, part):
+        machine = computer()
+        board = part(type="motherboard", model="", computer_id=machine["asset_id"])
+        survey(client, TAG=machine["asset_id"], BIOSVENDOR="Compaq", **BOARDISH)
+        assert get(client, "parts", board["asset_id"])["manufacturer"] == "Compaq"
+
+    def test_a_new_machine_is_offered_its_bios_maker(self, client):
+        assert ask(client, BIOSVENDOR="Compaq", **BOARDISH)["SYSTEM_MAKER"] == "Compaq"
+
+    def test_the_maker_offered_is_the_one_smbios_gives_where_it_gives_one(self, client):
+        answered = ask(client, SYSTEM_MAKER="Dell Computer Corporation", **with_bios(DELL_BIOS))
+        assert answered["SYSTEM_MAKER"] == "Dell Computer Corporation"
+
+    def test_a_new_machine_takes_its_bios_maker_when_nothing_was_typed(self, client):
+        made = survey(client, TAG="NEW", BIOSVENDOR="Compaq", **BOARDISH)
+        assert get(client, "computers", made["machine"])["manufacturer"] == "Compaq"
+
+    def test_the_badge_typed_at_the_machine_wins(self, client):
+        """An AT&T 6300 is an Olivetti inside."""
+        made = survey(
+            client,
+            TAG="NEW",
+            BIOSVENDOR="Olivetti",
+            SYSTEM_MAKER="AT&T",
+            SYSTEM_MODEL="6300",
+            **BOARDISH,
+        )
+        got = get(client, "computers", made["machine"])
+        assert (got["manufacturer"], got["model"]) == ("AT&T", "6300")
+
+    def test_a_machine_with_no_maker_recorded_has_it_filled_in(self, client, computer):
+        machine = computer(manufacturer="", model="")
+        survey(client, TAG=machine["asset_id"], BIOSVENDOR="Compaq", **BOARDISH)
+        assert get(client, "computers", machine["asset_id"])["manufacturer"] == "Compaq"
+
+    def test_the_new_computer_form_starts_with_its_bios_maker(self, client):
+        made = survey(client, BIOSVENDOR="Compaq", **BOARDISH)
+        assert made["waiting"] == "machine"
+        form = client.get(f"/computers/new?survey={made['id']}")
+        assert form.status_code == 200, form.text
+        assert 'value="Compaq"' in form.text
+
+    def test_a_recorded_maker_is_never_changed_or_called_a_difference(self, client, computer, part):
+        machine = computer(manufacturer="AT&T", model="6300")
+        board = part(type="motherboard", manufacturer="AT&T", computer_id=machine["asset_id"])
+        made = survey(client, TAG=machine["asset_id"], BIOSVENDOR="Olivetti", **BOARDISH)
+        assert get(client, "computers", machine["asset_id"])["manufacturer"] == "AT&T"
+        assert get(client, "parts", board["asset_id"])["manufacturer"] == "AT&T"
+        assert not [d for d in made["differs"] if d["field"] == "manufacturer"]
 
 
 # --- bench cards ---------------------------------------------------------------------
