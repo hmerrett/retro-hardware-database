@@ -1156,13 +1156,28 @@ class TestBenchCards:
         assert got["location"] == bench["asset_id"]
         assert parts_in(client, machine["asset_id"]) == []
 
-    def test_a_card_in_a_box_on_a_bench_is_the_benchs_too(self, client, computer, part):
+    def test_a_part_mounted_on_a_bench_card_is_the_benchs_too(self, client, computer, part):
+        """A boot ROM on the bench's network card goes where the card goes."""
         bench = location(client, "Bench 1", "bench")
-        box = location(client, "Network cards", "box", parent=bench["asset_id"])
-        card = part(type="network", model="UM9003AF", location=box["asset_id"])
-        survey(client, TAG=computer()["asset_id"], NIC_ANSWER=card["asset_id"], **NIC)
-        survey(client, TAG=computer()["asset_id"], **NIC)
-        assert get(client, "parts", card["asset_id"])["location"] == box["asset_id"]
+        card = part(type="network", model="UM9003AF", location=bench["asset_id"])
+        rom = part(type="other", model="Boot ROM", parent_id=card["asset_id"])
+        machine = computer()
+        survey(
+            client, TAG=machine["asset_id"], ROM1="C800 16384 X.C80", ROM1_ANSWER=rom["asset_id"]
+        )
+        assert get(client, "parts", rom["asset_id"])["parent_id"] == card["asset_id"]
+        assert parts_in(client, machine["asset_id"]) == []
+
+    def test_a_card_in_a_box_on_a_bench_is_fitted_like_a_card_on_a_shelf(
+        self, client, computer, part
+    ):
+        """A tray of spare cards beside the machines is stock, not the bench's kit."""
+        bench = location(client, "Bench 1", "bench")
+        tray = location(client, "Network cards", "box", parent=bench["asset_id"])
+        card = part(type="network", model="UM9003AF", location=tray["asset_id"])
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], NIC_ANSWER=card["asset_id"], **NIC)
+        assert get(client, "parts", card["asset_id"])["computer_id"] == machine["asset_id"]
 
     def test_a_bench_cards_address_is_recorded_where_it_stands(self, client, bench_card):
         card, bench = bench_card()

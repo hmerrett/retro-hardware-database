@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3319 behaviours, from 98 files.*
+*3320 behaviours, from 98 files.*
 
 
 ## A barcode takes the room the words leave
@@ -166,7 +166,7 @@ Regenerate with:
 
 ## A machine that reports itself
 
-*test_a_machine_that_reports_itself.py — 171 behaviours*
+*test_a_machine_that_reports_itself.py — 172 behaviours*
 
 
 **What it takes**
@@ -344,7 +344,10 @@ Regenerate with:
 
 - a location can be a bench
 - a card kept on a bench is never fitted in the machine
-- a card in a box on a bench is the benchs too
+- a part mounted on a bench card is the benchs too  
+  A boot ROM on the bench's network card goes where the card goes.
+- a card in a box on a bench is fitted like a card on a shelf  
+  A tray of spare cards beside the machines is stock, not the bench's kit.
 - a bench cards address is recorded where it stands
 - the survey names the card it came through
 - add to bench makes a new card on a bench
