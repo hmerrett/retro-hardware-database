@@ -1399,8 +1399,14 @@ def _new_part(
         part.manufacturer = pciids.maker(vendor)
         part.model = pciids.model(vendor, device)
     else:
+        # The maker its ROM names, and the rest of the ROM's name for it, as a card on
+        # the PCI bus has its chip's maker and its chip (ADR-0047).
         own = (texts or {}).get(f["segment"], []) if f["segment"] else []
-        part.model = romtext.card(own) or f["name"]
+        maker, model = romtext.card_made(own)
+        if maker or model:
+            part.manufacturer, part.model = maker, model
+        else:
+            part.model = f["name"]
     maker, model = _typed(keys, f["thing"])
     if maker:
         part.manufacturer = maker

@@ -86,6 +86,28 @@ CLONE_BIOS = (
     + b"\0" * 200
 )
 
+# Card ROMs naming who made the chip or the card: on the banner line itself, on a
+# copyright line after the line naming the chip, and on a branded machine's own card,
+# whose ROM names its maker and nothing else (the Compaq 286's video BIOS). The XTIDE
+# Universal BIOS is a program, on cards anybody might have built.
+ADAPTEC_ROM = (
+    b"\x55\xaa\x20"
+    + b"Adaptec AHA-1540B/1542B BIOS v3.20\0(C) Copyright 1989 Adaptec, Inc.\0"
+    + b"\0" * 200
+)
+CIRRUS_ROM = (
+    b"\x55\xaa\x40"
+    + b"CL-GD5428 VGA BIOS Version 1.00a\0Copyright 1992-1994 Cirrus Logic, Inc.\0"
+    + b"\0" * 200
+)
+COMPAQ_VGA_ROM = (
+    b"\x55\xaa\x30\xeb\x4b"
+    + b"\0" * 16
+    + b"Copyright COMPAQ Computer Corporation, 1982, 89\0All rights reserved\0"
+    + b"\0" * 200
+)
+XTIDE_ROM = b"\x55\xaa\x10" + b"-=XTIDE Universal BIOS (XT)=-\0" + b"\0" * 200
+
 
 def report(**keys: str | None) -> str:
     """A report: words for the person reading it, then the [RHDB] section, one

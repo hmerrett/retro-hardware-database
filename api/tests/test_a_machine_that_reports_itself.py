@@ -18,13 +18,16 @@ import pytest
 
 from conftest import log_out
 from survey_reports import (
+    ADAPTEC_ROM,
     AGENTS,
     ANONYMOUS_ROM,
     BIOS_ROM,
     BOOT_ROM,
     CHATTY_ROM,
+    CIRRUS_ROM,
     CLONE_BIOS,
     COMPAQ_BIOS,
+    COMPAQ_VGA_ROM,
     DELL_BIOS,
     DISK,
     HP_BIOS,
@@ -33,6 +36,7 @@ from survey_reports import (
     NIC,
     PRINTERS,
     VGA_ROM,
+    XTIDE_ROM,
     answer,
     ask,
     finding,
@@ -1288,6 +1292,50 @@ class TestWhoMadeItFromItsBios:
         assert get(client, "computers", machine["asset_id"])["manufacturer"] == "AT&T"
         assert get(client, "parts", board["asset_id"])["manufacturer"] == "AT&T"
         assert not [d for d in made["differs"] if d["field"] == "manufacturer"]
+
+    @pytest.mark.parametrize(
+        "rom, made_by",
+        [
+            (VGA_ROM, ("Tseng Labs", "ET4000")),
+            (ADAPTEC_ROM, ("Adaptec", "AHA-1540B/1542B")),
+            (CIRRUS_ROM, ("Cirrus Logic", "CL-GD5428")),
+        ],
+        ids=["on its banner", "on its banner too", "on a line of its own"],
+    )
+    def test_a_new_card_is_made_by_the_company_its_rom_names(self, client, computer, rom, made_by):
+        made = survey(
+            client,
+            roms=[("CARD.C80", rom)],
+            TAG=computer()["asset_id"],
+            ROM1="C800 16384 CARD.C80",
+            ROM1_ANSWER="NEW",
+        )
+        card = get(client, "parts", finding(made, "ROM1")["part"])
+        assert (card["manufacturer"], card["model"]) == made_by
+
+    def test_a_branded_machines_own_card_carries_its_maker(self, client, computer):
+        """The Compaq 286's video BIOS says only whose it is."""
+        rom = {"roms": [("VIDEO.C00", COMPAQ_VGA_ROM)], "VIDEO": "UNKNOWN"}
+        rom["ROM1"] = "C000 24576 VIDEO.C00"
+        assert ask(client, **rom)["VIDEO_NAME"] == "Compaq"
+        made = survey(client, TAG=computer()["asset_id"], VIDEO_ANSWER="NEW", **rom)
+        card = get(client, "parts", finding(made, "VIDEO")["part"])
+        assert (card["manufacturer"], card["model"]) == ("Compaq", "")
+
+    def test_the_answer_names_a_card_by_its_maker_and_its_model(self, client):
+        answered = ask(client, roms=[("CARD.C80", CIRRUS_ROM)], ROM1="C800 16384 CARD.C80")
+        assert answered["ROM1_NAME"] == "Cirrus Logic CL-GD5428"
+
+    def test_a_rom_that_names_a_program_gives_a_model_and_no_maker(self, client, computer):
+        made = survey(
+            client,
+            roms=[("XTIDE.C80", XTIDE_ROM)],
+            TAG=computer()["asset_id"],
+            ROM1="C800 8192 XTIDE.C80",
+            ROM1_ANSWER="NEW",
+        )
+        card = get(client, "parts", finding(made, "ROM1")["part"])
+        assert (card["manufacturer"], card["model"]) == ("", "XTIDE Universal")
 
 
 # --- bench cards ---------------------------------------------------------------------

@@ -4557,6 +4557,15 @@ BIOS, and a Sinclair PC200 is an Amstrad. Type the badge at the machine, or put
 it right on the form. A survey never changes a **Manufacturer** that is already
 recorded, and does not list its BIOS's maker as a difference from one.
 
+**A card's ROM** names who made it in the same way. A video card's BIOS, a disk
+controller's or a SCSI card's names the company whose chip or card it is (`Tseng
+Labs`, `Western Digital`, `Adaptec`), and a branded machine's own cards carry the
+machine's maker (`Compaq`). A new card made from it has that company as its
+**Manufacturer**, as a card on the PCI bus has its chip's maker, and the rest of
+the ROM's name for it as its **Model** (`ET4000`). A ROM that names a program
+rather than a company (netboot, the XTIDE Universal BIOS) gives the card a model
+and no maker, because the card is whoever built it.
+
 ### Bench cards
 
 A **bench** is a location of kind *Bench* ([a location](#a-location)): the
@@ -4642,8 +4651,9 @@ starts. On an XT that is F000. A later board's BIOS is bigger, and starts lower
 - **The text in each ROM is on the survey's page**: copyright lines, version
   strings, the identification string an AMI or Award BIOS carries (which names
   its chipset and its board's maker), and the name a video card's ROM gives its
-  chip. The BIOS's maker, version and date are read from it, and so is the name
-  of a card made from its ROM.
+  chip. The BIOS's maker, version and date are read from it, and so are the maker
+  and the name of a card made from its ROM ([who made it, from its
+  BIOS](#who-made-it-from-its-bios)).
 
 A BIOS date is written as the BIOS writes it, month first (`10/27/82`), because
 that is how it is known and looked up.

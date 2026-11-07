@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3335 behaviours, from 98 files.*
+*3339 behaviours, from 98 files.*
 
 
 ## A barcode takes the room the words leave
@@ -166,7 +166,7 @@ Regenerate with:
 
 ## A machine that reports itself
 
-*test_a_machine_that_reports_itself.py — 187 behaviours*
+*test_a_machine_that_reports_itself.py — 191 behaviours*
 
 
 **What it takes**
@@ -360,6 +360,11 @@ Regenerate with:
 - a machine with no maker recorded has it filled in
 - the new computer form starts with its bios maker
 - a recorded maker is never changed or called a difference
+- a new card is made by the company its rom names
+- a branded machines own card carries its maker  
+  The Compaq 286's video BIOS says only whose it is.
+- the answer names a card by its maker and its model
+- a rom that names a program gives a model and no maker
 
 **Bench cards**
 
