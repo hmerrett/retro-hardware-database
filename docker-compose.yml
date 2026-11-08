@@ -130,10 +130,13 @@ services:
       RHDB_DOMAIN: ${RHDB_DOMAIN:?set RHDB_DOMAIN in .env (see .env.example)}
       RHDB_ACME_EMAIL: ${RHDB_ACME_EMAIL:?set RHDB_ACME_EMAIL in .env (see .env.example)}
     volumes:
-      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      # Anything this installation adds to the proxy -- other names, a redirect from
-      # a domain it used to live at. Not in git: see caddy/conf.d/README.md.
-      - ./caddy/conf.d:/etc/caddy/conf.d:ro
+      # The directory rather than the Caddyfile alone. A file mounted on its own is
+      # the one the container started with: `git pull` writes a new file in its
+      # place, so a reload read the old one and Caddy went on serving it. Through the
+      # directory, a reload (deploy.sh's) reads what is there now. conf.d comes with
+      # it: anything this installation adds to the proxy (other names, a redirect
+      # from a domain it used to live at), not in git (caddy/conf.d/README.md).
+      - ./caddy:/etc/caddy:ro
       - caddy_data:/data
       - caddy_config:/config
       - caddy_logs:/var/log/caddy
