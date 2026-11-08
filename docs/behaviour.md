@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3403 behaviours, from 98 files.*
+*3405 behaviours, from 98 files.*
 
 
 ## A barcode takes the room the words leave
@@ -2415,7 +2415,7 @@ Regenerate with:
 
 ## Error pages
 
-*test_error_pages.py — 12 behaviours*
+*test_error_pages.py — 14 behaviours*
 
 - a missing page is a page
 - a missing page arrives in the site chrome  
@@ -2434,6 +2434,9 @@ Regenerate with:
   Asked for in a browser or by a script alike: /api is a program's surface.
 - a client that did not ask for html keeps the json
 - a fault outside a page is the plain answer it was
+- an address a button uses goes to the buttons page  
+  Rotate posts to /parts/<tag>/photo-rotate, and a browser's address bar can offer that back later, or a link to it be copied and opened (MANUAL section 2).
+- a program that opens a buttons address is still refused
 
 
 ## File public switch
