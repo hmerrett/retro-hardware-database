@@ -41,7 +41,15 @@ recorded twice. Where the small label goes to a print agent, the machine offers 
 print the small label of everything the survey makes, once, and Y queues them.
 After the things it found, a survey asks about the parts on record it did not find
 (still fitted, or taken out) and for anything else fitted, and it looks for a sound
-card and expanded memory itself.
+card and expanded memory itself. It asks the hardware what it is, as DOS diagnostic
+programs did: Plug and Play cards give their maker, their own name and a serial
+number, a monitor its maker, model and serial number (a new Display part), and a
+VGA card its chip (Tseng Labs, Cirrus Logic, S3, Trident and others) where nothing
+else names it. A Plug and Play card and a monitor are known by their serial numbers
+wherever they turn up, and the bench's monitor stays on the bench. The ports' line
+says each serial port's chip and whether a parallel port is ECP or bidirectional,
+and a Gravis UltraSound or an MPU-401 is found where the survey's network card is
+on the PCI bus.
 
 **Upgrading:** nothing to do unless you want surveys. Give an agent a key in
 `RHDB_SURVEY_AGENTS` in `.env`, run `tools/survey_agent.py` where the machines'
