@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3403 behaviours, from 98 files.*
+*3407 behaviours, from 98 files.*
 
 
 ## A barcode takes the room the words leave
@@ -2100,7 +2100,7 @@ Regenerate with:
 
 ## Deployment
 
-*test_deployment.py — 19 behaviours*
+*test_deployment.py — 23 behaviours*
 
 
 **The api trusts its proxy**
@@ -2155,6 +2155,16 @@ Regenerate with:
 
 - the image is pinned to a minor release
 - ci runs the suite on the same one
+
+**The site offers only what it serves**
+
+- http3 is not offered
+- http3 is offered only where its port is published  
+  The fault itself was an offer nothing answered.
+- a browser is told to forget an offer made before  
+  A browser keeps an offer for as long as it was told to, a month here, and `clear` is how it is told to drop it sooner.
+- a deploy reloads caddy after the stack is up  
+  The Caddyfile is mounted rather than built in, so a change to it reaches nothing until Caddy reads it again, and `up` does not make it.
 
 
 ## Drivedb
