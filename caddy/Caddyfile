@@ -2,6 +2,17 @@
 	# Where Let's Encrypt writes about certificates. From the environment, because
 	# it is this installation's address and not a fact about the software.
 	email {$RHDB_ACME_EMAIL}
+
+	# HTTP/1.1 and HTTP/2 only. Caddy speaks HTTP/3 as well unless told not to,
+	# over UDP on 443, and tells every browser so (Alt-Svc) for a month at a time.
+	# The compose file publishes 443 for TCP alone, so nothing ever answered: a
+	# browser that took up the offer stalled, or gave up on the page, before it
+	# fell back (Safari most of all), while every request the server did see was
+	# quick. Pages this size gain nothing from HTTP/3 that is worth a second
+	# protocol through every firewall.
+	servers {
+		protocols h1 h2
+	}
 }
 
 # Whatever else this particular installation puts in front of the app: other names
@@ -34,7 +45,9 @@ import /etc/caddy/conf.d/*.caddy
 	# reach this name over HTTPS only, for a year. nosniff stops a browser
 	# second-guessing a declared content-type (the file downloads already send it;
 	# this covers everything). The referrer policy keeps the path off cross-site
-	# requests. SAMEORIGIN refuses framing by other sites.
+	# requests. SAMEORIGIN refuses framing by other sites. Alt-Svc: clear makes a
+	# browser forget an offer of HTTP/3 made before it was switched off (above),
+	# which it would otherwise keep trying for a month.
 	#
 	# The Content-Security-Policy is deliberately not here: it is a fact about the
 	# app's own markup and static files rather than about transport, so the app
@@ -45,6 +58,7 @@ import /etc/caddy/conf.d/*.caddy
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		X-Frame-Options "SAMEORIGIN"
+		Alt-Svc "clear"
 	}
 
 	reverse_proxy api:8000

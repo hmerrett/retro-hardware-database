@@ -270,3 +270,50 @@ class TestTheDatabaseIsOneMinorRelease:
     def test_ci_runs_the_suite_on_the_same_one(self):
         ci = _compose(".github/workflows/ci.yml")["jobs"]["test"]["services"]["mariadb"]
         assert ci["image"] == _compose("docker-compose.yml")["services"]["db"]["image"]
+
+
+CADDYFILE = (ROOT / "caddy" / "Caddyfile").read_text()
+
+
+def _offers_http3() -> bool:
+    """Whether Caddy speaks HTTP/3, by the global options the Caddyfile opens with:
+    it does unless their `servers` block names the protocols and h3 is not one."""
+    import re
+
+    text = CADDYFILE.lstrip()
+    options = text[: text.index("\n}")] if text.startswith("{") else ""
+    named = re.search(r"^\s*protocols\s+(.+)$", options, re.M)
+    return named is None or "h3" in named.group(1).split()
+
+
+class TestTheSiteOffersOnlyWhatItServes:
+    """Caddy speaks HTTP/3 unless told not to, over UDP on 443, and tells every
+    browser so for a month at a time. The compose file published 443 for TCP alone,
+    so a browser that took up the offer stalled, or gave up on the page, before it
+    fell back (Safari most of all), while every request the server saw was quick."""
+
+    def test_http3_is_not_offered(self):
+        assert not _offers_http3()
+
+    def test_http3_is_offered_only_where_its_port_is_published(self):
+        """The fault itself was an offer nothing answered. Whichever way a later
+        change goes, the two go together."""
+        ports = [str(p) for p in _compose("docker-compose.yml")["services"]["caddy"]["ports"]]
+        udp = any(p.endswith("/udp") and p.split(":")[-1].startswith("443") for p in ports)
+        assert _offers_http3() == udp
+
+    def test_a_browser_is_told_to_forget_an_offer_made_before(self):
+        """A browser keeps an offer for as long as it was told to, a month here, and
+        `clear` is how it is told to drop it sooner."""
+        import re
+
+        assert re.search(r'^\s*Alt-Svc\s+"clear"\s*$', CADDYFILE, re.M)
+
+    def test_a_deploy_reloads_caddy_after_the_stack_is_up(self):
+        """The Caddyfile is mounted rather than built in, so a change to it reaches
+        nothing until Caddy reads it again, and `up` does not make it."""
+        script = (ROOT / "deploy.sh").read_text()
+        steps = [ln.strip() for ln in script.splitlines() if ln.strip().startswith("docker ")]
+        up = next(i for i, ln in enumerate(steps) if ln.startswith("docker compose up"))
+        reload = next(i for i, ln in enumerate(steps) if "caddy reload" in ln)
+        assert up < reload
