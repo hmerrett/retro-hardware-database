@@ -49,7 +49,8 @@ else names it. A Plug and Play card and a monitor are known by their serial numb
 wherever they turn up, and the bench's monitor stays on the bench. The ports' line
 says each serial port's chip and whether a parallel port is ECP or bidirectional,
 and a Gravis UltraSound or an MPU-401 is found where the survey's network card is
-on the PCI bus.
+on the PCI bus. A bare board tested on its own can be added as a motherboard rather
+than a whole machine: B at the machine, or New motherboard on the Surveys page.
 
 **Upgrading:** nothing to do unless you want surveys. Give an agent a key in
 `RHDB_SURVEY_AGENTS` in `.env`, run `tools/survey_agent.py` where the machines'

@@ -435,20 +435,6 @@ def gui_new_computer(
     return templates.TemplateResponse(request, "computer_form.html", ctx)
 
 
-def _file_survey(
-    db: Session, obj: Computer, form: Posted, who: str
-) -> tuple[Survey, surveys.Filing] | None:
-    """A new machine saved from a survey's page files the survey against it, as if its
-    tag had been typed at the machine (MANUAL §23, "The Surveys page")."""
-    raw = (form.get("survey", "") or "").strip()
-    found = db.get(Survey, int(raw)) if raw.isdigit() else None
-    if found is None or found.waiting != surveys.FOR_MACHINE:
-        return None
-    return found, surveys.settle(
-        db, found, {}, who, machine=obj.asset_id, how=surveys.FILED, by=who
-    )
-
-
 @router.post("/computers/new", include_in_schema=False)
 async def gui_create_computer(request: Request, db: Session = Depends(get_db)) -> Response:
     form = await posted(request)
@@ -480,7 +466,9 @@ async def gui_create_computer(request: Request, db: Session = Depends(get_db)) -
     if errors:
         ctx = _computer_form_ctx(obj, "New computer", db) | {"new": True}
         return refused(request, db, "computer_form.html", ctx, form, errors)
-    filed = _file_survey(db, obj, form, request.state.principal.username)
+    filed = surveys.file_new(
+        db, form.get("survey", "") or "", obj.asset_id, request.state.principal.username
+    )
     db.commit()
     if filed is not None and (agent := surveys.agents().get(filed[0].agent)) is not None:
         surveys.labels_for(db, agent, filed[1].made)

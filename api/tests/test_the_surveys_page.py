@@ -159,6 +159,40 @@ class TestFilingASurveyThatWaits:
         aid = r.headers["location"].split("/")[2].split("?")[0]
         assert read(client, made["id"])["machine"] == aid
 
+    def test_new_motherboard_opens_the_part_form_with_what_the_survey_found(self, client):
+        made = survey(
+            client,
+            BOARD_MAKER="ASUSTeK Computer INC.",
+            BOARD_MODEL="P5A",
+            BOARD_SERIAL="MB-21",
+            BIOSDATE="08/22/96",
+        )
+        assert made["waiting"] == "machine"
+        page = client.get(f"/surveys/{made['id']}")
+        assert f"/parts/new?type=motherboard&amp;survey={made['id']}" in page.text
+        form = client.get(f"/parts/new?type=motherboard&survey={made['id']}")
+        assert form.status_code == 200, form.text
+        for said in ("ASUSTeK Computer INC.", "P5A", "MB-21"):
+            assert f'value="{said}"' in form.text
+        assert f'name="survey" value="{made["id"]}"' in form.text
+
+    def test_saving_the_new_motherboard_files_the_survey_against_it(self, client):
+        made = survey(client, BIOSVENDOR="AMI", BIOSDATE="04/04/93", PCI1="8086:122D 0600")
+        r = client.post(
+            "/parts/new",
+            data={
+                "type": "motherboard",
+                "manufacturer": "ASUSTeK",
+                "model": "P55T2P4",
+                "survey": str(made["id"]),
+            },
+            follow_redirects=False,
+        )
+        assert r.status_code == 303, r.text
+        aid = r.headers["location"].split("/")[2]
+        assert read(client, made["id"])["machine"] == aid
+        assert "430FX" in get(client, "parts", aid)["specs"]
+
 
 # --- a thing that waits for an answer ---------------------------------------------------
 

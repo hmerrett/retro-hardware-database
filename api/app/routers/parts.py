@@ -28,6 +28,7 @@ from .. import (
     projects,
     settings,
     specdb,
+    surveys,
     tree,
 )
 from ..assets import (
@@ -73,7 +74,7 @@ from ..forms import (
 )
 from ..history import _history, add_log
 from ..ids import next_asset_id
-from ..models import ComputerDrive, Computer, Part, StorageSpec, StoredFile
+from ..models import ComputerDrive, Computer, Part, StorageSpec, StoredFile, Survey
 from ..pages import _answers_given, _note_with_photos
 from ..photos import (
     _chosen_photos,
@@ -659,6 +660,7 @@ def gui_new_part(
     parent_id: str = "",
     db: Session = Depends(get_db),
     source: str = Query("", alias="from"),
+    survey: int = 0,
 ) -> HTMLResponse:
     """The new-part form. `from` starts it filled in from an existing part -- the
     same fields duplicating one copies, so a second of something already recorded
@@ -671,6 +673,13 @@ def gui_new_part(
         # on "other" and the heading does not claim a type nobody has chosen yet.
         ctx = _part_form_ctx(db, None, type or "other", computer_id, parent_id)
         ctx["title"] = f"New {entry.type_label(type)}" if type else "New part"
+        # A board on its own, from a survey that waits for its machine (MANUAL §23,
+        # "The Surveys page"; ADR-0052): the form starts with what the survey found of
+        # the board, and saving it files the survey against it.
+        found = db.get(Survey, survey) if survey and type == "motherboard" else None
+        if found is not None and found.waiting == surveys.FOR_MACHINE:
+            ctx["p"] = Part(type="motherboard", **surveys.prefill_board(found))
+            ctx["from_survey"] = found.id
         return templates.TemplateResponse(request, "part_form.html", ctx)
 
     ptype = src.type or type or "other"
@@ -775,7 +784,15 @@ async def gui_create_part(request: Request, db: Session = Depends(get_db)) -> Re
         )
         ctx["title"] = f"New {entry.type_label(ptype)}"
         return refused(request, db, "part_form.html", ctx, form, errors)
+    # A board saved from a survey's page: only a board can be what a survey is about.
+    filed = (
+        surveys.file_new(db, form.get("survey", "") or "", obj.asset_id, who)
+        if ptype == "motherboard"
+        else None
+    )
     db.commit()
+    if filed is not None and (agent := surveys.agents().get(filed[0].agent)) is not None:
+        surveys.labels_for(db, agent, filed[1].made)
     if photos:
         _attach_photos(db, obj, "parts", photos)
         db.commit()

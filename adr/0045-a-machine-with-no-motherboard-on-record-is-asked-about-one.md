@@ -1,6 +1,6 @@
 # 0045 — A machine with no motherboard on record is asked about one
 
-**Status:** Accepted
+**Status:** Accepted — amended by [ADR-0052](0052-a-survey-can-make-a-motherboard-on-its-own.md)
 **Date:** 2026-11-07
 **Amends:** [ADR-0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md)
 
