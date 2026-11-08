@@ -375,6 +375,14 @@ class TestLabelsForWhatIsNew:
         assert r.status_code == 200, r.text
         assert "2 small labels sent to workshop-pi." in r.json()["receipt"]
 
+    def test_yes_queues_the_label_of_a_new_board(self, client):
+        small_label_goes_to(client, "agent:workshop-pi")
+        made = survey(client, TAG="NEW BOARD", LABELS="YES", **BOARDISH)
+        jobs = client.get("/api/print/jobs").json()
+        assert [(j["agent"], j["asset_id"], j["label"]) for j in jobs] == [
+            ("workshop-pi", made["machine"], "small")
+        ]
+
 
 # --- which machine it is ---------------------------------------------------------
 
@@ -467,6 +475,32 @@ class TestWhichMachineItIs:
         before = len(computers(client))
         assert survey(client, TAG="NEW", **DISK)["waiting"] == "machine"
         assert len(computers(client)) == before
+
+    def test_b_at_the_machine_makes_a_new_motherboard_and_no_computer(self, client):
+        """A bare board on the bench that the register does not have yet (ADR-0052)."""
+        before = len(computers(client))
+        made = survey(client, TAG="NEW BOARD", **BOARDISH)
+        assert made["how"] == "new"
+        assert len(computers(client)) == before
+        assert get(client, "parts", made["machine"])["type"] == "motherboard"
+
+    def test_b_that_disagrees_with_what_is_inside_waits_and_makes_nothing(self, client, with_disk):
+        _machine, disk = with_disk()
+        before = len(all_parts(client))
+        made = survey(client, TAG="NEW BOARD", **DISK)
+        assert made["waiting"] == "machine"
+        assert disk["asset_id"] in made["reason"]
+        assert len(all_parts(client)) == before
+
+    def test_b_for_a_board_the_register_has_waits_rather_than_add_it_twice(self, client, part):
+        """With N, a board known by its serial number is going into the new case; with
+        B it is the board itself."""
+        board = part(type="motherboard", model="P5A", serial="MB-13")
+        before = len(all_parts(client))
+        made = survey(client, TAG="NEW BOARD", BOARD_SERIAL="MB-13", **BOARDISH)
+        assert made["waiting"] == "machine"
+        assert board["asset_id"] in made["reason"]
+        assert len(all_parts(client)) == before
 
     def test_insides_that_point_at_two_machines_wait(self, client, computer, with_disk):
         with_disk()
@@ -1498,6 +1532,53 @@ class TestTheMotherboard:
         assert made["machine"] == board["asset_id"]
         assert finding(made, "BOARD")["part"] == board["asset_id"]
 
+    def test_a_board_made_by_b_is_named_as_a_new_board_in_a_machine_is(self, client):
+        made = survey(
+            client,
+            TAG="NEW BOARD",
+            BOARD_MAKER="ASUSTeK Computer INC.",
+            BOARD_MODEL="P5A",
+            **BOARDISH,
+        )
+        board = get(client, "parts", made["machine"])
+        assert (board["manufacturer"], board["model"]) == ("ASUSTeK Computer INC.", "P5A")
+
+    def test_a_board_made_by_b_takes_the_name_of_the_computer_maker_whose_bios_it_is(self, client):
+        made = survey(client, TAG="NEW BOARD", BIOSVENDOR="Compaq", **BOARDISH)
+        board = get(client, "parts", made["machine"])
+        assert (board["manufacturer"], board["model"]) == ("Compaq", "")
+
+    def test_a_board_made_by_b_gets_what_belongs_to_a_board(self, client):
+        made = survey(
+            client,
+            roms=[("BIOS.BIN", BIOS_ROM)],
+            TAG="NEW BOARD",
+            ROM1="F000 65536 BIOS.BIN",
+            BOARD_SERIAL="BRD-10",
+            **BOARDISH,
+        )
+        board = get(client, "parts", made["machine"])
+        assert "Award" in board["specs"] and "08/22/96" in board["specs"]
+        assert "430VX" in board["specs"]
+        assert board["serial"] == "BRD-10"
+        assert board["condition"] == "Working"
+        assert files(client)[0]["assets"] == [board["asset_id"]]
+
+    def test_a_board_made_by_b_is_its_own_motherboard_and_is_not_asked_about_one(self, client):
+        made = survey(client, TAG="NEW BOARD", **BOARDISH)
+        assert finding(made, "BOARD")["part"] == made["machine"]
+        assert made["waiting"] is None
+
+    def test_a_board_made_by_b_has_no_location_until_it_is_put_away(self, client):
+        board = get(client, "parts", survey(client, TAG="NEW BOARD", **BOARDISH)["machine"])
+        assert not board["location"] and not board["computer_id"] and not board["parent_id"]
+
+    def test_b_makes_a_board_from_a_report_that_says_nothing_of_one(self, client):
+        """B said there is one, which is enough."""
+        made = survey(client, TAG="NEW BOARD")
+        assert made["how"] == "new"
+        assert get(client, "parts", made["machine"])["type"] == "motherboard"
+
     def test_a_board_made_on_the_surveys_page_gets_the_bios_too(self, client, computer):
         machine = computer()
         made = survey(
@@ -2303,6 +2384,14 @@ class TestInTheHistory:
         """Its history reads in the order it happened: made, then surveyed. The survey
         line is dated when the survey was taken, so the line that made it is too."""
         made = survey(client, TAG="NEW", taken="2026-11-01T09:30:00")
+        log = lines(client, made["machine"])
+        kinds = [e["kind"] for e in log]
+        assert kinds.index("survey") < kinds.index("created"), kinds
+        created = next(e for e in log if e["kind"] == "created")
+        assert created["created_at"].startswith("2026-11-01T09:30")
+
+    def test_a_board_a_survey_made_was_made_before_it_was_surveyed(self, client):
+        made = survey(client, TAG="NEW BOARD", taken="2026-11-01T09:30:00", **BOARDISH)
         log = lines(client, made["machine"])
         kinds = [e["kind"] for e in log]
         assert kinds.index("survey") < kinds.index("created"), kinds

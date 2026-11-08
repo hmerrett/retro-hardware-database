@@ -30,7 +30,8 @@
       <input class="input" id="file-tag" name="tag" placeholder="asset tag" autocomplete="off" required></div>
     {{ U.button('File', type='submit') }}
   </form>
-  <p title="Opens the form for a new machine with what the survey found already in it. Saving makes the machine and files the survey against it.">{{ U.button('New computer', href='/computers/new?survey=' ~ s.id) }}</p>
+  <p>{{ U.button('New computer', href='/computers/new?survey=' ~ s.id, title='Opens the form for a new machine with what the survey found already in it. Saving makes the machine and files the survey against it.') }}
+    {{ U.button('New motherboard', href='/parts/new?type=motherboard&survey=' ~ s.id, title='For a bare board on its own. Opens the form for a new motherboard with what the survey found of the board already in it. Saving makes the board and files the survey against it.') }}</p>
   {% endif %}
   {% endif %}
   <dl class="kv">

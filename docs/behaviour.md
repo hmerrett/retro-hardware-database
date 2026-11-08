@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3408 behaviours, from 98 files.*
+*3421 behaviours, from 98 files.*
 
 
 ## A barcode takes the room the words leave
@@ -166,7 +166,7 @@ Regenerate with:
 
 ## A machine that reports itself
 
-*test_a_machine_that_reports_itself.py — 254 behaviours*
+*test_a_machine_that_reports_itself.py — 265 behaviours*
 
 
 **What it takes**
@@ -222,6 +222,7 @@ Regenerate with:
 - yes queues the small label of everything the survey makes
 - without yes nothing is printed
 - the receipt says the labels were sent
+- yes queues the label of a new board
 
 **Which machine it is**
 
@@ -243,6 +244,11 @@ Regenerate with:
 - with nothing to go on a survey waits for a machine
 - a tag that disagrees with what is inside waits and does nothing
 - n that disagrees with what is inside waits and makes nothing
+- b at the machine makes a new motherboard and no computer  
+  A bare board on the bench that the register does not have yet (ADR-0052).
+- b that disagrees with what is inside waits and makes nothing
+- b for a board the register has waits rather than add it twice  
+  With N, a board known by its serial number is going into the new case; with B it is the board itself.
 - insides that point at two machines wait
 - a tag that is not a machine or a motherboard waits
 - a tag the register never issued makes nothing  
@@ -393,6 +399,13 @@ Regenerate with:
   With N typed, a board on a shelf is a board being put in a case.
 - with nothing typed a loose board is the board being surveyed  
   A bare board on the bench, known by its serial number.
+- a board made by b is named as a new board in a machine is
+- a board made by b takes the name of the computer maker whose bios it is
+- a board made by b gets what belongs to a board
+- a board made by b is its own motherboard and is not asked about one
+- a board made by b has no location until it is put away
+- b makes a board from a report that says nothing of one  
+  B said there is one, which is enough.
 - a board made on the surveys page gets the bios too
 - the answer names a board its bios names
 
@@ -508,6 +521,7 @@ Regenerate with:
   By the agent's clock, since a machine's own is often wrong.
 - a machine a survey made was made before it was surveyed  
   Its history reads in the order it happened: made, then surveyed.
+- a board a survey made was made before it was surveyed
 - the line says every test passed and what was filled in
 - the line says how many tests failed and which
 - the line says how many tests were skipped  
@@ -5891,7 +5905,7 @@ Regenerate with:
 
 ## The surveys page
 
-*test_the_surveys_page.py — 34 behaviours*
+*test_the_surveys_page.py — 36 behaviours*
 
 
 **Reading it**
@@ -5909,6 +5923,8 @@ Regenerate with:
 - filing that would take a part out of another machine says so first
 - new computer opens the form with what the survey found
 - saving the new computer files the survey against it
+- new motherboard opens the part form with what the survey found
+- saving the new motherboard files the survey against it
 
 **Answering on the page**
 

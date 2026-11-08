@@ -4359,7 +4359,8 @@ hard disk by the name it gives itself, a later PC by what its BIOS says.
 - **A machine the register recognises** is named on the screen, and nothing is
   asked about it.
 - **Otherwise the survey asks for the machine's tag.** Type it from the label,
-  **N** for a new machine, or Enter to leave it for later.
+  **N** for a new machine, **B** for a new motherboard on its own (a bare board
+  on the bench), or Enter to leave it for later.
 - **For each thing found that has no answer yet**, it asks for one (the
   motherboard first, in a machine with none on record), showing the thing by
   the register's name for it where there is one: the tag on its label,
@@ -4367,13 +4368,16 @@ hard disk by the name it gives itself, a later PC by what its BIOS says.
   part of the machine), **X** to leave it out, or Enter to decide later. It
   offers only the answers that fit ([what it does with what it
   finds](#what-it-does-with-what-it-finds)). In a machine being added (**N**),
-  Enter makes a new part as **N** does, since everything in it is new.
+  Enter makes a new part as **N** does, since everything in it is new. On a
+  board being added (**B**) it does not: what is plugged into a bare board on
+  the bench is often there only for the test, so Enter leaves it for later.
 - **N for something nobody can name** asks its make and then its model, so the
   new record has a name from the start. Type them from its label, or press Enter
   to leave either out. A new machine is asked the same, unless its BIOS says what
   it is, and is offered the company that wrote its BIOS as its make where that is
-  who made it ([who made it, from its BIOS](#who-made-it-from-its-bios)). Nothing
-  that already has a name is asked about.
+  who made it ([who made it, from its BIOS](#who-made-it-from-its-bios)). A new
+  motherboard is asked the same, as printed on the board, unless its BIOS names
+  it. Nothing that already has a name is asked about.
 - **Parts on record it did not find.** In a machine the register knows, each
   part the register has fitted in it that the survey did not find is shown in
   turn: Enter if it is still fitted, **X** if it has been taken out. A part
@@ -4385,11 +4389,11 @@ hard disk by the name it gives itself, a later PC by what its BIOS says.
   there is nothing more.
 - **Labels for what is new.** Where the small label goes to a print agent's
   queue (its **Goes to**, [where a label goes](#where-a-label-goes)) and the
-  survey is about to make something (**N** for the machine, or for anything it
-  found), it asks once, after everything else, whether to print a small label
-  for each new tag on that printer. **Y** puts them on its queue when the
-  report is filed: the machine's label and each new part's. Enter prints
-  none. A survey agent with a printer of its own prints them anyway ([what it
+  survey is about to make something (**N** or **B** for the machine, or **N**
+  for anything it found), it asks once, after everything else, whether to
+  print a small label for each new tag on that printer. **Y** puts them on its
+  queue when the report is filed: the machine's label (or the new board's) and
+  each new part's. Enter prints none. A survey agent with a printer of its own prints them anyway ([what it
   takes](#what-it-takes)), and is not asked.
 
 The tests run, the report is written and the agent sends it. The register's
@@ -4399,15 +4403,15 @@ and what is waiting for you.
 With nobody at the keyboard, nothing is asked. The tests run, the report goes,
 and whatever needed an answer waits on [the Surveys page](#the-surveys-page). If
 the register cannot be reached, the survey asks only for the machine's tag, and
-a new machine's make and model.
+a new machine's or board's make and model.
 
 ### Which machine it is
 
 The register works it out in this order:
 
 1. **The answer at the machine.** A machine's tag or a motherboard's (a
-   motherboard fitted in a machine stands for the machine), or **N** for a new
-   computer.
+   motherboard fitted in a machine stands for the machine), **N** for a new
+   computer, or **B** for a new motherboard on its own.
 2. **What is inside it.** A hard disk, a CD-ROM drive, a CompactFlash card, a
    network card or a Plug and Play card the register has in a machine, as a part
    fitted in it or as part of it, says it is that machine. A monitor does not:
@@ -4422,7 +4426,9 @@ The register works it out in this order:
 A survey that cannot be sure does nothing and waits:
 
 - the answer at the machine and what is inside disagree (`RH-4K7Q` typed, or
-  **N**, with a hard disk the register has in `RH-9J2X`);
+  **N** or **B**, with a hard disk the register has in `RH-9J2X`). With **B**, a
+  motherboard the register already has, known by its serial number, disagrees
+  too, since **B** would add it twice;
 - what is inside points at two machines;
 - the tag typed is not a machine or a motherboard: a part, a location, a
   project, something disposed of, or a tag the register never issued.
@@ -4432,6 +4438,13 @@ issued is a typing mistake, and a survey never makes anything under one. **N**
 is how a new machine is asked for. It has no name until you give it one, so it
 is called by its tag, and its label is printed on the agent's printer if it has
 one.
+
+**B** is how a new motherboard is asked for: a board on its own, tested on the
+bench before it goes into a case. It is named as a new board in a machine is
+([a part of its own](#a-part-of-its-own)) and filed as a bare board is ([part of
+the machine](#part-of-the-machine)). Like a new machine, it has no location
+until you put it away, and its label is printed on the agent's printer if it
+has one.
 
 The survey's page says how it found the machine (typed, or recognised by its
 hard disk `RH-K7Q2`), so it is always plain why a survey went where it did.
@@ -4586,7 +4599,8 @@ off is written at its slower speed.
 
 A motherboard on its own (a bare board tested on the bench before it goes back
 in a case) is filed the same way, and gets what belongs to a board: its BIOS,
-its chipset, its serial number and its condition.
+its chipset, its serial number and its condition. Type its tag at the machine,
+or **B** for one the register does not have yet.
 
 ### A part of its own
 
@@ -4787,7 +4801,8 @@ A survey waits for one of two things:
   had been typed at the machine; where that would move a part out of another
   machine, the page says so first. **New computer** opens the form for a new
   machine with what the survey found already in it. Saving makes the machine
-  and files the survey against it.
+  and files the survey against it. **New motherboard** does the same for a
+  bare board, with the form for a new part set to a motherboard.
 - **An answer.** Everything else is done, and something found is waiting for
   the answer nobody gave at the machine. Its line offers the answers that fit:
   a box for a part's tag with **Link**, **New part**, **Add to bench** for a
@@ -4857,8 +4872,8 @@ into any of them.
 ### What a survey never does
 
 It never changes something already recorded, and never makes anything nobody
-asked for: a new machine or part comes only from **N** at the machine, or from
-**New computer** or **New part** on its page. It never moves the machine it is
+asked for: a new machine or part comes only from **N** or **B** at the machine,
+or from **New computer**, **New motherboard** or **New part** on its page. It never moves the machine it is
 surveying or anything kept directly on a bench, and never takes a part out of another
 machine. It never writes a condition other than **Working** or changes one
 somebody chose, and never publishes or deletes anything.
@@ -4873,7 +4888,7 @@ does not know is ignored, so a program is free to say more than this.
 
 | Key | Says |
 |---|---|
-| `TAG` | the machine's tag as typed at the machine, `NEW`, or empty |
+| `TAG` | the machine's tag as typed at the machine, `NEW` (**N**), `NEW BOARD` (**B**), or empty |
 | `TOOL`, `VERSION` | the program, and which version of it |
 | `DATE`, `TIME` | the machine's own clock |
 | `RESULT` | `PASS`, `FAIL` or `ABORTED` |
