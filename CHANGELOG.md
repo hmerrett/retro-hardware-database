@@ -16,6 +16,17 @@ need a hand is written under the release that needs it.
 
 ## Unreleased
 
+**Pages open every time, in Safari too.** The site told browsers it spoke HTTP/3,
+which it never did: that needs UDP on port 443, and only TCP was ever opened. A
+browser that took up the offer stalled, or gave up on the page, before it fell back,
+Safari most of all. Now it offers HTTP/2 and HTTP/1.1 only, and tells a browser to
+forget the offer it was given before. `./deploy.sh` now reloads Caddy as well, so a
+change to the Caddyfile takes effect with the rest.
+
+**Upgrading:** nothing to do with `./deploy.sh`. An installation that pulls the
+published images reloads Caddy once, by hand: `docker compose exec caddy caddy
+reload --config /etc/caddy/Caddyfile`.
+
 **A machine can report itself.** A survey program run on the machine (tinydiag, from
 a network drive or a floppy) writes down what it finds: processor, memory, BIOS,
 disks, network and video cards, ROMs, and how its tests went. The survey agent, a
