@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3415 behaviours, from 98 files.*
+*3416 behaviours, from 98 files.*
 
 
 ## A barcode takes the room the words leave
@@ -166,7 +166,7 @@ Regenerate with:
 
 ## A machine that reports itself
 
-*test_a_machine_that_reports_itself.py — 264 behaviours*
+*test_a_machine_that_reports_itself.py — 265 behaviours*
 
 
 **What it takes**
@@ -404,6 +404,8 @@ Regenerate with:
 - a board made by b gets what belongs to a board
 - a board made by b is its own motherboard and is not asked about one
 - a board made by b has no location until it is put away
+- b makes a board from a report that says nothing of one  
+  B said there is one, which is enough.
 - a board made on the surveys page gets the bios too
 - the answer names a board its bios names
 
