@@ -335,10 +335,10 @@ migration step to remember.
 
 Two things do **not** update that way:
 
-- **`caddy/Caddyfile`.** It is mounted into the container as a single file, so
-  Compose sees nothing changed and leaves Caddy running the old config without
-  saying so. Use `docker compose up -d --force-recreate caddy`, then check it
-  took with `docker compose exec caddy cat /etc/caddy/Caddyfile`.
+- **`caddy/Caddyfile`.** Caddy reads it when it starts or is told to reload, and
+  Compose sees nothing to restart when only the file changed. `./deploy.sh` tells it
+  to reload. After pulling images, do the same:
+  `docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile`.
 - **`.env`.** It is read when a container is created. After editing it, run
   `docker compose up -d` to recreate the containers that use it.
 
