@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3397 behaviours, from 98 files.*
+*3403 behaviours, from 98 files.*
 
 
 ## A barcode takes the room the words leave
@@ -166,7 +166,7 @@ Regenerate with:
 
 ## A machine that reports itself
 
-*test_a_machine_that_reports_itself.py — 249 behaviours*
+*test_a_machine_that_reports_itself.py — 254 behaviours*
 
 
 **What it takes**
@@ -317,6 +317,7 @@ Regenerate with:
 - a sound blaster 16s mpu 401 is asked about once
 - a plug and play network card is the network card
 - a monitor is named by its maker and model
+- qemus monitor is named from what it gave
 - n makes a display with its serial number
 - a monitor is known by its serial number wherever it turns up
 - its number serves where it writes none out
@@ -325,6 +326,10 @@ Regenerate with:
 - the benchs monitor is left on the bench
 - the page offers to add a monitor to the bench
 - a vga card is named by its chip where nothing else names it
+- qemus isa cirrus card is named by its chip
+- a later s3 is named by its second id
+- a wd chip is named by the digits in its registers
+- a chip on the pci bus is named by the bus
 - n makes a video card of its chip
 - its rom names it before its chip
 - an answer given before its chip was read still holds
@@ -5874,7 +5879,7 @@ Regenerate with:
 
 ## The surveys page
 
-*test_the_surveys_page.py — 33 behaviours*
+*test_the_surveys_page.py — 34 behaviours*
 
 
 **Reading it**
@@ -5914,6 +5919,7 @@ Regenerate with:
 **Seen**
 
 - seen lists each serial number and address with what it belongs to
+- seen says a plug and play card or a monitor is one
 - seen says where and when each was last seen
 - each opens the last survey that read it
 - signed in a search finds a serial number a survey has seen  
