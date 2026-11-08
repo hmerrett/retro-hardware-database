@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3420 behaviours, from 98 files.*
+*3421 behaviours, from 98 files.*
 
 
 ## A barcode takes the room the words leave
@@ -2114,7 +2114,7 @@ Regenerate with:
 
 ## Deployment
 
-*test_deployment.py — 23 behaviours*
+*test_deployment.py — 24 behaviours*
 
 
 **The api trusts its proxy**
@@ -2179,6 +2179,8 @@ Regenerate with:
   A browser keeps an offer for as long as it was told to, a month here, and `clear` is how it is told to drop it sooner.
 - a deploy reloads caddy after the stack is up  
   The Caddyfile is mounted rather than built in, so a change to it reaches nothing until Caddy reads it again, and `up` does not make it.
+- the reload reads the caddyfile that is there now  
+  Through its directory, not as a file of its own.
 
 
 ## Drivedb

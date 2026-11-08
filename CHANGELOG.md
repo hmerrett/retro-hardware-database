@@ -20,12 +20,12 @@ need a hand is written under the release that needs it.
 which it never did: that needs UDP on port 443, and only TCP was ever opened. A
 browser that took up the offer stalled, or gave up on the page, before it fell back,
 Safari most of all. Now it offers HTTP/2 and HTTP/1.1 only, and tells a browser to
-forget the offer it was given before. `./deploy.sh` now reloads Caddy as well, so a
-change to the Caddyfile takes effect with the rest.
+forget the offer it was given before. A change to the Caddyfile now takes effect
+with the rest: Caddy is given its whole directory rather than the one file, which a
+`git pull` left it reading the old copy of, and `./deploy.sh` reloads it.
 
-**Upgrading:** nothing to do with `./deploy.sh`. An installation that pulls the
-published images reloads Caddy once, by hand: `docker compose exec caddy caddy
-reload --config /etc/caddy/Caddyfile`.
+**Upgrading:** nothing to do. The next `./deploy.sh`, or `docker compose up -d` after
+a pull, recreates Caddy with its directory, and it reads the new Caddyfile then.
 
 **A machine can report itself.** A survey program run on the machine (tinydiag, from
 a network drive or a floppy) writes down what it finds: processor, memory, BIOS,

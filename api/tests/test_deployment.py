@@ -317,3 +317,12 @@ class TestTheSiteOffersOnlyWhatItServes:
         up = next(i for i, ln in enumerate(steps) if ln.startswith("docker compose up"))
         reload = next(i for i, ln in enumerate(steps) if "caddy reload" in ln)
         assert up < reload
+
+    def test_the_reload_reads_the_caddyfile_that_is_there_now(self):
+        """Through its directory, not as a file of its own. A file mounted alone is
+        the one the container started with, and `git pull` writes a new one in its
+        place: the first reload, on the day HTTP/3 was switched off, read the old
+        file and Caddy went on offering it."""
+        volumes = [str(v) for v in _compose("docker-compose.yml")["services"]["caddy"]["volumes"]]
+        assert "./caddy:/etc/caddy:ro" in volumes
+        assert not [v for v in volumes if v.split(":")[1].startswith("/etc/caddy/")]
