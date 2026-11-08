@@ -163,3 +163,7 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   hardware what it is — *Accepted* (amends
   [0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md) and
   [0050](0050-a-survey-asks-about-what-it-could-not-see.md))
+- [0052](0052-a-survey-can-make-a-motherboard-on-its-own.md) — A survey can make
+  a motherboard on its own — *Accepted* (amends
+  [0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md) and
+  [0045](0045-a-machine-with-no-motherboard-on-record-is-asked-about-one.md))

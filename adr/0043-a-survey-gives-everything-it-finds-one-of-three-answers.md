@@ -1,6 +1,6 @@
 # 0043 — A survey gives everything it finds one of three answers
 
-**Status:** Accepted — amended by [ADR-0044](0044-a-survey-asks-the-make-and-model-of-what-nobody-can-name.md), [ADR-0045](0045-a-machine-with-no-motherboard-on-record-is-asked-about-one.md), [ADR-0046](0046-only-what-is-directly-on-a-bench-is-the-benchs.md), [ADR-0048](0048-a-survey-asks-about-every-drive-it-finds.md), [ADR-0049](0049-a-survey-offers-to-print-the-labels-of-what-it-makes.md), [ADR-0050](0050-a-survey-asks-about-what-it-could-not-see.md) and [ADR-0051](0051-a-survey-asks-the-hardware-what-it-is.md)
+**Status:** Accepted — amended by [ADR-0044](0044-a-survey-asks-the-make-and-model-of-what-nobody-can-name.md), [ADR-0045](0045-a-machine-with-no-motherboard-on-record-is-asked-about-one.md), [ADR-0046](0046-only-what-is-directly-on-a-bench-is-the-benchs.md), [ADR-0048](0048-a-survey-asks-about-every-drive-it-finds.md), [ADR-0049](0049-a-survey-offers-to-print-the-labels-of-what-it-makes.md), [ADR-0050](0050-a-survey-asks-about-what-it-could-not-see.md), [ADR-0051](0051-a-survey-asks-the-hardware-what-it-is.md) and [ADR-0052](0052-a-survey-can-make-a-motherboard-on-its-own.md)
 **Date:** 2026-11-06
 **Amends:** [ADR-0034](0034-a-location-is-a-record-in-the-register.md)
 

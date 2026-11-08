@@ -57,6 +57,7 @@ from .models import (
     Computer,
     FileAsset,
     Location,
+    LogEntry,
     Part,
     StoredFile,
     Survey,
@@ -73,6 +74,11 @@ FOR_MACHINE, FOR_ANSWER = "machine", "answer"
 
 # How the machine was found.
 TYPED, NEW, RECOGNISED, FILED = "typed", "new", "recognised", "filed"
+
+# B at the machine (ADR-0052): a motherboard on its own that the register does not
+# have yet, which the report says as `TAG=NEW BOARD`. It stands for the board until
+# the board is made.
+NEW_BOARD = "new board"
 
 
 def _now() -> datetime:
@@ -1432,6 +1438,15 @@ def identify(db: Session, keys: Mapping[str, str], found: list[Finding], t: tree
     nothing (MANUAL §23, "Which machine it is")."""
     pointed = pointed_at(db, keys, found, t)
     typed = keys.get("TAG", "").strip().upper()
+    if " ".join(typed.split()) == NEW_BOARD.upper():
+        # B: a board the register does not have (ADR-0052). Anything inside it that the
+        # register has in a machine says otherwise, as it does for N, and so does a board
+        # on its own known by its serial number: that is this board, which B would add
+        # a second time.
+        if pointed:
+            machine, by = next(iter(pointed.items()))
+            return Identity(None, "", "", f"B was answered, and {by} says this is {machine}.")
+        return Identity(NEW_BOARD, NEW, "", "")
     if typed:
         # A board in no machine, known by its serial number, says this is that board
         # only when nothing was typed (a bare board on the bench). With a machine
@@ -1578,17 +1593,42 @@ def settle(
         made = Computer(asset_id=next_asset_id(db))
         db.add(made)
         db.flush()
-        made_line = add_log(db, made.asset_id, "created by a survey", "created")
-        # Dated with the survey, as the survey's own line is, so the history reads in the
-        # order it happened: made, then surveyed.
-        if made_line is not None and made_line.created_at is not None:
-            made_line.created_at = min(made_line.created_at, s.taken)
+        _dated(add_log(db, made.asset_id, "created by a survey", "created"), s.taken)
         done.made.append(("computer", made.asset_id))
         machine = made.asset_id
+        t = tree.load(db)
+    elif machine == NEW_BOARD:
+        machine = _new_board(db, s, keys, found, who, t, done).asset_id
         t = tree.load(db)
     s.machine, s.how, s.by, s.reason = machine, how, by[:128], ""
     _apply(db, s, keys, found, roms, who, t, done)
     return done
+
+
+def _dated(line: LogEntry | None, taken: datetime) -> None:
+    """The line that made something, dated no later than the survey that made it. The
+    survey's own line is dated when the survey was taken, so the history reads in the
+    order it happened: made, then surveyed."""
+    if line is not None and line.created_at is not None:
+        line.created_at = min(line.created_at, taken)
+
+
+def _new_board(
+    db: Session,
+    s: Survey,
+    keys: Mapping[str, str],
+    found: list[Finding],
+    who: str,
+    t: tree.Tree,
+    done: Filing,
+) -> Part:
+    """B at the machine (ADR-0052): the board the survey is about, made as a new board
+    in a machine is and kept nowhere until somebody puts it away. A report that says
+    nothing of its board still makes one, since B said there is one."""
+    board = next((f for f in found if f["kind"] == "board"), None) or _finding(
+        "BOARD", "board", "Motherboard", PART_OR_OUT, signature="board", ptype="motherboard"
+    )
+    return _new_part(db, keys, board, None, who, t, done, texts=_rom_texts(s), taken=s.taken)
 
 
 def _apply(
@@ -1909,17 +1949,19 @@ def _new_part(
     db: Session,
     keys: Mapping[str, str],
     f: Finding,
-    into: str,
+    into: str | None,
     who: str,
     t: tree.Tree,
     done: Filing,
     how: str = tree.SURVEY,
     texts: Mapping[str, list[str]] | None = None,
+    taken: datetime | None = None,
 ) -> Part:
-    """A new part for a finding, fitted in the machine (or put where `into` is), named
-    as it names itself: a disk by what IDENTIFY says, a card by its ROM or by its chip
-    on the PCI bus, a network card by its chip or by the driver it was run with. What
-    was typed at the machine for one that names nothing is its name instead."""
+    """A new part for a finding, fitted in the machine (or put where `into` is, or
+    nowhere), named as it names itself: a disk by what IDENTIFY says, a card by its ROM
+    or by its chip on the PCI bus, a network card by its chip or by the driver it was
+    run with. What was typed at the machine for one that names nothing is its name
+    instead. A part the survey is about is dated with it (`taken`), as a machine is."""
     part = Part(asset_id=next_asset_id(db), type=f["ptype"] or "other")
     if f["kind"] == "board":
         # Named by the computer maker whose BIOS is on it, unless its SMBIOS tables or
@@ -1989,7 +2031,9 @@ def _new_part(
     db.add(part)
     db.flush()
     specdb.write(db, part)
-    add_log(db, part.asset_id, "created by a survey", "created")
+    line = add_log(db, part.asset_id, "created by a survey", "created")
+    if taken is not None:
+        _dated(line, taken)
     # A machine that has been disposed of takes nothing in. The part is still made, and
     # is kept where any new part is kept, rather than the survey failing over it.
     with contextlib.suppress(tree.Refused):
@@ -2970,6 +3014,29 @@ def prefill(s: Survey) -> dict[str, str]:
         "serial": said(keys.get("SYSTEM_SERIAL")),
         "installed_ram": entry.fmt_kb(kb) if kb else "",
     }
+
+
+def prefill_board(s: Survey) -> dict[str, str]:
+    """What a new board's form starts with, from a survey that waits for its machine:
+    the board as a new one made by B would be named, and the serial number its BIOS
+    keeps (ADR-0052)."""
+    keys = keys_of(s)
+    return {
+        "manufacturer": said(keys.get("BOARD_MAKER"))[:64] or bios_maker(keys, _rom_texts(s)),
+        "model": said(keys.get("BOARD_MODEL"))[:64],
+        "serial": said(keys.get("BOARD_SERIAL"))[:64],
+    }
+
+
+def file_new(db: Session, raw: str, tag: str, who: str) -> tuple[Survey, Filing] | None:
+    """A machine or a board made from a survey's page files the survey against it, as
+    if its tag had been typed at the machine (MANUAL §23, "The Surveys page"). None for
+    a form that came from no survey, or from one no longer waiting for its machine."""
+    raw = (raw or "").strip()
+    found = db.get(Survey, int(raw)) if raw.isdigit() else None
+    if found is None or found.waiting != FOR_MACHINE:
+        return None
+    return found, settle(db, found, {}, who, machine=tag, how=FILED, by=who)
 
 
 def benches(db: Session) -> list[Location]:
