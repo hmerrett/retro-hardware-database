@@ -32,6 +32,7 @@ from survey_reports import (
     read,
     survey,
 )
+from test_stylesheet_lint import COMPONENTS, text
 
 
 @pytest.fixture(autouse=True)
@@ -243,6 +244,65 @@ class TestAnsweringOnThePage:
         made = survey(client, TAG=machine["asset_id"], DISK1_ANSWER="OUT", **DISK)
         assert answer(client, made, "DISK1", "new").status_code == 303
         assert finding(read(client, made["id"]), "DISK1")["answer"] == "part"
+
+
+# --- the row the answers stand in ---------------------------------------------------------
+
+
+class TestTheRowTheAnswersStandIn:
+    """How the controls of the Found list stand on the page (survey.html, the
+    `.answers` rules in components.css). The thing is on a line of its own and the
+    answers it fits are on one row under it, so every row reads from the same left
+    edge whatever the length of the words above -- drawn with the add-form
+    components, whose boxes grow and whose form is pushed to the right, every row
+    wrapped at a different place and the page read as a jumble."""
+
+    @pytest.fixture
+    def page(self, client, computer):
+        """A filed survey with a disk and a card waiting, and a bench to offer: one
+        row with every control there is, and one without the bench menu."""
+        client.post("/api/locations", json={"name": "Bench 1", "kind": "bench"})
+        made = survey(client, TAG=computer()["asset_id"], VIDEO="VGA", **DISK)
+        return content(client.get(f"/surveys/{made['id']}").text)
+
+    def test_the_answers_stand_in_a_row_of_their_own_under_the_thing(self, page):
+        assert '<ul class="linkrows answers">' in page
+        assert len(re.findall(r'<form class="answer"', page)) == 2
+        rule = re.search(r"\.answers \.answer \{([^}]*)\}", text(COMPONENTS))
+        assert rule, "components.css no longer lays out the answers row"
+        assert "flex-basis: 100%" in rule[1], "the row starts wherever the words above end"
+        assert "margin: 0;" in rule[1], "the row is still pushed to the right"
+
+    def test_a_box_stands_with_the_button_that_sends_it(self, page):
+        """The tag box means nothing a line away from Link, so a box and its button
+        are one flex item -- the row wraps between answers, never inside one."""
+        forms = re.findall(r'<form class="answer".*?</form>', page, re.S)
+        for form in forms:
+            boxes = re.findall(r'<(?:input|select) class="(?:input|select)"', form)
+            pairs = re.findall(r'<span class="pair">(.*?)</span>', form, re.S)
+            assert len(pairs) == len(boxes) != 0, "a box stands outside a pair"
+            for pair in pairs:
+                assert re.search(r"<(input|select) ", pair) and "<button" in pair, pair
+        assert len([f for f in forms if 'name="bench"' in f]) == 1
+        rule = re.search(r"\.answers \.pair \{([^}]*)\}", text(COMPONENTS))
+        assert rule and "display: flex" in rule[1] and "gap:" in rule[1]
+
+    def test_a_box_is_named_for_the_ear_and_sized_for_what_it_takes(self, page):
+        """The button beside a box is its visible meaning, so the box's label is
+        there for the screen reader alone (`.sr-only`); a caption floating over
+        every box was much of the clutter. And a box asks for the width of what it
+        takes -- a tag, or a bench's name with a ceiling -- rather than growing."""
+        pairs = re.findall(r'<span class="pair">(.*?)</span>', page, re.S)
+        assert pairs
+        for pair in pairs:
+            box = re.search(r'<(?:input|select) class="(?:input|select)" id="([^"]+)"', pair)
+            label = re.search(r'<label class="sr-only" for="([^"]+)">', pair)
+            assert box and label and box[1] == label[1], pair
+        sheet = text(COMPONENTS)
+        box = re.search(r"\.answers \.pair > \.input \{([^}]*)\}", sheet)
+        assert box and re.search(r"width: \d+ch", box[1]) and "flex" not in box[1]
+        menu = re.search(r"\.answers \.pair > \.select \{([^}]*)\}", sheet)
+        assert menu and "width: auto" in menu[1] and re.search(r"max-width: \d+em", menu[1])
 
 
 # --- a survey's own page ------------------------------------------------------------------

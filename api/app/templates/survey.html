@@ -56,7 +56,7 @@
 
 {% call PN.panel('Found', asked | length or '', flush=true) %}
 {% if asked %}
-<ul class="linkrows">
+<ul class="linkrows answers">
 {% for f in asked %}
   <li>
     <span><b>{{ f.name }}</b>{% if f.identifier %} <code>{{ f.identifier }}</code>{% endif %} <span class="muted">{{ f.thing }}</span>:
@@ -65,17 +65,26 @@
     {% elif f.answer == 'out' %}left out.
     {% else %}<b>waiting for an answer.</b>{% endif %}</span>
     {% if request.state.authed and s.machine %}
-    <form class="addrow labelled" method="post" action="/surveys/{{ s.id }}/answer">
+    {# The answers, one row under the thing (`.answers`, components.css). A box and
+       the button that sends it stand in a pair, so the row wraps between answers
+       rather than inside one. The box's label is for the ear alone: the button
+       beside it is its visible meaning, and a caption floating over every box was
+       much of the clutter this row replaces. #}
+    <form class="answer" method="post" action="/surveys/{{ s.id }}/answer">
       <input type="hidden" name="thing" value="{{ f.thing }}">
       {% if 'part' in f.fits %}
       {{ U.button('New part', type='submit', name='answer', value='new', title='Makes a new part of it, fitted in the machine.') }}
-      <div class="field"><label for="tag-{{ f.thing }}">Its tag</label>
-        <input class="input" id="tag-{{ f.thing }}" name="tag" placeholder="asset tag" autocomplete="off"></div>
-      {{ U.button('Link', type='submit', name='answer', value='link', title='Joins it to the part the register has under that tag.') }}
+      <span class="pair">
+        <label class="sr-only" for="tag-{{ f.thing }}">Its tag</label>
+        <input class="input" id="tag-{{ f.thing }}" name="tag" placeholder="asset tag" autocomplete="off">
+        {{ U.button('Link', type='submit', name='answer', value='link', title='Joins it to the part the register has under that tag.') }}
+      </span>
       {% if f.kind in ('disk', 'drive', 'nic', 'monitor') and benches %}
-      <div class="field"><label for="bench-{{ f.thing }}">Bench</label>
-        <select class="input" id="bench-{{ f.thing }}" name="bench">{% for b in benches %}<option value="{{ b.asset_id }}">{{ b.name }}</option>{% endfor %}</select></div>
-      {{ U.button('Add to bench', type='submit', name='answer', value='bench', title="Makes a new part of it, kept on that bench: the bench's own, which no survey fits in a machine.") }}
+      <span class="pair">
+        <label class="sr-only" for="bench-{{ f.thing }}">Bench</label>
+        <select class="select" id="bench-{{ f.thing }}" name="bench">{% for b in benches %}<option value="{{ b.asset_id }}">{{ b.name }}</option>{% endfor %}</select>
+        {{ U.button('Add to bench', type='submit', name='answer', value='bench', title="Makes a new part of it, kept on that bench: the bench's own, which no survey fits in a machine.") }}
+      </span>
       {% endif %}
       {% endif %}
       {% if 'machine' in f.fits and f.kind == 'drive' %}{{ U.button('Part of the machine', type='submit', name='answer', value='machine', title='Kept as a row in the machine\'s Drives list rather than as a part of its own.') }}
