@@ -28,6 +28,8 @@ SEEN_KINDS = {
     "mac": "Ethernet address",
     "system": "Machine's serial number",
     "board": "Board's serial number",
+    "pnp": "Plug and Play card",
+    "monitor": "Monitor",
 }
 
 

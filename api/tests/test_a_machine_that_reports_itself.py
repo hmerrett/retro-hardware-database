@@ -22,6 +22,7 @@ from survey_reports import (
     ADAPTEC_ROM,
     AGENTS,
     ANONYMOUS_ROM,
+    AWE64,
     BIOS_ROM,
     BOOT_ROM,
     CHATTY_ROM,
@@ -36,10 +37,12 @@ from survey_reports import (
     NETBOOT_ROM,
     NIC,
     PRINTERS,
+    QEMU_EDID,
     VGA_ROM,
     XTIDE_ROM,
     answer,
     ask,
+    edid,
     finding,
     get,
     location,
@@ -898,6 +901,240 @@ class TestWhatItCouldNotSee:
 # --- serial numbers and addresses --------------------------------------------------
 
 
+class TestWhatTheHardwareSays:
+    """What a survey finds by asking the hardware itself: Plug and Play cards, a
+    monitor, the video card's chip, a Gravis UltraSound and an MPU-401, and what the
+    ports are (MANUAL §23, "What it does with what it finds"; ADR-0051)."""
+
+    # Plug and Play cards
+
+    def test_a_plug_and_play_card_is_named_by_its_maker_and_its_own_name(self, client, computer):
+        made = survey(client, TAG=computer()["asset_id"], **AWE64)
+        assert finding(made, "PNP1")["fits"] == ["part", "machine", "out"]
+        assert ask(client, **AWE64)["PNP1_NAME"] == "Creative Labs SB AWE64 PnP"
+
+    def test_n_makes_a_part_of_its_maker_and_model(self, client, computer):
+        made = survey(client, TAG=computer()["asset_id"], PNP1_ANSWER="NEW", **AWE64)
+        card = get(client, "parts", finding(made, "PNP1")["part"])
+        assert (card["type"], card["manufacturer"], card["model"]) == (
+            "sound",
+            "Creative Labs",
+            "SB AWE64 PnP",
+        )
+
+    def test_its_serial_number_is_not_written_as_the_parts(self, client, computer):
+        """It is printed on no label, so it is not what the field holds."""
+        made = survey(client, TAG=computer()["asset_id"], PNP1_ANSWER="NEW", **AWE64)
+        assert not get(client, "parts", finding(made, "PNP1")["part"])["serial"]
+
+    def test_it_is_known_by_its_serial_number_wherever_it_turns_up(self, client, computer):
+        survey(client, TAG=computer()["asset_id"], PNP1_ANSWER="OUT", **AWE64)
+        again = survey(client, TAG=computer()["asset_id"], **AWE64)
+        assert finding(again, "PNP1")["answer"] == "out"
+
+    def test_one_whose_serial_number_says_nothing_is_known_per_machine(self, client, computer):
+        card = AWE64 | {"PNP1": "CTL0045 FFFFFFFF"}
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], PNP1_ANSWER="OUT", **card)
+        assert finding(survey(client, TAG=machine["asset_id"], **card), "PNP1")["answer"] == "out"
+        assert finding(survey(client, TAG=computer()["asset_id"], **card), "PNP1")["answer"] is None
+
+    def test_a_plug_and_play_card_says_which_machine_it_is(self, client, computer):
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], PNP1_ANSWER="NEW", **AWE64)
+        assert ask(client, **AWE64)["TAG"] == machine["asset_id"]
+
+    def test_a_sound_blaster_at_its_ports_is_that_card(self, client, computer):
+        made = survey(
+            client,
+            TAG=computer()["asset_id"],
+            SOUND="220 4.13",
+            MPU="330",
+            GUS="240 1024",
+            **AWE64 | {"PNP1_IO": "220 240 330 388"},
+        )
+        assert [f["thing"] for f in made["findings"] if f["kind"] == "card"] == ["PNP1"]
+
+    def test_the_machine_is_told_so_it_asks_about_the_card_once(self, client):
+        answered = ask(client, SOUND="220 4.13", MPU="330", **AWE64)
+        assert (answered["SOUND_ANSWER"], answered["MPU_ANSWER"]) == ("PNP1", "PNP1")
+
+    def test_a_sound_blaster_16s_mpu_401_is_asked_about_once(self, client):
+        assert ask(client, SOUND="220 4.13", MPU="330")["MPU_ANSWER"] == "SOUND"
+
+    def test_a_plug_and_play_network_card_is_the_network_card(self, client, computer):
+        card = {
+            "PNP1": "TCM5090 0012AB34",
+            "PNP1_ANSI": "3Com 3C509B EtherLink III",
+            "PNP1_IO": "300",
+        }
+        made = survey(client, TAG=computer()["asset_id"], **NIC, **card)
+        assert not [f for f in made["findings"] if f["thing"] == "PNP1"]
+        answered = ask(client, **NIC, **card)
+        assert answered["NIC_NAME"] == "3Com 3C509B EtherLink III"
+        assert answered["PNP1_ANSWER"] == "NIC"
+
+    # A monitor
+
+    def test_a_monitor_is_named_by_its_maker_and_model(self, client, computer):
+        made = survey(client, TAG=computer()["asset_id"], **edid())
+        assert finding(made, "MONITOR")["fits"] == ["part", "out"]
+        assert ask(client, **edid())["MONITOR_NAME"] == "Dell P1110"
+
+    def test_qemus_monitor_is_named_from_what_it_gave(self, client, computer):
+        made = survey(client, TAG=computer()["asset_id"], **QEMU_EDID)
+        assert finding(made, "MONITOR")["name"] == "Red Hat QEMU Monitor"
+        assert ask(client, **QEMU_EDID)["MONITOR_NAME"] == "Red Hat QEMU Monitor"
+
+    def test_n_makes_a_display_with_its_serial_number(self, client, computer):
+        machine = computer()
+        made = survey(client, TAG=machine["asset_id"], **edid(), MONITOR_ANSWER="NEW")
+        screen = get(client, "parts", finding(made, "MONITOR")["part"])
+        assert (screen["type"], screen["manufacturer"], screen["model"], screen["serial"]) == (
+            "display",
+            "Dell",
+            "P1110",
+            "9J0123A1B2C3",
+        )
+        assert screen["computer_id"] == machine["asset_id"]
+
+    def test_a_monitor_is_known_by_its_serial_number_wherever_it_turns_up(self, client, computer):
+        survey(client, TAG=computer()["asset_id"], **edid(), MONITOR_ANSWER="OUT")
+        again = survey(client, TAG=computer()["asset_id"], **edid())
+        assert finding(again, "MONITOR")["answer"] == "out"
+
+    def test_its_number_serves_where_it_writes_none_out(self, client, computer, part):
+        screen = part(type="display", manufacturer="Dell", model="P1110", serial="19088743")
+        made = survey(client, TAG=computer()["asset_id"], **edid(number=0x01234567, serial=""))
+        assert finding(made, "MONITOR")["part"] == screen["asset_id"]
+
+    def test_one_that_gives_no_serial_number_is_known_per_machine(self, client, computer):
+        blank = edid(number=0x01010101, serial="")
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], **blank, MONITOR_ANSWER="OUT")
+        assert (
+            finding(survey(client, TAG=machine["asset_id"], **blank), "MONITOR")["answer"] == "out"
+        )
+        assert (
+            finding(survey(client, TAG=computer()["asset_id"], **blank), "MONITOR")["answer"]
+            is None
+        )
+
+    def test_a_monitor_does_not_say_which_machine_it_is(self, client, computer):
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], **edid(), MONITOR_ANSWER="NEW")
+        assert "TAG" not in ask(client, **edid())
+
+    def test_the_benchs_monitor_is_left_on_the_bench(self, client, computer, part):
+        bench = location(client, "Bench 1", "bench")
+        screen = part(
+            type="display", model="P1110", serial="9J0123A1B2C3", location=bench["asset_id"]
+        )
+        survey(client, TAG=computer()["asset_id"], **edid())
+        assert get(client, "parts", screen["asset_id"])["location"] == bench["asset_id"]
+
+    def test_the_page_offers_to_add_a_monitor_to_the_bench(self, client, computer):
+        location(client, "Bench 1", "bench")
+        made = survey(client, TAG=computer()["asset_id"], **edid())
+        page = client.get(f"/surveys/{made['id']}")
+        assert page.status_code == 200, page.text
+        assert 'value="bench"' in page.text
+
+    # The video card's chip
+
+    def test_a_vga_card_is_named_by_its_chip_where_nothing_else_names_it(self, client, computer):
+        assert ask(client, VIDEO="VGA", VIDEO_CHIP="TSENG 40")["VIDEO_NAME"] == "Tseng Labs ET4000"
+
+    def test_qemus_isa_cirrus_card_is_named_by_its_chip(self, client, computer):
+        assert ask(client, VIDEO="VGA", VIDEO_CHIP="CIRRUS A0")["VIDEO_NAME"] == (
+            "Cirrus Logic CL-GD5430"
+        )
+
+    def test_a_later_s3_is_named_by_its_second_id(self, client, computer):
+        assert ask(client, VIDEO="VGA", VIDEO_CHIP="S3 E1 11")["VIDEO_NAME"] == "S3 Trio64"
+
+    def test_a_wd_chip_is_named_by_the_digits_in_its_registers(self, client, computer):
+        name = ask(client, VIDEO="VGA", VIDEO_CHIP="WD 33 31")["VIDEO_NAME"]
+        assert name == "Western Digital WD90C31"
+
+    def test_a_chip_on_the_pci_bus_is_named_by_the_bus(self, client, computer):
+        answered = ask(client, VIDEO="VGA", VIDEO_CHIP="TSENG 40", PCI1="5333:8811 0300")
+        assert "Tseng" not in answered.get("VIDEO_NAME", "")
+
+    def test_n_makes_a_video_card_of_its_chip(self, client, computer):
+        made = survey(
+            client,
+            TAG=computer()["asset_id"],
+            VIDEO="VGA",
+            VIDEO_CHIP="TSENG 40",
+            VIDEO_ANSWER="NEW",
+        )
+        card = get(client, "parts", finding(made, "VIDEO")["part"])
+        assert (card["type"], card["manufacturer"], card["model"]) == (
+            "video",
+            "Tseng Labs",
+            "ET4000",
+        )
+
+    def test_its_rom_names_it_before_its_chip(self, client, computer):
+        answered = ask(
+            client,
+            roms=[("RH0001.C00", CIRRUS_ROM)],
+            VIDEO="VGA",
+            VIDEO_CHIP="TSENG 40",
+            ROM1="C000 32768 RH0001.C00",
+        )
+        assert answered["VIDEO_NAME"] == "Cirrus Logic CL-GD5428"
+
+    def test_an_answer_given_before_its_chip_was_read_still_holds(self, client, computer):
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], VIDEO="VGA", VIDEO_ANSWER="OUT")
+        again = survey(client, TAG=machine["asset_id"], VIDEO="VGA", VIDEO_CHIP="TSENG 40")
+        assert finding(again, "VIDEO")["answer"] == "out"
+
+    # A Gravis UltraSound and an MPU-401
+
+    def test_a_gravis_ultrasound_is_named_as_itself(self, client, computer):
+        made = survey(client, TAG=computer()["asset_id"], GUS="240 1024", GUS_ANSWER="NEW")
+        card = get(client, "parts", finding(made, "GUS")["part"])
+        assert (card["type"], card["manufacturer"], card["model"]) == (
+            "sound",
+            "Advanced Gravis",
+            "UltraSound",
+        )
+
+    def test_an_mpu_401_is_asked_its_make(self, client, computer):
+        made = survey(client, TAG=computer()["asset_id"], MPU="330")
+        assert finding(made, "MPU")["fits"] == ["part", "machine", "out"]
+        assert "MPU_NAME" not in ask(client, MPU="330")
+
+    def test_a_sound_blaster_16s_mpu_401_is_that_cards(self, client, computer):
+        made = survey(client, TAG=computer()["asset_id"], SOUND="220 4.13", MPU="330")
+        assert not [f for f in made["findings"] if f["thing"] == "MPU"]
+
+    # The ports
+
+    def test_the_ports_say_each_serial_ports_chip_and_each_parallel_ports_mode(
+        self, client, computer
+    ):
+        made = survey(
+            client,
+            TAG=computer()["asset_id"],
+            COM1="03F8 16550A IRQ4 PLUG:NONE",
+            COM2="02F8 8250 IRQ3 PLUG:NONE",
+            LPT1="0378 ECP PLUG:NONE",
+            PORTS_ANSWER="NEW",
+        )
+        card = get(client, "parts", finding(made, "PORTS")["part"])
+        assert card["specs"] == "Ports: Serial (16550A), Serial (8250), Parallel (ECP)"
+
+    def test_ports_answered_before_are_not_asked_again(self, client, computer):
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], COM1="03F8", PORTS_ANSWER="OUT")
+        again = survey(client, TAG=machine["asset_id"], COM1="03F8 16550A IRQ4 PLUG:NONE")
+        assert finding(again, "PORTS")["answer"] == "out"
+
+
 class TestSerialNumbersAndAddresses:
     def test_every_serial_number_and_address_is_recorded_whatever_its_answer(
         self, client, computer
@@ -1097,7 +1334,7 @@ class TestPartOfTheMachine:
             PORTS_ANSWER="MACHINE",
         )
         specs = get(client, "parts", board["asset_id"])["specs"]
-        assert "Ports: 2× Serial, Parallel" in specs
+        assert "Ports: 2× Serial (16550A), Parallel" in specs
 
     def test_anything_else_built_in_gets_a_line_of_its_own(self, client, computer, part):
         machine = computer()

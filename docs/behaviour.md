@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3370 behaviours, from 98 files.*
+*3403 behaviours, from 98 files.*
 
 
 ## A barcode takes the room the words leave
@@ -166,7 +166,7 @@ Regenerate with:
 
 ## A machine that reports itself
 
-*test_a_machine_that_reports_itself.py — 222 behaviours*
+*test_a_machine_that_reports_itself.py — 254 behaviours*
 
 
 **What it takes**
@@ -302,6 +302,42 @@ Regenerate with:
 - expanded memory on a 386 is not a card
 - an answer for a sound card is remembered
 - the page says a built in card is on the motherboard
+
+**What the hardware says**
+
+- a plug and play card is named by its maker and its own name
+- n makes a part of its maker and model
+- its serial number is not written as the parts  
+  It is printed on no label, so it is not what the field holds.
+- it is known by its serial number wherever it turns up
+- one whose serial number says nothing is known per machine
+- a plug and play card says which machine it is
+- a sound blaster at its ports is that card
+- the machine is told so it asks about the card once
+- a sound blaster 16s mpu 401 is asked about once
+- a plug and play network card is the network card
+- a monitor is named by its maker and model
+- qemus monitor is named from what it gave
+- n makes a display with its serial number
+- a monitor is known by its serial number wherever it turns up
+- its number serves where it writes none out
+- one that gives no serial number is known per machine
+- a monitor does not say which machine it is
+- the benchs monitor is left on the bench
+- the page offers to add a monitor to the bench
+- a vga card is named by its chip where nothing else names it
+- qemus isa cirrus card is named by its chip
+- a later s3 is named by its second id
+- a wd chip is named by the digits in its registers
+- a chip on the pci bus is named by the bus
+- n makes a video card of its chip
+- its rom names it before its chip
+- an answer given before its chip was read still holds
+- a gravis ultrasound is named as itself
+- an mpu 401 is asked its make
+- a sound blaster 16s mpu 401 is that cards
+- the ports say each serial ports chip and each parallel ports mode
+- ports answered before are not asked again
 
 **Serial numbers and addresses**
 
@@ -5843,7 +5879,7 @@ Regenerate with:
 
 ## The surveys page
 
-*test_the_surveys_page.py — 33 behaviours*
+*test_the_surveys_page.py — 34 behaviours*
 
 
 **Reading it**
@@ -5883,6 +5919,7 @@ Regenerate with:
 **Seen**
 
 - seen lists each serial number and address with what it belongs to
+- seen says a plug and play card or a monitor is one
 - seen says where and when each was last seen
 - each opens the last survey that read it
 - signed in a search finds a serial number a survey has seen  

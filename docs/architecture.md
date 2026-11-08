@@ -269,6 +269,9 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `surveyreport.py` | reading a survey report's `[RHDB]` section, and a machine's question before its tests |
 | `romtext.py` | the readable text in a ROM, and what the register makes of it: which BIOS it is, what a card's ROM calls the card |
 | `pciids.py` | names for what a PCI bus reports: the chipsets and cards of the period, and the part each class is filed as |
+| `pnpids.py` | who a Plug and Play ID's three-letter code says made a card or a monitor, and its own name without the maker's word |
+| `edid.py` | what a monitor says it is in the EDID it gave the video card: its maker's code, product, serial number and name |
+| `vgachips.py` | which VGA chip a card's registers say it is, from the family and ID the survey program read |
 | `labelpreview.py` | each label's picture on Settings → Labels: the example it is drawn for, the stock where it goes, and what it has no room for, from the page's settings before they are saved |
 | `surfaces.py` | the two things a label is drawn on: a PDF page, and a printer's own dots |
 | `barcode.py` | Code 128: a tag as the bars a label carries, set B only, and the table the browser's reader in static/code128.js is held to |

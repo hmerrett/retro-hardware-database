@@ -159,3 +159,7 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
 - [0050](0050-a-survey-asks-about-what-it-could-not-see.md) — A survey asks about
   what it could not see — *Accepted* (amends
   [0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md))
+- [0051](0051-a-survey-asks-the-hardware-what-it-is.md) — A survey asks the
+  hardware what it is — *Accepted* (amends
+  [0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md) and
+  [0050](0050-a-survey-asks-about-what-it-could-not-see.md))

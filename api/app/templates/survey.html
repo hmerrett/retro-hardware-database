@@ -71,7 +71,7 @@
       <div class="field"><label for="tag-{{ f.thing }}">Its tag</label>
         <input class="input" id="tag-{{ f.thing }}" name="tag" placeholder="asset tag" autocomplete="off"></div>
       {{ U.button('Link', type='submit', name='answer', value='link', title='Joins it to the part the register has under that tag.') }}
-      {% if f.kind in ('disk', 'drive', 'nic') and benches %}
+      {% if f.kind in ('disk', 'drive', 'nic', 'monitor') and benches %}
       <div class="field"><label for="bench-{{ f.thing }}">Bench</label>
         <select class="input" id="bench-{{ f.thing }}" name="bench">{% for b in benches %}<option value="{{ b.asset_id }}">{{ b.name }}</option>{% endfor %}</select></div>
       {{ U.button('Add to bench', type='submit', name='answer', value='bench', title="Makes a new part of it, kept on that bench: the bench's own, which no survey fits in a machine.") }}

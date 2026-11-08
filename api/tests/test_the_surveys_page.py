@@ -20,11 +20,13 @@ from app.models import Part
 from conftest import as_viewer, content, log_out
 from survey_reports import (
     AGENTS,
+    AWE64,
     BIOS_ROM,
     DISK,
     MAC,
     NIC,
     answer,
+    edid,
     finding,
     get,
     read,
@@ -295,6 +297,12 @@ class TestSeen:
         page = content(client.get("/surveys/seen").text)
         assert finding(made, "DISK1")["part"] in row(page, "QX123")
         assert "left out" in row(page, MAC).lower()
+
+    def test_seen_says_a_plug_and_play_card_or_a_monitor_is_one(self, client, computer):
+        survey(client, TAG=computer()["asset_id"], **AWE64, **edid())
+        page = content(client.get("/surveys/seen").text)
+        assert "Plug and Play card" in row(page, "CTL0045:1A2B3C4D")
+        assert "Monitor" in row(page, "DELA0A3:9J0123A1B2C3")
 
     def test_seen_says_where_and_when_each_was_last_seen(self, client, computer):
         first, second = computer(), computer()
