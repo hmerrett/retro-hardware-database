@@ -135,3 +135,19 @@ def test_a_fault_outside_a_page_is_the_plain_answer_it_was(faulty):
     r = faulty.get("/boom/broken", headers={"accept": "application/json"})
     assert r.status_code == 500
     assert "<html" not in r.text
+
+
+def test_an_address_a_button_uses_goes_to_the_buttons_page(client, part):
+    """Rotate posts to /parts/<tag>/photo-rotate, and a browser's address bar can
+    offer that back later, or a link to it be copied and opened (MANUAL section 2)."""
+    tag = part(type="video")["asset_id"]
+    r = client.get(f"/parts/{tag}/photo-rotate", headers=HTML, follow_redirects=False)
+    assert r.status_code == 303
+    assert r.headers["location"] == f"/parts/{tag}"
+
+
+def test_a_program_that_opens_a_buttons_address_is_still_refused(client, part):
+    tag = part(type="video")["asset_id"]
+    r = client.get(f"/parts/{tag}/photo-rotate", follow_redirects=False)
+    assert r.status_code == 405
+    assert r.headers["content-type"].startswith("application/json")

@@ -475,6 +475,12 @@ Three things can be said there.
 
 None of the three is offered to a search engine.
 
+**An address a button uses goes to the button's page.** Each button that changes
+something (Rotate, Crop, Delete and the rest) sends its form to an address of its
+own. A browser's address bar may offer one back later, and a link to one can be
+copied and opened. Opened as a page, such an address goes to the page the button is
+on, rather than to an error.
+
 **Programs get what programs want.** The JSON API answers an error as it always
 has — the status and a `detail` — and so does anything else that did not ask for
 a web page. The page is sent only to a client that asked for HTML, so a browser
