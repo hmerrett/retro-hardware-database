@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3423 behaviours, from 98 files.*
+*3426 behaviours, from 98 files.*
 
 
 ## A barcode takes the room the words leave
@@ -5908,7 +5908,7 @@ Regenerate with:
 
 ## The surveys page
 
-*test_the_surveys_page.py — 36 behaviours*
+*test_the_surveys_page.py — 39 behaviours*
 
 
 **Reading it**
@@ -5937,6 +5937,14 @@ Regenerate with:
 - leave out leaves it out
 - part of the machine is an answer a card may be given
 - an answer can be changed afterwards
+
+**The row the answers stand in**
+
+- the answers stand in a row of their own under the thing
+- a box stands with the button that sends it  
+  The tag box means nothing a line away from Link, so a box and its button are one flex item -- the row wraps between answers, never inside one.
+- a box is named for the ear and sized for what it takes  
+  The button beside a box is its visible meaning, so the box's label is there for the screen reader alone (`.sr-only`); a caption floating over every box was much of the clutter.
 
 **A surveys page**
 
