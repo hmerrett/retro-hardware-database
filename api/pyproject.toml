@@ -16,17 +16,17 @@ version = "0.1.0"
 description = "A self-hosted catalogue for a retro-computer collection"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi==0.143.0",
+    "fastapi==0.162.2",
     "uvicorn[standard]==0.54.0",
-    "sqlalchemy==2.0.52",
-    "pymysql==1.2.0",
-    "pydantic==2.14.0",
+    "sqlalchemy==2.1.8",
+    "pymysql==1.2.4",
+    "pydantic==2.14.3",
     "jinja2==3.1.6",
     "pyyaml==6.0.3",
-    "python-multipart==0.0.32",
-    "reportlab==5.0.1",
+    "python-multipart==0.0.33",
+    "reportlab==5.1.0",
     "segno==1.6.6",
-    "alembic==1.20.0",
+    "alembic==1.20.1",
     "httpx==0.28.1",
     "pillow==13.0.0",
     "argon2-cffi==25.1.0",
@@ -39,12 +39,12 @@ dependencies = [
 # so the scanner stays current.
 [dependency-groups]
 dev = [
-    "pytest==9.1.1",
-    "ruff==0.17.0",
+    "pytest==9.2.0",
+    "ruff==0.17.4",
     "pip-audit",
-    "mypy==2.4.0",
-    "types-pyyaml==6.0.12.20260906",
-    "types-reportlab==5.0.0.20261008",
+    "mypy==2.4.1",
+    "types-pyyaml==6.0.12.20261103",
+    "types-reportlab==5.1.0.20261104",
 ]
 
 # Nothing here is a package to be built and installed -- the app is copied into the
