@@ -1,5 +1,5 @@
-"""Everything reached at /items/<id>: the address a printed label carries, and the
-history written under it.
+"""Everything reached at /items: every item on one page, and under it /items/<id>,
+the address a printed label carries, with the history written under that.
 
 An asset id names something in the register without saying which of the three
 tables holds it, which is the whole point of the label: scan it and land on the
@@ -7,8 +7,10 @@ right page. The history routes are here rather than with the pages because a log
 entry belongs to the id, not to whichever kind of thing wears it.
 """
 
+from typing import TypedDict
+
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 
@@ -28,16 +30,87 @@ from sqlalchemy.orm import Session
 # already the register-wide address the QR codes print and the JSON log is read
 # from. They are POSTs, so the auth gate has them whatever the prefix.
 
-from .. import locations
+from .. import entry, locations
 from ..assets import back_to
+from ..common import to_dict
 from ..db import get_db
 from ..forms import posted
 from ..history import PHOTO_ENTRY, item_log, log_photos
-from ..models import LogEntry, LogPhoto
+from ..models import Computer, LogEntry, LogPhoto, Part
 from ..photos import _attach_log_photos, _chosen_photos, _purge_photos
 from ..register import _asset_page, _change_token
+from ..web import _og, templates
 
 router = APIRouter()
+
+
+# --- every item on one page ---------------------------------------------------
+
+
+class Line(TypedDict):
+    """One item as its line on /items."""
+
+    href: str
+    tag: str
+    name: str
+    kind: str
+    disposed: bool
+
+
+@router.get("/items", response_class=HTMLResponse, include_in_schema=False)
+def gui_every_item(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
+    """Every computer and part on one page, by name (MANUAL §2, "Every item on one
+    page").
+
+    The gallery's other half. The gallery is shuffled for each visit, which is the
+    point of it for somebody looking and no use to a crawler: it never shows one the
+    same 48 cards twice, and each later page is at a new address, which robots.txt
+    asks it to leave alone. This is the same list every time, so it is the way a
+    search engine is given to every item page (ADR-0053). The sitemap names the same
+    pages, and the suite holds the two to one list.
+
+    Only the two tables whose pages anybody may open. The register's pool of ids
+    holds projects and locations too, and each has its own rules about who is told
+    it exists (a private project, Show locations), so this does not read the
+    register."""
+    computers: list[Line] = [
+        {
+            "href": f"/computers/{c.asset_id}",
+            "tag": c.asset_id,
+            "name": entry.display_name(to_dict(c)),
+            "kind": "Computer",
+            "disposed": bool(c.disposed),
+        }
+        for c in db.query(Computer)
+    ]
+    parts: list[Line] = [
+        {
+            "href": f"/parts/{p.asset_id}",
+            "tag": p.asset_id,
+            "name": entry.display_name(to_dict(p)),
+            "kind": entry.type_label(p.type or "other"),
+            "disposed": bool(p.disposed),
+        }
+        for p in db.query(Part)
+    ]
+    # A tie is two things called the same, which the tag tells apart and keeps in one
+    # order from one visit to the next.
+    lines = sorted(computers + parts, key=lambda line: (line["name"].casefold(), line["tag"]))
+    return templates.TemplateResponse(
+        request,
+        "items.html",
+        {
+            "lines": lines,
+            "n_computers": len(computers),
+            "n_parts": len(parts),
+            "og": _og(
+                request,
+                "Every item",
+                f"Every computer and part in the collection, by name: {len(computers)} "
+                f"computers and {len(parts)} parts, each leading to its own page.",
+            ),
+        },
+    )
 
 
 # response_model=None: the annotation is for the type checker. FastAPI would

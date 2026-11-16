@@ -146,6 +146,13 @@
 {% endif %}
 {% if not rows %}<p id="empty" class="muted">No matching items.</p>{% endif %}
 {{ U.pager(page, pages, pager_href) }}
+{#- The whole collection as one list (MANUAL §2), under the gallery and its searches.
+    Not under a figure's slice or the shortlist, whose headings say they are a part
+    of it. It is also the link a crawler follows to every item: each link above back
+    into the gallery carries a new hand, and robots.txt asks it to leave those. -#}
+{% if heading is not defined %}
+<p class="hint" title="The whole collection on one page, by name, without the photographs"><a href="/items">{{ 'Every item' | ui }}</a></p>
+{% endif %}
 
 <script type="application/json" id="index-data">{{ {'sortCookie': sort_cookie} | tojson }}</script>
 <script defer src="/static/index.js?v={{ js_ver['index.js'] }}"></script>

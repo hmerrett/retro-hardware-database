@@ -202,7 +202,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `assets.py` | what a machine's page and a part's page do the same way: photographs, notes, forms, disposal, deletion, one page or tabs |
 | `pages.py` | the small pieces an editable page needs: what has been typed before, and a note posted with photographs |
 | `work.py` | the jobs on a project and the things it is about, read from the project, the item and the API alike |
-| `routers/items.py` | /items/<id>: the address a label carries, and the history written under it |
+| `routers/items.py` | /items, every item on one page by name (and the way a crawler reaches each); /items/<id>, the address a label carries, and the history written under it |
 | `routers/files.py` | the files kept beside the register, what each is for, and who may see it |
 | `routers/computers.py` | the pages of a machine |
 | `routers/parts.py` | the pages of a part, including the spec pickers |
