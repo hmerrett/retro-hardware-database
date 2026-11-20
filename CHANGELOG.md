@@ -72,7 +72,15 @@ wherever they turn up, and the bench's monitor stays on the bench. The ports' li
 says each serial port's chip and whether a parallel port is ECP or bidirectional,
 and a Gravis UltraSound or an MPU-401 is found where the survey's network card is
 on the PCI bus. A bare board tested on its own can be added as a motherboard rather
-than a whole machine: B at the machine, or New motherboard on the Surveys page.
+than a whole machine: B at the machine, or New motherboard on the Surveys page. A
+survey program that runs TopBench sends the score it got, which fills in a machine's
+TopBench score where none is recorded, and is shown beside one that differs. A
+survey's page shows how the machine's memory was worked out: the two figures the BIOS
+gives, below and above 1 MiB, and how the survey program found the second. A machine
+whose memory an older survey wrote short, as its conventional memory alone (tinydiag
+before 0.14.0 could not see above 1 MiB under HIMEM.SYS), has it corrected by the next
+survey that finds memory above 1 MiB, and its history says so. Nothing else recorded
+is changed.
 
 **Upgrading:** nothing to do unless you want surveys. Give an agent a key in
 `RHDB_SURVEY_AGENTS` in `.env`, run `tools/survey_agent.py` where the machines'

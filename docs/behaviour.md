@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3447 behaviours, from 100 files.*
+*3471 behaviours, from 100 files.*
 
 
 ## A barcode takes the room the words leave
@@ -166,7 +166,7 @@ Regenerate with:
 
 ## A machine that reports itself
 
-*test_a_machine_that_reports_itself.py — 265 behaviours*
+*test_a_machine_that_reports_itself.py — 284 behaviours*
 
 
 **What it takes**
@@ -213,6 +213,7 @@ Regenerate with:
   A machine made at the machine has nothing to be called yet but its tag, and a screen reading "RH-9Q0D RH-9Q0D" looks like a fault.
 - the answer says how the tests went in the historys words  
   The tests' own names keep their capitals: RAM, not ram.
+- the answer says what the survey corrected
 
 **Labels for what is new**
 
@@ -363,12 +364,27 @@ Regenerate with:
 - a 486 too early for cpuid is written as the survey says it
 - the speed written is the speed measured  
   So a machine surveyed with its turbo switched off is written at its slower speed.
+- a topbench score is filled in where none is recorded  
+  Nobody is asked: it is part of the machine.
+- a score already recorded is left alone and the difference shown  
+  A survey's can be one lower than TopBench's own database gives the same machine, and which to keep is the owner's to say.
+- the same score again is neither filled in nor a difference
+- a report with no score leaves the field as it was  
+  TopBench was not run, so there is nothing to fill in and nothing to differ from.
+- a score the form would refuse is ignored
 - the coprocessor goes in the catalogues fpu socket
 - without a socket the coprocessor goes on the motherboard
 - memory is written as a plain total when nothing is recorded
 - above a mebibyte memory is rounded up to whole mebibytes  
   Because an AT's BIOS leaves out the 384 KiB under its ROMs.
 - memory already recorded is left alone and the difference shown
+- a total an older survey wrote short is corrected  
+  The conventional memory alone, as a bare total: what a survey wrote when it could not see above 1 MiB under HIMEM.SYS.
+- a total with modules chips or a note is never corrected  
+  Somebody's account of what is fitted, even where it comes to the conventional memory alone: shown beside what was found, and left alone.
+- a machine with nothing above 1 mib is never corrected  
+  An XT at 640 KiB, or a 286 with nothing above 1 MiB: its conventional memory is its total.
+- a total that is not the conventional memory is a difference as ever
 - the operating system on the first hard disk is written
 - what a later pcs bios says fills its maker model and serial number
 - a placeholder from the bios says nothing
@@ -379,6 +395,8 @@ Regenerate with:
 - anything else built in gets a line of its own
 - with no motherboard on record the answer is kept and nothing written
 - a bare motherboard gets what belongs to a board
+- a motherboard on its own is given no topbench score  
+  The score is the whole machine's, and a board on the bench is tested with whatever processor and memory were to hand.
 
 **The motherboard**
 
@@ -481,6 +499,8 @@ Regenerate with:
   A clock on an XT, a second interrupt controller on a PC.
 - a skipped test does because it has not been run
 - a soak counts the same
+- a topbench score counts neither for nor against working  
+  A measurement, not a test: a machine scoring 4 has passed every test it passed, and one scoring 400 has failed the one it failed.
 - a failed test never writes faulty  
   A failure says where to look rather than what the machine is.
 - a run that was stopped part way marks nothing
@@ -523,6 +543,10 @@ Regenerate with:
   Its history reads in the order it happened: made, then surveyed.
 - a board a survey made was made before it was surveyed
 - the line says every test passed and what was filled in
+- a topbench score filled in is named with the rest  
+  Named, as everything filled in is, and not given: the score is on the machine's own page.
+- a correction is said to be one  
+  Not a fill: the total was there, and the survey changed it.
 - the line says how many tests failed and which
 - the line says how many tests were skipped  
   A skipped test has not been run, so the line never says every test passed.
@@ -556,6 +580,17 @@ Regenerate with:
 - n at the machine makes a computer of what it found
 - its receipt says three tests were skipped
 - left alone it waits to be told which machine it is
+
+**A report as tinydiag writes it with topbench**
+
+- n at the machine gives the new machine the score topbench gave
+- its seventeen passes mark the new machine working  
+  TopBench is run after the tests and is not one of them.
+- its memory counted with himem loaded rounds up to 16 mib  
+  639 KiB below 1 MiB and 15220 KiB above it: rounded up to whole MiB, since the 384 KiB between them is in neither.
+- its page says how its memory was worked out
+- its receipt says all it filled in the score among it  
+  In lines a DOS screen can show.
 
 
 ## A second of a model
@@ -5956,7 +5991,7 @@ Regenerate with:
 
 ## The surveys page
 
-*test_the_surveys_page.py — 39 behaviours*
+*test_the_surveys_page.py — 44 behaviours*
 
 
 **Reading it**
@@ -5973,6 +6008,7 @@ Regenerate with:
 - file does what the tag typed at the machine would have done
 - filing that would take a part out of another machine says so first
 - new computer opens the form with what the survey found
+- new computer starts with the topbench score the survey read
 - saving the new computer files the survey against it
 - new motherboard opens the part form with what the survey found
 - saving the new motherboard files the survey against it
@@ -5998,10 +6034,16 @@ Regenerate with:
 
 - it shows the report as the program wrote it
 - it shows the machines own clock beside the real one
+- it shows how the machines memory was worked out  
+  The total, the two figures it came from, and how the survey program found the memory above 1 MiB where it says.
+- it shows the machines topbench score where topbench ran  
+  Beside the machine's clock, and nothing where the survey program did not run it.
 - it shows the text in each rom
 - it shows what was read that differs from the record
+- it shows what the survey corrected
 - it shows what was expected and not found
 - delete removes a survey and keeps what it filled in
+- delete keeps what it corrected
 
 **Seen**
 
