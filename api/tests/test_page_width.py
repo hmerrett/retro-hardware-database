@@ -177,6 +177,8 @@ WIDE = {
     "settings_account.html",
 }
 READING = {
+    # Every item on one page: three short columns, read down by name.
+    "items.html",
     "project.html",
     "file.html",
     "file_view.html",  # a text file read as a page: prose, at the measure (ADR-0035)
@@ -245,7 +247,8 @@ def test_the_pages_you_read_keep_the_column(client, a_page_of_everything):
     reading = [
         p
         for p in a_page_of_everything
-        if p.startswith(("/files", "/projects", "/locations")) and not p.endswith(("/edit", "/new"))
+        if p.startswith(("/items", "/files", "/projects", "/locations"))
+        and not p.endswith(("/edit", "/new"))
     ]
     assert len(reading) >= 3, reading
     for path in reading:

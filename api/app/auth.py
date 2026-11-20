@@ -228,6 +228,9 @@ def _public_page(path: str) -> bool:
     still somewhere you can look at."""
     if path in (
         "/",
+        # Every item on one page: the gallery's items, listed, and nothing the
+        # gallery does not already show a visitor.
+        "/items",
         "/stats",
         "/browse",
         "/suggest",

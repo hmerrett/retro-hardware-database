@@ -42,8 +42,16 @@ def robots_txt(request: Request) -> Response:
         # braces -- but a crawler that followed a link to it and filed the login
         # page under its name would be publishing that the list exists (ADR-0018).
         "Disallow: /for-sale\n"
-        # Filtered slices of the gallery: the items in them are indexed already.
+        # Filtered slices of the gallery. A crawler reaches the items in them from
+        # /items, which is all of them on one page.
         "Disallow: /browse\n"
+        # The gallery's shuffle. A hand is dealt for each visit and carried in every
+        # link back into the gallery, so each visit offered a crawler a fresh set of
+        # addresses for the same cards, and none of them was a way back to an item.
+        # /items is the way in instead; the front page, which links to it, stays
+        # open. Only crawlers read this, so a shuffle sent to somebody still opens
+        # as it was dealt (MANUAL §2, "Every item on one page"; ADR-0053).
+        "Disallow: /*deal=\n"
         # What the search bar reads while you type: JSON about pages already indexed.
         "Disallow: /suggest\n"
         "Disallow: /computers/new\n"
@@ -76,6 +84,9 @@ def sitemap_xml(request: Request, db: Session = Depends(get_db)) -> Response:
     )
     urls: list[tuple[str, datetime | None]] = [
         (f"{base}/", None),
+        # The list of every item below, as a page: the same pages, as links a
+        # crawler can follow from one it has read.
+        (f"{base}/items", None),
         (f"{base}/stats", None),
         (f"{base}/machines", None),
         (f"{base}/projects", None),

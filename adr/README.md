@@ -167,3 +167,5 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   a motherboard on its own — *Accepted* (amends
   [0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md) and
   [0045](0045-a-machine-with-no-motherboard-on-record-is-asked-about-one.md))
+- [0053](0053-search-engines-are-given-the-items-as-a-list.md) — Search engines
+  are given the items as a list, and leave the shuffle alone — *Accepted*
