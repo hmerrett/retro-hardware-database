@@ -175,9 +175,7 @@ def column_by_part(
 ) -> dict[str, str | None]:
     """{part_id: value} for one typed column across every part, in one query --
     so a list page does not fall into a query per row."""
-    # .tuples() is for the type checker rather than the database: it says the rows
-    # are the pairs dict() is being handed, and leaves the query itself alone.
-    return dict(db.query(model.part_id, column).filter(column.isnot(None)).tuples().all())
+    return dict(db.query(model.part_id, column).filter(column.isnot(None)).all())
 
 
 def storage_kinds(db: Session) -> dict[str, str | None]:

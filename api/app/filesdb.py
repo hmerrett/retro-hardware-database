@@ -120,8 +120,8 @@ def _names(
     projects = db.query(Project.asset_id, Project.name).filter(Project.asset_id.in_(wanted))
     if not authed:
         projects = projects.filter(Project.private.is_(False))
-    for aid, name in projects:
-        out[aid] = (name or aid, f"/projects/{aid}")
+    for aid, called in projects:
+        out[aid] = (called or aid, f"/projects/{aid}")
     for kind, cls in _REGISTER:
         for aid, name, maker, model in db.query(
             cls.asset_id, cls.name, cls.manufacturer, cls.model

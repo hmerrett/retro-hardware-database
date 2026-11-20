@@ -62,6 +62,23 @@ def send(client, kind, aid, name="p.png", body=None, kind_of="image/png", script
     )
 
 
+def nothing_chosen(*boxes):
+    """A form posted with nothing chosen in its file boxes, as a browser sends one:
+    each box is still a part of the post, with a filename of nothing and no bytes.
+    Written out by hand, because httpx leaves an empty filename off, and a part with
+    no filename is a text field rather than an empty file."""
+    boundary = "nothing-chosen"
+    parts = "".join(
+        f'--{boundary}\r\nContent-Disposition: form-data; name="{box}"; filename=""\r\n'
+        "Content-Type: application/octet-stream\r\n\r\n\r\n"
+        for box in boxes
+    )
+    return {
+        "content": f"{parts}--{boundary}--\r\n".encode(),
+        "headers": {"Content-Type": f"multipart/form-data; boundary={boundary}"},
+    }
+
+
 def on_disk(kind, aid):
     from app import main
 
@@ -256,6 +273,20 @@ class TestTheRoute:
         r = send(client, kind, aid, script=False)
         assert r.status_code == 303
         assert r.headers["location"] == f"/{kind}/{aid}"
+
+    @KINDS
+    def test_upload_with_nothing_chosen_goes_back_to_the_page(self, client, made, kind):
+        """No picker is required, so a browser running no script can press Upload with
+        nothing chosen -- and it sends both pickers all the same, each a file of no
+        name. FastAPI reads those as no file at all, which is nothing to add rather
+        than a form to refuse."""
+        aid = made(kind)
+        r = client.post(
+            f"/{kind}/{aid}/photo", follow_redirects=False, **nothing_chosen("photos", "photos")
+        )
+        assert r.status_code == 303, r.text
+        assert r.headers["location"] == f"/{kind}/{aid}"
+        assert on_disk(kind, aid) == []
 
     def test_a_form_post_from_a_tab_goes_back_to_that_tab(self, client, made):
         aid = made("computers")

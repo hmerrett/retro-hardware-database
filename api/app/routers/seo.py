@@ -78,9 +78,7 @@ def sitemap_xml(request: Request, db: Session = Depends(get_db)) -> Response:
     base = PUBLIC_BASE_URL or str(request.base_url).rstrip("/")
     # Newest change per asset, for <lastmod>.
     last: dict[str | None, datetime | None] = dict(
-        db.query(LogEntry.asset_id, func.max(LogEntry.created_at))
-        .group_by(LogEntry.asset_id)
-        .tuples()
+        db.query(LogEntry.asset_id, func.max(LogEntry.created_at)).group_by(LogEntry.asset_id)
     )
     urls: list[tuple[str, datetime | None]] = [
         (f"{base}/", None),

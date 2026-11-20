@@ -326,6 +326,10 @@ def add_photos(
     running no script -- may send several, keeps the ones that can be kept, and goes
     back to the page naming the rest (MANUAL §10).
 
+    The routes take the photographs as not required. Upload pressed with nothing
+    chosen still sends the pickers, each a file of no name, and FastAPI hands those
+    over as no file at all: nothing to add, and back to the page like any form.
+
     Each photograph is checked as it is written, and one refused leaves nothing of
     itself on disk; the ones before it stay, and the history says so."""
     added: list[str] = []
