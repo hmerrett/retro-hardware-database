@@ -1170,6 +1170,10 @@ class Survey(Base):
     findings: Mapped[str] = mapped_column(MEDIUMTEXT, nullable=False)
     filled: Mapped[str] = mapped_column(Text, nullable=False)
     differs: Mapped[str] = mapped_column(Text, nullable=False)
+    # What it changed that was already recorded, which is neither of the two above: the
+    # one memory total an older survey wrote short (ADR-0053). Empty for every survey
+    # taken before there was such a thing.
+    corrected: Mapped[str] = mapped_column(Text, nullable=False, server_default="[]")
     missing: Mapped[str] = mapped_column(Text, nullable=False)
     roms: Mapped[str] = mapped_column(MEDIUMTEXT, nullable=False)
     # The history line the survey wrote, so the line can link back to it. SET NULL,

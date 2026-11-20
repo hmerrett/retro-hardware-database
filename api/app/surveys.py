@@ -24,6 +24,7 @@ import json
 import os
 import re
 import secrets
+import textwrap
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -310,8 +311,10 @@ def cpu_line(keys: Mapping[str, str]) -> str:
 
 
 def memory_kb(keys: Mapping[str, str]) -> int | None:
-    """The memory the BIOS counts. Above 1 MiB it is rounded up to whole MiB, because
-    an AT's BIOS leaves out the 384 KiB under its ROMs."""
+    """The memory the BIOS counts: the conventional memory and the memory above 1 MiB,
+    added up. The 384 KiB between them is in neither -- a chipset may move it above
+    1 MiB, shadow the ROMs with it, or lose it -- so where there is anything above 1 MiB
+    the total is rounded up to whole MiB (MANUAL §23, "Part of the machine")."""
     base, extended = _int(keys.get("RAMKB")), _int(keys.get("EXTKB"))
     if base is None and extended is None:
         return None
@@ -319,6 +322,56 @@ def memory_kb(keys: Mapping[str, str]) -> int | None:
     if extended:
         total = -(-total // 1024) * 1024
     return total or None
+
+
+# How a survey program found the memory above 1 MiB (EXTKB_FROM), in words for the
+# survey's page. A word not here is not repeated: the figures are shown without it, as
+# an older program's are.
+_EXTKB_FROM = {
+    "E801H": "INT 15h E801h",
+    "88H": "INT 15h 88h",
+    "CMOS": "the CMOS",
+    "XMS": "the XMS driver",
+}
+
+
+def memory_worked_out(keys: Mapping[str, str]) -> str:
+    """The memory total with the two figures it came from, for the survey's page:
+    `16 MiB: 639 KiB below 1 MiB and 15220 KiB above it (INT 15h E801h)`. The total
+    alone where there is no figure above 1 MiB to add (an XT's), and "" where the
+    report gives no memory at all."""
+    kb = memory_kb(keys)
+    if kb is None:
+        return ""
+    base, extended = _int(keys.get("RAMKB")), _int(keys.get("EXTKB"))
+    if extended is None:
+        return entry.fmt_kb(kb)
+    above = "nothing above" if extended == 0 else f"{extended} KiB above"
+    said = (
+        f"{entry.fmt_kb(kb)}: {above} 1 MiB"
+        if base is None
+        else f"{entry.fmt_kb(kb)}: {base} KiB below 1 MiB and {above} it"
+    )
+    source = _EXTKB_FROM.get(keys.get("EXTKB_FROM", "").strip().upper(), "")
+    return f"{said} ({source})" if source else said
+
+
+# How far a TopBench score reaches: the INT column it is kept in, which a typed one is
+# held to by the form and the API alike (forms._REACH, schemas.Score).
+_TOPBENCH_REACH = 2**31
+
+
+def topbench(keys: Mapping[str, str]) -> int | None:
+    """The score TopBench gave, where the survey program ran it (MANUAL §5, "About
+    TopBench"), or None for anything the TopBench box would refuse, which is ignored.
+    Read as the form reads one -- the digits int() reads, and no more of them than the
+    column holds -- because str.isdigit() alone says yes to a superscript two, which a
+    code page 437 report can carry and int() refuses."""
+    text = keys.get("TOPBENCH", "").strip()
+    if not (text.isascii() and text.isdigit()) or len(text) > len(str(_TOPBENCH_REACH)):
+        return None
+    score = int(text)
+    return score if score < _TOPBENCH_REACH else None
 
 
 # A floppy drive as a BIOS reports it, as the drives table holds it.
@@ -1492,6 +1545,9 @@ class Filing:
 
     filled: list[str] = field(default_factory=list)
     differs: list[dict[str, str]] = field(default_factory=list)
+    # What it changed that was recorded, as a difference is kept: the field, what was
+    # recorded and what was read (ADR-0053).
+    corrected: list[dict[str, str]] = field(default_factory=list)
     made: list[tuple[str, str]] = field(default_factory=list)
 
 
@@ -1525,6 +1581,7 @@ def take(
             findings=json.dumps(findings(keys, texts)),
             filled="[]",
             differs="[]",
+            corrected="[]",
             missing="[]",
             roms="[]",
         )
@@ -1670,6 +1727,7 @@ def _apply(
     s.missing = json.dumps(_missing(db, t, machine, found))
     s.filled = json.dumps(done.filled)
     s.differs = json.dumps(done.differs)
+    s.corrected = json.dumps(done.corrected)
     s.findings = json.dumps(found)
     s.waiting = FOR_ANSWER if any(f["answer"] is None for f in found) else None
     _history(db, s, keys, done)
@@ -2082,6 +2140,7 @@ def _rom_texts(s: Survey) -> dict[str, list[str]]:
 
 _FILLED_WORDS = {
     "cpu": "CPU",
+    "topbench": "TopBench score",
     "installed_ram": "memory",
     "os": "operating system",
     "manufacturer": "maker",
@@ -2104,6 +2163,33 @@ def _fill_field(obj: Computer | Part, name: str, value: str, done: Filing, word:
         done.filled.append(word or _FILLED_WORDS.get(name, name))
     elif str(recorded).strip().lower() != value.strip().lower():
         done.differs.append({"field": name, "recorded": str(recorded), "found": value})
+
+
+def _fill_score(c: Computer, score: int | None, done: Filing) -> None:
+    """The TopBench score, filled in where none is recorded and otherwise set beside the
+    one that is, as _fill_field does a line of text. Not through it: a score is a
+    number, and only None is blank -- a nought on file is a score somebody recorded,
+    which `or ""` would read as nothing and write over."""
+    if score is None:
+        return
+    if c.topbench is None:
+        c.topbench = score
+        done.filled.append(_FILLED_WORDS["topbench"])
+    elif c.topbench != score:
+        done.differs.append({"field": "topbench", "recorded": str(c.topbench), "found": str(score)})
+
+
+def _written_short(c: Computer, keys: Mapping[str, str]) -> bool:
+    """A memory total an older survey wrote short (ADR-0053): exactly the conventional
+    memory this report gives, which is all a survey that could not see above 1 MiB
+    under HIMEM.SYS had to write, on a machine this report finds memory above 1 MiB in.
+    The caller has already seen that it is a bare total, as a survey writes one."""
+    recorded = c.installed_ram_kb
+    return (
+        recorded is not None
+        and recorded == _int(keys.get("RAMKB"))
+        and bool(_int(keys.get("EXTKB")))
+    )
 
 
 def _bios_line(keys: Mapping[str, str], texts: Mapping[str, list[str]]) -> str:
@@ -2164,19 +2250,27 @@ def _fill(
     if isinstance(subject, Computer):
         c = subject
         _fill_field(c, "cpu", cpu_line(keys), done)
+        # A computer's alone: the score is the whole machine's, and a board surveyed on
+        # its own was tested with whatever processor and memory were to hand.
+        _fill_score(c, topbench(keys), done)
         if (kb := memory_kb(keys)) is not None:
             mods, ram_chips = ramdb.read(db, c)
-            if not mods and not ram_chips and not c.installed_ram_note and not c.installed_ram_kb:
+            # A bare total, which is how a survey writes one: no modules, chips or note.
+            bare = not mods and not ram_chips and not c.installed_ram_note
+            if bare and not c.installed_ram_kb:
                 ramdb.write(db, c, total_kb=kb)
                 done.filled.append("memory")
             elif c.installed_ram_kb != kb:
-                done.differs.append(
-                    {
-                        "field": "installed_ram",
-                        "recorded": c.installed_ram or "",
-                        "found": entry.fmt_kb(kb),
-                    }
-                )
+                memory = {
+                    "field": "installed_ram",
+                    "recorded": c.installed_ram or "",
+                    "found": entry.fmt_kb(kb),
+                }
+                if bare and _written_short(c, keys):
+                    ramdb.write(db, c, total_kb=kb)
+                    done.corrected.append(memory)
+                else:
+                    done.differs.append(memory)
         _fill_field(c, "os", keys.get("OS", "").strip(), done)
         _fill_field(c, "manufacturer", said(keys.get("SYSTEM_MAKER")), done)
         _fill_maker(c, bios_maker(keys, texts), done, "maker")
@@ -2440,6 +2534,18 @@ def tests_line(keys: Mapping[str, str]) -> str:
     return "no tests were run"
 
 
+def _corrected(c: Mapping[str, str]) -> str:
+    """A correction in the history's words: `Corrected memory from 639 KiB to 16 MiB.`
+    Not a fill, since something was there, and said so wherever it is told."""
+    word = _FILLED_WORDS.get(c["field"], c["field"])
+    return f"Corrected {word} from {c['recorded']} to {c['found']}."
+
+
+def corrections(s: Survey) -> list[str]:
+    """What a survey corrected, a sentence each, for its page and its receipt."""
+    return [_corrected(c) for c in cast(list[dict[str, str]], json.loads(s.corrected or "[]"))]
+
+
 def _history(db: Session, s: Survey, keys: Mapping[str, str], done: Filing) -> None:
     """One line on the machine's history, marked survey and dated when it was taken.
     It is public, as every history line is, and says nothing that is not: no serial
@@ -2450,6 +2556,7 @@ def _history(db: Session, s: Survey, keys: Mapping[str, str], done: Filing) -> N
     line = f"Surveyed: {tests_line(keys)}."
     if words:
         line += f" Filled in {_joined(words)}."
+    line += "".join(f" {_corrected(c)}" for c in done.corrected)
     if "condition" in done.filled:
         line += " Marked Working."
     row = add_log(db, s.machine, line, SURVEY_ENTRY)
@@ -2693,15 +2800,22 @@ def receipt(db: Session, made: list[Survey]) -> str:
         filled = [w for w in cast(list[str], json.loads(s.filled or "[]")) if w != "condition"]
         if filled:
             lines.append(f"Filled in {_joined(filled)}.")
+        lines += corrections(s)
         waiting = sum(1 for f in findings_of(s) if f["answer"] is None)
         if s.machine and waiting:
             are = "is" if waiting == 1 else "are"
             lines.append(
                 f"{waiting} thing{'s' if waiting != 1 else ''} {are} waiting for you on the Surveys page."
             )
-    return (
-        "\r\n".join(line.encode("ascii", "replace").decode("ascii")[:79] for line in lines) + "\r\n"
-    )
+    # No wider than the screen, wrapped rather than cut: the survey program shows a line
+    # as far as the screen is wide and drops the rest, so a machine that had a lot filled
+    # in was told only most of it. Never broken at a hyphen, which would part a tag
+    # (RH-K7Q2) or a chip (486DX2-66) from itself.
+    shown: list[str] = []
+    for line in lines:
+        text = line.encode("ascii", "replace").decode("ascii")
+        shown += textwrap.wrap(text, 79, break_on_hyphens=False) or [text]
+    return "\r\n".join(shown) + "\r\n"
 
 
 def label_printer(agent: Agent | None) -> printing.Agent | None:
@@ -2956,6 +3070,7 @@ def as_dict(s: Survey) -> dict[str, object]:
         ],
         "filled": json.loads(s.filled or "[]"),
         "differs": json.loads(s.differs or "[]"),
+        "corrected": json.loads(s.corrected or "[]"),
         "missing": json.loads(s.missing or "[]"),
         "roms": [
             {k: rom.get(k) for k in ("segment", "size", "filename", "file", "text")}
@@ -3002,12 +3117,14 @@ def history_links(db: Session, log_ids: Iterable[int]) -> dict[int, int]:
     }
 
 
-def prefill(s: Survey) -> dict[str, str]:
-    """What a new machine's form starts with, from a survey that waits for one."""
+def prefill(s: Survey) -> dict[str, str | int | None]:
+    """What a new machine's form starts with, from a survey that waits for one: the
+    words in its boxes, and the TopBench score as the number its box holds."""
     keys = keys_of(s)
     kb = memory_kb(keys)
     return {
         "cpu": cpu_line(keys),
+        "topbench": topbench(keys),
         "os": keys.get("OS", "").strip(),
         "manufacturer": said(keys.get("SYSTEM_MAKER")) or bios_maker(keys, _rom_texts(s)),
         "model": said(keys.get("SYSTEM_MODEL")),

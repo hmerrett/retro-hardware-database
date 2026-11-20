@@ -427,7 +427,7 @@ def gui_new_computer(
             **{
                 k: v
                 for k, v in said.items()
-                if k in ("cpu", "os", "manufacturer", "model", "serial")
+                if k in ("cpu", "topbench", "os", "manufacturer", "model", "serial")
             }
         )
         ctx["ram_free"] = said["installed_ram"]

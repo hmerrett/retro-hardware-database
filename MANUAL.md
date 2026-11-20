@@ -756,7 +756,7 @@ Field by field:
 | **Chassis / case** | desktop, tower, mini-tower, breadbin… |
 | **Operating system** | |
 | **CPU** | An attribute of the machine, not a part — unless you have the chip out on a shelf, in which case it is also a part. Write it as maker model-MHz: `Intel 486DX2-66`, `Intel 80286-6`, `2x Pentium III 500`. |
-| **TopBench score** | The DOS benchmark's score for *this* machine. Only shown while the machine is not a catalogue model — there is no TopBench for a Spectrum. |
+| **TopBench score** | The DOS benchmark's score for *this* machine. Only shown while the machine is not a catalogue model — there is no TopBench for a Spectrum. A [survey](#part-of-the-machine) that ran TopBench fills it in while it is blank. See [about TopBench](#about-topbench). |
 | **Memory** | Three inputs; see [section 7](#7-memory). |
 | **Drives** | A table of rows; see [section 8](#8-drives). |
 | **Condition** | Working, Untested, Partially working, Faulty, For parts/repair, Restored. Blank by default — "not recorded" is a real answer and should not be guessed as "Working". A [survey](#working-from-the-tests) whose every test passed writes **Working**, because a test that was run is not a guess. |
@@ -880,6 +880,16 @@ scoring half is telling you something — a cache left disabled, a turbo button,
 chipset set up wrong. Blank means it has not been run on that machine, which is
 most of them. Nothing infers a score from a CPU; having actually run it is the
 whole value of the field.
+
+A [survey](#23-surveys) program can run it for you. One that does sends the score
+with its report, and the survey writes it in while the field is blank. That is not
+a score inferred from a CPU: TopBench was run, on this machine. A score already
+recorded is never changed, and where a survey's is different, the survey's page
+shows the two side by side ([part of the machine](#part-of-the-machine)). Now and
+then that is a difference of one. Run by a program (`TOPBENCH -i`), TopBench counts
+what it gets through in one short window, where the score in its own database is the
+average of forty, so a survey's can come out one lower for the same machine. A
+difference of one is the two ways of running it, not the machine.
 
 ### Building the machine out
 
@@ -4404,7 +4414,7 @@ hard disk by the name it gives itself, a later PC by what its BIOS says.
 
 The tests run, the report is written and the agent sends it. The register's
 answer comes back to the screen, naming the machine and saying what it filled in
-and what is waiting for you.
+or corrected and what is waiting for you.
 
 With nobody at the keyboard, nothing is asked. The tests run, the report goes,
 and whatever needed an answer waits on [the Surveys page](#the-surveys-page). If
@@ -4463,7 +4473,7 @@ machine](#two-ways-of-describing-a-machine), [drives](#8-drives)):
 
 | Found | Its answer |
 |---|---|
-| The processor and its maths coprocessor, the memory, the operating system, the BIOS, the chipset, the machine's own maker, model and serial number | Always part of the machine. Nobody is asked. |
+| The processor and its maths coprocessor, the memory, the operating system, the BIOS, the chipset, the machine's own maker, model and serial number, and its TopBench score | Always part of the machine. Nobody is asked. |
 | A hard disk | A part of its own, or left out |
 | The motherboard, in a machine with none on record | A part of its own, or left out |
 | A floppy drive, a CD-ROM drive or a CompactFlash card | A part of its own, part of the machine (a row in its **Drives**), or left out |
@@ -4575,16 +4585,17 @@ made a part.
 ### Part of the machine
 
 What is part of the machine goes into its record, filling what has not been
-recorded and never changing what has. Where the survey read something
-different, its page shows the two side by side and leaves the record alone: 640
-KiB recorded and 512 KiB found is worth knowing, and which is right is yours to
-say.
+recorded and never changing what has, but for one memory total that an older
+survey wrote short (below). Where the survey read something different, its page
+shows the two side by side and leaves the record alone: 640 KiB recorded and 512
+KiB found is worth knowing, and which is right is yours to say.
 
 | Found | Written into |
 |---|---|
 | The processor and its measured speed | **CPU**, the way the form asks for it: `Intel 486DX2-66`. A chip that answers CPUID is named by what it answers (`AMD K6-2-300`, `Intel Pentium MMX-233`). A chip too old to say who made it is written without a maker, as `80286-12`. |
+| The score TopBench gave, where the survey program ran it | **TopBench score** ([about TopBench](#about-topbench)). A score the form would refuse (anything but a whole number, like `104`) is ignored. |
 | A maths coprocessor | the **FPU** socket, on a machine the catalogue gives one (`Intel 8087`); otherwise **FPU** on the motherboard fitted in it |
-| The memory the BIOS counts | **Installed RAM**, as a plain total, when nothing about the machine's memory is recorded yet. Above 1 MiB it is rounded up to whole MiB, because an AT's BIOS leaves out the 384 KiB under its ROMs. |
+| The memory the BIOS counts: the conventional memory, and the memory above 1 MiB | **Installed RAM**, as a plain total of the two, when nothing about the machine's memory is recorded yet (below) |
 | The operating system on the first hard disk | **Operating system** |
 | What a later PC's BIOS says the machine is: its maker, model and serial number | **Manufacturer**, **Model** and **Serial number**. A placeholder such as `To be filled by O.E.M.` or `System Product Name` says nothing, and is ignored. With no maker from there, the company that wrote its BIOS, where that is who made it ([who made it, from its BIOS](#who-made-it-from-its-bios)). |
 | A floppy drive, a CD-ROM drive or a CompactFlash card answered as part of the machine | a row in **Drives**: a floppy drive's bay and size as the BIOS has them (`3.5"`, `1.44MB`), the others' model. A row already there for it is left as it is. |
@@ -4600,13 +4611,35 @@ lines are remembered and nothing is written. A machine whose catalogue model
 keeps its BIOS in a socket of its own (an IBM 5150's **BIOS ROM**) is never
 asked.
 
-The speed is the one measured, so a machine surveyed with its turbo switched
-off is written at its slower speed.
+The speed and the TopBench score are the ones measured, so a machine surveyed
+with its turbo switched off is written at its slower speed and its lower score.
+
+**The memory total.** A PC's BIOS counts its memory as two figures: the
+conventional memory below 640 KiB, and the memory above 1 MiB. The 384 KiB between
+them is in neither. A chipset may move it above 1 MiB, use it to shadow the ROMs, or
+lose it, so the two can add up to a little less than is fitted. Where there is any
+memory above 1 MiB, the total is rounded up to whole MiB: 639 KiB and 15220 KiB make
+16 MiB. The survey's page shows the total with the two figures it came from, and,
+where the survey program says, how it found the memory above 1 MiB: a BIOS call
+(`INT 15h E801h` or `INT 15h 88h`), the CMOS, or the XMS driver.
+
+**A total an older survey wrote short.** Survey programs running under HIMEM.SYS
+could not always see the memory above 1 MiB, and a survey then wrote the
+conventional memory alone as the machine's total: `639 KiB` for a 16 MiB PC. A
+survey that finds memory above 1 MiB corrects a total like that, and only that: one
+that is exactly the conventional memory it found, kept as a bare total, with no
+modules, chips or note. The register cannot tell who wrote such a total, but on a
+machine with memory above 1 MiB it is short whoever did. The survey's history line
+says it corrected it (`Corrected memory from 639 KiB to 16 MiB.`), and so does its
+page. Any other total is left alone, and where it differs, the two are shown side by
+side.
 
 A motherboard on its own (a bare board tested on the bench before it goes back
 in a case) is filed the same way, and gets what belongs to a board: its BIOS,
-its chipset, its serial number and its condition. Type its tag at the machine,
-or **B** for one the register does not have yet.
+its chipset, its serial number and its condition. A TopBench score is not one of
+them: it is the whole machine's, and a board on the bench is tested with whatever
+processor and memory were to hand. Type its tag at the machine, or **B** for one
+the register does not have yet.
 
 ### A part of its own
 
@@ -4747,6 +4780,10 @@ it. One that was skipped does, because a skipped test has not been run.
 A soak (the tests over and over until somebody stops them) counts the same, and
 its line in the history says how long it ran.
 
+A TopBench score is a measurement, not a test, and counts neither for nor against
+**Working**. A machine scoring half what it should is telling you something ([about
+TopBench](#about-topbench)), but not that a test failed.
+
 Otherwise the condition is left alone:
 
 - **A failed test** goes in the history and is marked on the Surveys page. A
@@ -4819,9 +4856,13 @@ A survey's page shows:
 
 - when it was taken, through which agent, and through which bench card if any;
 - the machine, and how it was found;
+- the machine's memory, with the two figures it was worked out from ([the memory
+  total](#part-of-the-machine));
+- the machine's TopBench score, where the survey program ran TopBench;
 - each test and its result, with what a failed one found;
 - everything it found, and the answer each was given;
-- what it filled in, and what it read that differs from the record;
+- what it filled in, what it corrected, and what it read that differs from the
+  record;
 - what the register expected to find and did not;
 - the ROMs, and the text in them;
 - the report itself, as the program wrote it.
@@ -4833,7 +4874,7 @@ It also shows the machine's own date and time beside the real ones. A machine
 whose clock thinks it is 1980 has a flat battery, and this is the quickest way
 to find one.
 
-**Delete** removes a survey and its report. What it filled in stays, since that
+**Delete** removes a survey and its report. What it filled in or corrected stays, since that
 is the record now, and so do its ROM files and the serial numbers it recorded.
 
 **Seen**, the page's second list, is every serial number and Ethernet address a
@@ -4846,15 +4887,16 @@ it.
 Each survey writes one line on the machine's history, marked *survey* and dated
 when it was taken (by the agent's clock, since a machine's own is often wrong):
 
-- `Surveyed: every test passed. Filled in CPU, memory and operating system.`
+- `Surveyed: every test passed. Filled in CPU, TopBench score, memory and operating system.`
+- `Surveyed: every test passed. Corrected memory from 639 KiB to 16 MiB.`
 - `Surveyed: 2 of 17 tests failed (RAM, floppy).`
 - `Surveyed: 14 of 17 tests passed, 3 skipped.`
 - `Surveyed: every test passed, 48 passes over 12 hours.`
 
 "Every test passed" means every test that applies to the machine, and the
-counts are of those: a clock test on an XT is no test at all, so it is not one
-of the 17. A skipped test has not been run, so a survey with one never says
-every test passed.
+counts are of those: a clock test on an XT is no test at all, so it is not
+counted. A skipped test has not been run, so a survey with one never says every
+test passed.
 
 A visitor sees it, as they see the rest of the history, and it says nothing a
 visitor is not shown: no serial number, no address, nowhere anything is kept.
@@ -4877,7 +4919,9 @@ into any of them.
 
 ### What a survey never does
 
-It never changes something already recorded, and never makes anything nobody
+It never changes something already recorded, with one exception: a memory total an
+older survey wrote short, from the conventional memory alone ([part of the
+machine](#part-of-the-machine)). It never makes anything nobody
 asked for: a new machine or part comes only from **N** or **B** at the machine,
 or from **New computer**, **New motherboard** or **New part** on its page. It never moves the machine it is
 surveying or anything kept directly on a bench, and never takes a part out of another
@@ -4901,7 +4945,9 @@ does not know is ignored, so a program is free to say more than this.
 | `TEST_<name>`, `DETAIL_<name>` | each test's result (`PASS`, `FAIL`, `SKIP`, `NA` for one that does not apply, or `NOTRUN`), and what it found |
 | `MODE`, `PASSES`, `ELAPSED` | `ONCE` or `SOAK`, and for a soak how many passes in how long |
 | `CPU`, `CPUVENDOR`, `CPUSIG`, `CPUKHZ`, `FPU` | the processor, its maker where it says, its CPUID signature (family, model and stepping, as four hex digits), its measured speed, and the maths coprocessor |
-| `RAMKB`, `EXTKB` | conventional and extended memory as the BIOS counts it, in KiB |
+| `TOPBENCH` | the score TopBench gave the machine, a whole number, where the program ran TopBench |
+| `RAMKB`, `EXTKB` | the conventional memory, and the memory above 1 MiB, in KiB |
+| `EXTKB_FROM` | where `EXTKB` came from: `E801H` or `88H` (the BIOS's `INT 15h` calls), `CMOS`, or `XMS` (the XMS driver's free memory and the HMA, where the BIOS counted less or nothing) |
 | `FLOPPY<n>` | a floppy drive as the BIOS has it: `360K`, `1.2M`, `720K`, `1.44M` or `2.88M` |
 | `BIOSVENDOR`, `BIOSDATE` | the BIOS's maker and date |
 | `SYSTEM_MAKER`, `SYSTEM_MODEL`, `SYSTEM_SERIAL` | what a later PC's BIOS says about the machine (SMBIOS), or for a new machine whose BIOS does not say, the make and model typed at the machine |

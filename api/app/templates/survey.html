@@ -4,10 +4,10 @@
 {% block title %}Survey {{ s.id }} — {{ site_name() }}{% endblock %}
 {% block backname %}Surveys{% endblock %}
 {% block content %}
-{# One survey (MANUAL §23, "The Surveys page"): the machine and how it was found, each
-   test, everything found and the answer each was given, what was filled in and what
-   differs, what was expected and not found, the ROMs and the text in them, and the
-   report as the program wrote it. #}
+{# One survey (MANUAL §23, "The Surveys page"): the machine and how it was found, its
+   memory and TopBench score, each test, everything found and the answer each was
+   given, what was filled in or corrected and what differs, what was expected and not
+   found, the ROMs and the text in them, and the report as the program wrote it. #}
 {% macro thing(tag) -%}<a href="/items/{{ tag }}">{{ names.get(tag, tag) }}</a> <span class="tag muted">{{ tag }}</span>{%- endmacro %}
 <div class="pagehead"><h1 class="heading">Survey {{ s.id }}</h1>
   <p class="hint">Taken {{ when(s.taken) }} through {{ s.agent or 'an agent' }}{% if s.bench_card %}, by way of the bench card {{ thing(s.bench_card) }}{% endif %}. {{ result }}.</p></div>
@@ -34,9 +34,16 @@
     {{ U.button('New motherboard', href='/parts/new?type=motherboard&survey=' ~ s.id, title='For a bare board on its own. Opens the form for a new motherboard with what the survey found of the board already in it. Saving makes the board and files the survey against it.') }}</p>
   {% endif %}
   {% endif %}
+  {# The memory with the two figures it was worked out from, since the 384 KiB between
+     them is in neither and the total can come out short of what is fitted. The
+     TopBench score only where TopBench was run: a survey program that did not run it
+     has said nothing, which is not a score of nothing. Both are read from the report,
+     so a board surveyed on its own shows them, though it keeps neither. #}
   <dl class="kv">
     <div><dt>The machine's clock</dt><dd>{{ s.clock or 'Not given' }}</dd></div>
     <div><dt>The agent's clock</dt><dd>{{ when(s.taken) }}</dd></div>
+    {% if memory %}<div><dt>Memory</dt><dd>{{ memory }}</dd></div>{% endif %}
+    {% if topbench is not none %}<div><dt>TopBench score</dt><dd>{{ topbench }}</dd></div>{% endif %}
   </dl>
 </div>
 {% endcall %}
@@ -100,7 +107,10 @@
 
 {% call PN.panel('Filled in', filled | length or '') %}
 <div class="pbody">
-  {% if filled %}<p>{{ filled | join(', ') }}.</p>{% else %}<p class="muted">Nothing: the record already had it, or the survey has not been filed.</p>{% endif %}
+  {% if filled %}<p>{{ filled | join(', ') }}.</p>{% elif not corrected %}<p class="muted">Nothing: the record already had it, or the survey has not been filed.</p>{% endif %}
+  {# A correction is not a fill: something was recorded, and the survey changed it
+     (ADR-0053). Said in the words of the history line it also wrote. #}
+  {% for line in corrected %}<p>{{ line }}</p>{% endfor %}
   {% if differs %}
   <table class="table">
     <thead><tr><th scope="col">Differs</th><th scope="col">Recorded</th><th scope="col">Read</th></tr></thead>

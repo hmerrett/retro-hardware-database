@@ -16,7 +16,8 @@ from pathlib import Path
 
 import pytest
 
-from app import settings
+from app import ramdb, settings
+from app.models import Computer
 from conftest import log_out
 from survey_reports import (
     ADAPTEC_ROM,
@@ -317,6 +318,12 @@ class TestAQuestionBeforeTheTests:
         )
         assert r.status_code == 200, r.text
         assert "2 of 17 tests failed (RAM, floppy)." in r.json()["receipt"]
+
+    def test_the_answer_says_what_the_survey_corrected(self, client, computer):
+        machine = computer(installed_ram="639KiB")
+        r = send(client, report(TAG=machine["asset_id"], RAMKB="639", EXTKB="15220"))
+        assert r.status_code == 200, r.text
+        assert "Corrected memory from 639 KiB to 16 MiB." in r.json()["receipt"].split("\r\n")
 
 
 # --- at the machine: labels for what is new -----------------------------------------
@@ -1269,6 +1276,69 @@ class TestPartOfTheMachine:
         )
         assert get(client, "computers", machine["asset_id"])["cpu"] == "Intel 486DX2-8"
 
+    @pytest.mark.parametrize("score", ["104", "0", "2147483647"])
+    def test_a_topbench_score_is_filled_in_where_none_is_recorded(self, client, computer, score):
+        """Nobody is asked: it is part of the machine. As far as the field reaches, and a
+        nought is a score like any other."""
+        machine = computer()
+        made = survey(client, TAG=machine["asset_id"], TOPBENCH=score)
+        assert get(client, "computers", machine["asset_id"])["topbench"] == int(score)
+        assert "TopBench score" in made["filled"]
+        assert made["waiting"] is None
+
+    @pytest.mark.parametrize("recorded", [104, 0])
+    def test_a_score_already_recorded_is_left_alone_and_the_difference_shown(
+        self, client, computer, recorded
+    ):
+        """A survey's can be one lower than TopBench's own database gives the same
+        machine, and which to keep is the owner's to say. A nought on file is a score
+        recorded, not a blank."""
+        machine = computer(topbench=recorded)
+        made = survey(client, TAG=machine["asset_id"], TOPBENCH="103")
+        assert get(client, "computers", machine["asset_id"])["topbench"] == recorded
+        assert {"field": "topbench", "recorded": str(recorded), "found": "103"} in made["differs"]
+        assert "TopBench score" not in made["filled"]
+
+    def test_the_same_score_again_is_neither_filled_in_nor_a_difference(self, client, computer):
+        machine = computer(topbench=104)
+        made = survey(client, TAG=machine["asset_id"], TOPBENCH="104")
+        assert "TopBench score" not in made["filled"]
+        assert not [d for d in made["differs"] if d["field"] == "topbench"]
+
+    @pytest.mark.parametrize("recorded", [None, 104])
+    def test_a_report_with_no_score_leaves_the_field_as_it_was(self, client, computer, recorded):
+        """TopBench was not run, so there is nothing to fill in and nothing to differ
+        from."""
+        machine = computer(topbench=recorded)
+        made = survey(client, TAG=machine["asset_id"], CPU="80286", CPUKHZ="12000")
+        assert get(client, "computers", machine["asset_id"])["topbench"] == recorded
+        assert "TopBench score" not in made["filled"]
+        assert not [d for d in made["differs"] if d["field"] == "topbench"]
+
+    @pytest.mark.parametrize(
+        "said",
+        [
+            pytest.param("fast", id="words"),
+            pytest.param("104.5", id="a fraction"),
+            pytest.param("-5", id="below nought"),
+            pytest.param("2147483648", id="past what the field keeps"),
+            pytest.param("9" * 5000, id="more digits than int() reads"),
+            # The byte FDh in code page 437, which str.isdigit() calls a digit and int()
+            # refuses.
+            pytest.param("²", id="a superscript two"),
+            pytest.param("", id="blank"),
+        ],
+    )
+    def test_a_score_the_form_would_refuse_is_ignored(self, client, computer, said):
+        machine = computer(topbench=104)
+        made = survey(client, TAG=machine["asset_id"], TOPBENCH=said)
+        assert get(client, "computers", machine["asset_id"])["topbench"] == 104
+        assert not [d for d in made["differs"] if d["field"] == "topbench"]
+        blank = computer()
+        made = survey(client, TAG=blank["asset_id"], TOPBENCH=said)
+        assert get(client, "computers", blank["asset_id"])["topbench"] is None
+        assert "TopBench score" not in made["filled"]
+
     def test_the_coprocessor_goes_in_the_catalogues_fpu_socket(self, client, computer):
         machine = computer(machine={"model_key": "ibm-5150"})
         survey(client, TAG=machine["asset_id"], FPU="8087")
@@ -1300,6 +1370,61 @@ class TestPartOfTheMachine:
         made = survey(client, TAG=machine["asset_id"], RAMKB="512", EXTKB="0")
         assert get(client, "computers", machine["asset_id"])["installed_ram"] == "640 KiB"
         assert {"field": "installed_ram", "recorded": "640 KiB", "found": "512 KiB"} in made[
+            "differs"
+        ]
+
+    def test_a_total_an_older_survey_wrote_short_is_corrected(self, client, computer):
+        """The conventional memory alone, as a bare total: what a survey wrote when it
+        could not see above 1 MiB under HIMEM.SYS. A correction, not a fill, and not a
+        difference left standing."""
+        machine = computer(installed_ram="639KiB")
+        made = survey(client, TAG=machine["asset_id"], RAMKB="639", EXTKB="15220")
+        assert get(client, "computers", machine["asset_id"])["installed_ram"] == "16 MiB"
+        corrected = {"field": "installed_ram", "recorded": "639 KiB", "found": "16 MiB"}
+        assert made["corrected"] == [corrected]
+        assert "memory" not in made["filled"]
+        assert not [d for d in made["differs"] if d["field"] == "installed_ram"]
+
+    @pytest.mark.parametrize(
+        "fitted",
+        [
+            pytest.param({"modules": [("30p256k", 2)]}, id="modules"),
+            pytest.param({"chips": [("41256", 16)]}, id="chips"),
+            pytest.param({"note": "on the board and a riser", "total_kb": 512}, id="a note"),
+        ],
+    )
+    def test_a_total_with_modules_chips_or_a_note_is_never_corrected(
+        self, client, computer, db, fitted
+    ):
+        """Somebody's account of what is fitted, even where it comes to the conventional
+        memory alone: shown beside what was found, and left alone."""
+        machine = computer()
+        ramdb.write(db, db.get(Computer, machine["asset_id"]), **fitted)
+        db.commit()
+        before = get(client, "computers", machine["asset_id"])["installed_ram"]
+        made = survey(client, TAG=machine["asset_id"], RAMKB="512", EXTKB="512")
+        assert get(client, "computers", machine["asset_id"])["installed_ram"] == before
+        assert made["corrected"] == []
+        assert {"field": "installed_ram", "recorded": before, "found": "1 MiB"} in made["differs"]
+
+    @pytest.mark.parametrize("ext", [None, "0"], ids=["no figure above 1 MiB", "none above it"])
+    def test_a_machine_with_nothing_above_1_mib_is_never_corrected(self, client, computer, ext):
+        """An XT at 640 KiB, or a 286 with nothing above 1 MiB: its conventional memory
+        is its total."""
+        machine = computer(installed_ram="640KiB")
+        made = survey(client, TAG=machine["asset_id"], RAMKB="640", EXTKB=ext)
+        assert get(client, "computers", machine["asset_id"])["installed_ram"] == "640 KiB"
+        assert made["corrected"] == []
+        assert not [d for d in made["differs"] if d["field"] == "installed_ram"]
+
+    def test_a_total_that_is_not_the_conventional_memory_is_a_difference_as_ever(
+        self, client, computer
+    ):
+        machine = computer(installed_ram="512KiB")
+        made = survey(client, TAG=machine["asset_id"], RAMKB="639", EXTKB="15220")
+        assert get(client, "computers", machine["asset_id"])["installed_ram"] == "512 KiB"
+        assert made["corrected"] == []
+        assert {"field": "installed_ram", "recorded": "512 KiB", "found": "16 MiB"} in made[
             "differs"
         ]
 
@@ -1399,6 +1524,16 @@ class TestPartOfTheMachine:
         assert "AMI" in got["specs"] and "04/04/93" in got["specs"] and "430FX" in got["specs"]
         assert got["serial"] == "BRD-9"
         assert got["condition"] == "Working"
+
+    @pytest.mark.parametrize("typed", ["its tag", "B"])
+    def test_a_motherboard_on_its_own_is_given_no_topbench_score(self, client, part, typed):
+        """The score is the whole machine's, and a board on the bench is tested with
+        whatever processor and memory were to hand."""
+        tag = part(type="motherboard")["asset_id"] if typed == "its tag" else "NEW BOARD"
+        made = survey(client, TAG=tag, TOPBENCH="104", BIOSVENDOR="AMI", BIOSDATE="04/04/93")
+        assert get(client, "parts", made["machine"])["type"] == "motherboard"
+        assert "TopBench score" not in made["filled"]
+        assert not [d for d in made["differs"] if d["field"] == "topbench"]
 
 
 # --- the motherboard ----------------------------------------------------------------
@@ -2108,6 +2243,22 @@ class TestWorkingFromTheTests:
         )
         assert get(client, "computers", machine["asset_id"])["condition"] == "Working"
 
+    @pytest.mark.parametrize(
+        ("result", "score", "condition"), [("PASS", "4", "Working"), ("FAIL", "400", "")]
+    )
+    def test_a_topbench_score_counts_neither_for_nor_against_working(
+        self, client, computer, result, score, condition
+    ):
+        """A measurement, not a test: a machine scoring 4 has passed every test it
+        passed, and one scoring 400 has failed the one it failed."""
+        machine = computer()
+        tests = {"RESULT": result, "TEST_RAM": result}
+        survey(client, TAG=machine["asset_id"], TOPBENCH=score, **PASSED | tests)
+        assert get(client, "computers", machine["asset_id"])["condition"] == condition
+        (line,) = lines(client, machine["asset_id"], "survey")
+        said = "every test passed" if result == "PASS" else "1 of 3 tests failed (RAM)"
+        assert line["message"].startswith(f"Surveyed: {said}.")
+
     @pytest.mark.parametrize("condition", ["", "Untested"])
     def test_a_failed_test_never_writes_faulty(self, client, computer, condition):
         """A failure says where to look rather than what the machine is."""
@@ -2405,6 +2556,23 @@ class TestInTheHistory:
         assert "every test passed" in line["message"]
         assert "CPU" in line["message"]
 
+    def test_a_topbench_score_filled_in_is_named_with_the_rest(self, client, computer):
+        """Named, as everything filled in is, and not given: the score is on the
+        machine's own page."""
+        machine = computer()
+        survey(client, TAG=machine["asset_id"], CPU="80286", CPUKHZ="12000", TOPBENCH="21")
+        (line,) = lines(client, machine["asset_id"], "survey")
+        assert "Filled in CPU and TopBench score." in line["message"]
+        assert "21" not in line["message"]
+
+    def test_a_correction_is_said_to_be_one(self, client, computer):
+        """Not a fill: the total was there, and the survey changed it."""
+        machine = computer(installed_ram="639KiB")
+        survey(client, TAG=machine["asset_id"], RAMKB="639", EXTKB="15220")
+        (line,) = lines(client, machine["asset_id"], "survey")
+        assert "Corrected memory from 639 KiB to 16 MiB." in line["message"]
+        assert "Filled in" not in line["message"]
+
     def test_the_line_says_how_many_tests_failed_and_which(self, client, computer):
         machine = computer()
         survey(
@@ -2566,12 +2734,16 @@ class TestWhatAReportSays:
 # --- a report as tinydiag writes it ----------------------------------------------------
 
 TINYDIAG = Path(__file__).parent / "data" / "tinydiag-0.8.0-qemu.txt"
+# What 0.14.0 wrote on QEMU's i440FX PC with nobody at the keyboard: MS-DOS 3.30 with
+# HIMEM.SYS loaded, all 17 tests passed, and TopBench 0.40c run after them.
+TINYDIAG_TOPBENCH = Path(__file__).parent / "data" / "tinydiag-0.14.0-qemu.txt"
 
 
-def tinydiag_report(**answers: str) -> str:
-    """The report tinydiag 0.8.0 wrote in QEMU, with the answers given at the machine
-    where the program puts them: the tag in its own line, the rest before [END]."""
-    text = TINYDIAG.read_bytes().decode("cp437")
+def tinydiag_report(path: Path = TINYDIAG, **answers: str) -> str:
+    """A report tinydiag wrote in QEMU, 0.8.0's unless another is named, with the
+    answers given at the machine where the program puts them: the tag in its own line,
+    the rest before [END]."""
+    text = path.read_bytes().decode("cp437")
     if tag := answers.pop("TAG", ""):
         text = text.replace("\r\nTAG=\r\n", f"\r\nTAG={tag}\r\n", 1)
     added = "".join(f"{k}={v}\r\n" for k, v in answers.items())
@@ -2624,3 +2796,52 @@ class TestAReportAsTinydiagWritesIt:
         assert r.status_code == 200, r.text
         (sent,) = r.json()["surveys"]
         assert sent["waiting"] == "machine"
+
+
+def new_machine_from_tinydiag_topbench(client) -> tuple[dict, str, int]:
+    """0.14.0's report, sent as if N had been answered at the machine: the machine it
+    made, the receipt, and the survey."""
+    r = send(client, tinydiag_report(TINYDIAG_TOPBENCH, TAG="NEW"))
+    assert r.status_code == 200, r.text
+    (sent,) = r.json()["surveys"]
+    return get(client, "computers", sent["machine"]), r.json()["receipt"], sent["id"]
+
+
+class TestAReportAsTinydiagWritesItWithTopbench:
+    """What tinydiag 0.14.0 wrote on QEMU's i440FX PC with nobody at the keyboard:
+    MS-DOS 3.30 with HIMEM.SYS loaded, the memory above 1 MiB counted by INT 15h E801h,
+    all 17 tests passed, and TopBench 0.40c run after them, which scored the machine
+    1051."""
+
+    def test_n_at_the_machine_gives_the_new_machine_the_score_topbench_gave(self, client):
+        machine, _, _ = new_machine_from_tinydiag_topbench(client)
+        assert machine["topbench"] == 1051
+
+    def test_its_seventeen_passes_mark_the_new_machine_working(self, client):
+        """TopBench is run after the tests and is not one of them."""
+        machine, receipt, _ = new_machine_from_tinydiag_topbench(client)
+        assert machine["condition"] == "Working"
+        assert "Every test passed." in receipt.split("\r\n")
+
+    def test_its_memory_counted_with_himem_loaded_rounds_up_to_16_mib(self, client):
+        """639 KiB below 1 MiB and 15220 KiB above it: rounded up to whole MiB, since
+        the 384 KiB between them is in neither."""
+        machine, _, _ = new_machine_from_tinydiag_topbench(client)
+        assert machine["installed_ram"] == "16 MiB"
+
+    def test_its_page_says_how_its_memory_was_worked_out(self, client):
+        _, _, sid = new_machine_from_tinydiag_topbench(client)
+        page = client.get(f"/surveys/{sid}").text
+        worked = "16 MiB: 639 KiB below 1 MiB and 15220 KiB above it (INT 15h E801h)"
+        assert f"<dt>Memory</dt><dd>{worked}</dd>" in page
+
+    def test_its_receipt_says_all_it_filled_in_the_score_among_it(self, client):
+        """In lines a DOS screen can show. The survey program shows each line as far as
+        the screen is wide, and this one's list of what was filled in is wider: cut
+        there, it ended in "model and seria"."""
+        _, receipt, _ = new_machine_from_tinydiag_topbench(client)
+        shown = receipt.split("\r\n")
+        assert all(len(line) <= 79 for line in shown), shown
+        said = " ".join(shown)
+        assert "TopBench score" in said
+        assert "model and serial number." in said
