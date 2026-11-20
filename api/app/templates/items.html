@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Every item — {{ site_name() }}{% endblock %}
+{% block backname %}Every item{% endblock %}
+{% block content %}
+{% import "_ui.html" as U with context %}
+{#
+  The whole collection as one list (MANUAL §2, "Every item on one page"). The
+  gallery is for looking at the shelf and is shuffled for each visit; this is for
+  finding one thing on it, so it is by name and on one page, and the browser's own
+  find searches all of it, as on /machines.
+
+  It is also the page a crawler is given to every item, which is why it has no
+  photographs and no pager: one fetch reads the whole list, and it is the same list
+  every time. The tag and the name both lead to the item, as in the gallery's table,
+  and a disposed item is listed and says so, as on a model's page. Three columns,
+  so it stays a table on a phone.
+#}
+<div class="pagehead">
+  <h1 class="heading">Every item</h1>
+  <span class="count">{{ n_computers }} computers · {{ n_parts }} parts</span>
+</div>
+{%- set trows = [] -%}
+{%- for line in lines -%}
+{%- set tag %}<a class="aid" href="{{ line.href }}">{{ line.tag }}</a>{% endset -%}
+{%- set name %}<a href="{{ line.href }}">{{ line.name }}</a>{% if line.disposed %} {{ U.chip('Disposed', 'quiet') }}{% endif %}{% endset -%}
+{%- if trows.append([tag, name, line.kind]) %}{% endif -%}
+{%- endfor %}
+{{ U.table([('Tag', 'num'), ('Name', ''), ('Kind', '')], trows, mode='plain') }}
+{% endblock %}

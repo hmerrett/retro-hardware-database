@@ -115,6 +115,7 @@ def pages(ids):
         "/",
         # The gallery as a table: six columns, so it has to stack on a phone.
         "/?layout=table",
+        "/items",
         "/files",
         "/projects",
         "/machines",

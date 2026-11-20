@@ -322,6 +322,7 @@ def a_page_of_everything(client, computer, part, monkeypatch):
         surveyed.append(f"/surveys/{sent.json()['surveys'][0]['id']}")
     return [
         "/",
+        "/items",
         "/machines",
         "/machines/vic-20",
         "/projects",
