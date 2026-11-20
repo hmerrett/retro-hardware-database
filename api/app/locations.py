@@ -16,6 +16,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import NamedTuple
 
+from sqlalchemy import NotNullable
 from sqlalchemy.orm import Session
 
 from . import settings
@@ -80,7 +81,7 @@ def ticks(db: Session) -> dict[str, bool]:
     that asks it of many."""
     out: dict[str, bool] = {}
     for model in (Computer, Part):
-        out.update(dict(db.query(model.asset_id, model.location_public).tuples().all()))
+        out.update(dict(db.query(model.asset_id, model.location_public).all()))
     return out
 
 
@@ -287,7 +288,9 @@ def counts(db: Session, t: Tree, marks: Mapping[str, bool] | None = None) -> dic
     machines' business. Two queries for the whole tree. `marks` as `kept_in`."""
     own: dict[str, int] = {}
     for model in (Computer, Part):
-        for tag, aid in db.query(model.inside_id, model.asset_id).filter(
+        # NotNullable() is the filter said again for the type checker: it changes
+        # nothing in the SQL, and has the tag come back as text.
+        for tag, aid in db.query(NotNullable(model.inside_id), model.asset_id).filter(
             model.inside_id.isnot(None), model.disposed.is_(False)
         ):
             if tag.upper() in t and (marks is None or marks.get(aid)):

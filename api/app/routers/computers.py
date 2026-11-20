@@ -241,14 +241,11 @@ def _same_models(db: Session) -> SameModels:
     keys = dict(
         db.query(AssetVariant.asset_id, AssetVariant.model_key)
         .join(Computer, Computer.asset_id == AssetVariant.asset_id)
-        .tuples()
         .all()
     )
     out: SameModels = {"catalogue": {}, "named": {}}
-    rows = (
-        db.query(Computer.asset_id, Computer.manufacturer, Computer.model)
-        .order_by(Computer.disposed, Computer.asset_id)
-        .tuples()
+    rows = db.query(Computer.asset_id, Computer.manufacturer, Computer.model).order_by(
+        Computer.disposed, Computer.asset_id
     )
     for aid, maker, model in rows:
         key = (keys.get(aid) or "").strip()
@@ -793,7 +790,7 @@ async def gui_computer_note(
 async def gui_computer_photo(
     aid: str,
     request: Request,
-    photos: list[UploadFile] = File(...),
+    photos: list[UploadFile] = File(default=[]),
     db: Session = Depends(get_db),
 ) -> Response:
     c = get_or_404(db, Computer, aid)

@@ -420,9 +420,7 @@ def _counts(
     q = db.query(model.project_id, func.count(model.id)).group_by(model.project_id)
     for cond in conds:
         q = q.filter(cond)
-    # tuples() is a typing filter and nothing else: it says the rows are the pair
-    # they were selected as, which is what makes them a dict.
-    return dict(q.tuples().all())
+    return dict(q.all())
 
 
 def summaries(db: Session, authed: bool = True) -> list[Summary]:

@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3442 behaviours, from 99 files.*
+*3447 behaviours, from 100 files.*
 
 
 ## A barcode takes the room the words leave
@@ -808,7 +808,7 @@ Regenerate with:
 
 ## Adding photographs
 
-*test_adding_photographs.py — 47 behaviours*
+*test_adding_photographs.py — 48 behaviours*
 
 
 **The panel**
@@ -842,6 +842,8 @@ Regenerate with:
 
 - one photograph sent by the script is answered in json
 - a form post still goes back to the page
+- upload with nothing chosen goes back to the page  
+  No picker is required, so a browser running no script can press Upload with nothing chosen -- and it sends both pickers all the same, each a file of no name.
 - a form post from a tab goes back to that tab
 - a file that is not a photograph is refused in the rows words
 - a kind of image not kept says which are
@@ -5776,6 +5778,16 @@ Regenerate with:
 - a status reply is read for what it says not that it came  
   page is two bytes, then how far through printing and feeding, then -- in the long form only -- the error.
 - the driver waits for the page rather than for an answer
+
+
+## The numbers page whatever the counts hold
+
+*test_the_numbers_page_whatever_the_counts_hold.py — 4 behaviours*
+
+- slots sockets and ports with no count are left out of the figures
+- a socket of no type is counted but never named
+- a machine whose chips have no count has no figure for them
+- a spare of no type is looked for among the others
 
 
 ## The photo editor

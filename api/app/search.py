@@ -218,7 +218,10 @@ def _history_by_asset(db: Session) -> dict[str, list[str]]:
     for aid, message in db.query(LogEntry.asset_id, LogEntry.message).filter(
         LogEntry.kind.not_in(KEPT_ENTRIES)
     ):
-        out.setdefault(aid, []).append(message or "")
+        # A line written against no asset (add_log allows one) is in no item's
+        # haystack: every reader looks this up by an item's own id.
+        if aid is not None:
+            out.setdefault(aid, []).append(message or "")
     return out
 
 
@@ -332,10 +335,7 @@ def _suggest(
     history = _history_by_asset(db)
     at = places(db)
     latest = dict(
-        db.query(LogEntry.asset_id, func.max(LogEntry.created_at))
-        .group_by(LogEntry.asset_id)
-        .tuples()
-        .all()
+        db.query(LogEntry.asset_id, func.max(LogEntry.created_at)).group_by(LogEntry.asset_id).all()
     )
     raw = " ".join((query or "").lower().split())
 
@@ -511,7 +511,6 @@ def _suggest_models(db: Session, query: str | None, room: int) -> list[dict[str,
         db.query(AssetVariant.model_key, func.count())
         .filter(AssetVariant.model_key.in_([m["key"] for m in shown]))
         .group_by(AssetVariant.model_key)
-        .tuples()
         .all()
     )
     # Every model in the catalogue is a machine -- a computer, a console, a branded
@@ -541,7 +540,7 @@ def _suggest_models(db: Session, query: str | None, room: int) -> list[dict[str,
 # --- GUI: browse, the items behind a figure on /stats -----------------------
 
 
-def _tagged(query: RowReturningQuery[tuple[str]]) -> CardTest:
+def _tagged(query: RowReturningQuery[str]) -> CardTest:
     """A row test for the asset ids a single-column query returns. Asset ids are
     unique across the whole register, so the kind needs no separate check."""
     ids = {aid for (aid,) in query}

@@ -4,7 +4,7 @@ board it is fitted to."""
 from collections.abc import Collection, Iterable, Mapping
 from typing import Literal
 
-from sqlalchemy import func
+from sqlalchemy import NotNullable, func
 
 
 # --- GUI: parts (guided, typed entry) --------------------------------------
@@ -527,14 +527,22 @@ def _known_makes(db: Session) -> tuple[list[str], list[str], list[dict[str, str 
     offering here; the (make, model) pairs stay parts-only, because what they are
     for is starting a new part from an identical one."""
     makes = _answers_given(db, Part.manufacturer, Computer.manufacturer)
+    # `!= ""` is not true of a NULL either, so the filter leaves no pair without a
+    # make or a model; NotNullable() says so to the type checker and changes nothing
+    # in the SQL.
     pairs = (
-        db.query(Part.manufacturer, Part.model, Part.type, func.max(Part.asset_id))
+        db.query(
+            NotNullable(Part.manufacturer),
+            NotNullable(Part.model),
+            Part.type,
+            func.max(Part.asset_id),
+        )
         .filter(Part.manufacturer != "", Part.model != "")
         .group_by(Part.manufacturer, Part.model, Part.type)
         .all()
     )
     known = [{"m": mk, "d": md, "t": t, "id": aid} for mk, md, t, aid in pairs]
-    models = sorted({p["d"] for p in known})
+    models = sorted({md for _mk, md, _t, _aid in pairs})
     return makes, models, known
 
 
@@ -1073,7 +1081,7 @@ async def gui_part_note(
 async def gui_part_photo(
     aid: str,
     request: Request,
-    photos: list[UploadFile] = File(...),
+    photos: list[UploadFile] = File(default=[]),
     db: Session = Depends(get_db),
 ) -> Response:
     p = get_or_404(db, Part, aid)

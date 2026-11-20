@@ -349,7 +349,7 @@ async def gui_location_note(
 async def gui_location_photo(
     aid: str,
     request: Request,
-    photos: list[UploadFile] = File(...),
+    photos: list[UploadFile] = File(default=[]),
     db: Session = Depends(get_db),
 ) -> Response:
     loc = get_or_404(db, Location, aid)

@@ -10,7 +10,7 @@ from datetime import date
 from typing import NotRequired, TypedDict, cast
 from urllib.parse import quote
 
-from sqlalchemy import Row, false, func
+from sqlalchemy import NotNullable, false, func
 from sqlalchemy.orm import InstrumentedAttribute, Query, Session
 from sqlalchemy.sql.elements import ColumnElement
 
@@ -412,9 +412,12 @@ def _facts(db: Session, st: Stats, this_year: int) -> list[Fact]:
             "/browse?f=photos",
         )
 
+    # NotNullable() changes nothing in the SQL: it says in the select what the filter
+    # has already made true, so the maker comes back typed as text rather than as
+    # maybe-text. The same goes for each of its uses below.
     maker_counts = (
         _held(
-            db.query(Part.manufacturer, func.count(Part.asset_id)).filter(
+            db.query(NotNullable(Part.manufacturer), func.count(Part.asset_id)).filter(
                 Part.manufacturer.isnot(None), Part.manufacturer != ""
             ),
             Part,
@@ -441,9 +444,15 @@ def _facts(db: Session, st: Stats, this_year: int) -> list[Fact]:
     # Counted in Python rather than grouped by YEAR(): the app runs on SQLite for
     # local development as well as on MariaDB, and that function is not portable.
     # At this size it is a few dozen dates either way.
+    #
+    # NotNullable() cannot say what the filter did for a query of one column:
+    # Session.query does not take what it returns there, and the rows would come
+    # back untyped. So a one-column query says it again in Python, as _all_years
+    # does, here and below.
     arrivals = Counter(
         d.year
         for (d,) in _held(db.query(Part.acquired_date).filter(Part.acquired_date.isnot(None)), Part)
+        if d is not None
     )
     if arrivals:
         year, n = max(arrivals.items(), key=lambda kv: (kv[1], kv[0]))
@@ -452,7 +461,7 @@ def _facts(db: Session, st: Stats, this_year: int) -> list[Fact]:
 
     source = (
         _held(
-            db.query(Part.source, func.count(Part.asset_id)).filter(
+            db.query(NotNullable(Part.source), func.count(Part.asset_id)).filter(
                 Part.source.isnot(None), Part.source != ""
             ),
             Part,
@@ -472,7 +481,7 @@ def _facts(db: Session, st: Stats, this_year: int) -> list[Fact]:
     caps = [
         (kb, pid)
         for pid, kb in _held(
-            db.query(StorageSpec.part_id, StorageSpec.capacity_kb)
+            db.query(StorageSpec.part_id, NotNullable(StorageSpec.capacity_kb))
             .join(Part, Part.asset_id == StorageSpec.part_id)
             .filter(StorageSpec.capacity_kb.isnot(None), StorageSpec.capacity_kb > 0),
             Part,
@@ -498,7 +507,10 @@ def _facts(db: Session, st: Stats, this_year: int) -> list[Fact]:
         .order_by(func.sum(ComputerRamChip.count).desc())
         .first()
     )
-    if chips:
+    # A count is a nullable column, so a machine whose chips were all written down
+    # without one sums to NULL -- last in this order, so the first row is only NULL
+    # when no machine has a count at all, and then there is no figure to give.
+    if chips and chips[1] is not None:
         machine = db.get(Computer, chips[0])
         if machine:
             add(
@@ -601,6 +613,7 @@ def _facts(db: Session, st: Stats, this_year: int) -> list[Fact]:
             ),
             Part,
         )
+        if kb is not None
     ]
     if len(disk_caps) >= 2:
         add(
@@ -775,6 +788,9 @@ def _commas(
         .filter(column.isnot(None), column != ""),
         Part,
     ):
+        # The filter has dropped the NULLs already; saying so again types v as text.
+        if v is None:
+            continue
         for one in (x.strip() for x in v.split(",")):
             if one:
                 out[one] += 1
@@ -904,15 +920,22 @@ def _facts_boards(db: Session, st: Stats) -> list[Fact]:
             )
         )
 
+    # A count is a nullable column. The form never leaves one out, but a board whose
+    # slots were all written down without one sums to NULL, and has no number to be
+    # the most -- left out here, as SUM() leaves it out of the total.
     per_board = sorted(
-        _held(
-            db.query(PartSlot.part_id, func.sum(PartSlot.count)).join(
-                Part, Part.asset_id == PartSlot.part_id
-            ),
-            Part,
-        )
-        .group_by(PartSlot.part_id)
-        .all(),
+        (
+            (p, n)
+            for p, n in _held(
+                db.query(PartSlot.part_id, func.sum(PartSlot.count)).join(
+                    Part, Part.asset_id == PartSlot.part_id
+                ),
+                Part,
+            )
+            .group_by(PartSlot.part_id)
+            .all()
+            if n is not None
+        ),
         key=lambda r: -r[1],
     )
     if per_board:
@@ -962,16 +985,24 @@ def _facts_boards(db: Session, st: Stats) -> list[Fact]:
             )
         )
 
+    # Both columns are nullable, though the form fills both. A type nobody wrote down
+    # is grouped as NULL: its sockets still count towards the total, but it is not a
+    # socket the page can name. A group with no count sums to NULL, and has no
+    # number to rank.
     sockets = sorted(
-        _held(
-            db.query(PartRamSlot.slot_type, func.sum(PartRamSlot.count)).join(
-                Part, Part.asset_id == PartRamSlot.part_id
-            ),
-            Part,
-        )
-        .group_by(PartRamSlot.slot_type)
-        .all(),
-        key=lambda r: (-r[1], r[0]),
+        (
+            (s, n)
+            for s, n in _held(
+                db.query(PartRamSlot.slot_type, func.sum(PartRamSlot.count)).join(
+                    Part, Part.asset_id == PartRamSlot.part_id
+                ),
+                Part,
+            )
+            .group_by(PartRamSlot.slot_type)
+            .all()
+            if n is not None
+        ),
+        key=lambda r: (-r[1], r[0] or ""),
     )
     if sockets:
         total = int(sum(n for _s, n in sockets))
@@ -992,15 +1023,17 @@ def _facts_boards(db: Session, st: Stats) -> list[Fact]:
                 "/browse?f=ramslots",
             )
         )
-        out.append(
-            _fact(
-                "The usual memory socket",
-                sockets[0][0],
-                f"{int(sockets[0][1])} of {total} sockets",
-                f"/browse?f=ramslot&v={quote(sockets[0][0])}",
+        usual, most = sockets[0]
+        if usual is not None:
+            out.append(
+                _fact(
+                    "The usual memory socket",
+                    usual,
+                    f"{int(most)} of {total} sockets",
+                    f"/browse?f=ramslot&v={quote(usual)}",
+                )
             )
-        )
-        thirty = next((int(n) for s, n in sockets if s.startswith("30-pin")), 0)
+        thirty = next((int(n) for s, n in sockets if s is not None and s.startswith("30-pin")), 0)
         if thirty:
             out.append(
                 _fact(
@@ -1093,6 +1126,7 @@ def _facts_cards(db: Session, st: Stats) -> list[Fact]:
             .filter(VideoSpec.memory_kb.isnot(None), VideoSpec.memory_kb > 0),
             Part,
         )
+        if kb is not None
     ]
     if vram:
         out.append(
@@ -1226,15 +1260,21 @@ def _facts_cards(db: Session, st: Stats) -> list[Fact]:
                 "/browse?f=ports",
             )
         )
+    # As with the slots on a board: a thing whose ports carry no count sums to NULL,
+    # and has no number to be the most.
     per_carrier = sorted(
-        _held(
-            db.query(PartPort.part_id, func.sum(PartPort.count)).join(
-                Part, Part.asset_id == PartPort.part_id
-            ),
-            Part,
-        )
-        .group_by(PartPort.part_id)
-        .all(),
+        (
+            (p, n)
+            for p, n in _held(
+                db.query(PartPort.part_id, func.sum(PartPort.count)).join(
+                    Part, Part.asset_id == PartPort.part_id
+                ),
+                Part,
+            )
+            .group_by(PartPort.part_id)
+            .all()
+            if n is not None
+        ),
         key=lambda r: -r[1],
     )
     if per_carrier and int(per_carrier[0][1]) > 1:
@@ -1296,6 +1336,7 @@ def _facts_drives(db: Session, st: Stats) -> list[Fact]:
             .filter(StorageSpec.speed_x.isnot(None), StorageSpec.speed_x > 0),
             Part,
         )
+        if x is not None
     )
     if len(speeds) >= 2 and speeds[-1] > speeds[0]:
         out.append(
@@ -1356,6 +1397,7 @@ def _facts_machines(db: Session, st: Stats) -> list[Fact]:
             db.query(Computer.installed_ram_kb).filter(Computer.installed_ram_kb.isnot(None)),
             Computer,
         )
+        if kb is not None
     )
     # 640 KiB is the line DOS drew and a great many machines stopped exactly on.
     if ram.get(640):
@@ -1416,7 +1458,7 @@ def _facts_machines(db: Session, st: Stats) -> list[Fact]:
 
     cpus = sorted(
         _held(
-            db.query(Computer.cpu, func.count(Computer.asset_id)).filter(
+            db.query(NotNullable(Computer.cpu), func.count(Computer.asset_id)).filter(
                 Computer.cpu.isnot(None), Computer.cpu != ""
             ),
             Computer,
@@ -1437,7 +1479,7 @@ def _facts_machines(db: Session, st: Stats) -> list[Fact]:
 
     chassis = sorted(
         _held(
-            db.query(Computer.chassis, func.count(Computer.asset_id)).filter(
+            db.query(NotNullable(Computer.chassis), func.count(Computer.asset_id)).filter(
                 Computer.chassis.isnot(None), Computer.chassis != ""
             ),
             Computer,
@@ -1549,9 +1591,15 @@ def _facts_ages(db: Session, st: Stats, this_year: int) -> list[Fact]:
             )
 
     machine_years = [
-        y for (y,) in _held(db.query(Computer.year).filter(Computer.year.isnot(None)), Computer)
+        y
+        for (y,) in _held(db.query(Computer.year).filter(Computer.year.isnot(None)), Computer)
+        if y is not None
     ]
-    part_years = [y for (y,) in _held(db.query(Part.year).filter(Part.year.isnot(None)), Part)]
+    part_years = [
+        y
+        for (y,) in _held(db.query(Part.year).filter(Part.year.isnot(None)), Part)
+        if y is not None
+    ]
     if machine_years and part_years:
         mm, mp = (
             round(sum(machine_years) / len(machine_years)),
@@ -1700,6 +1748,7 @@ def _facts_provenance(db: Session, st: Stats) -> list[Fact]:
     arrivals = [
         d
         for (d,) in _held(db.query(Part.acquired_date).filter(Part.acquired_date.isnot(None)), Part)
+        if d is not None
     ]
     if arrivals and st["n_parts"]:
         out.append(
@@ -1768,14 +1817,7 @@ def _facts_register(db: Session, st: Stats) -> list[Fact]:
                 f"{entries:,} entries written since {started.date()}",
             )
         )
-    # A row of two columns is a pair, but it is not typed as one, and dict() wants
-    # the pair; said here rather than by rebuilding every row into one.
-    kinds = dict(
-        cast(
-            "list[tuple[str | None, int]]",
-            db.query(LogEntry.kind, func.count(LogEntry.id)).group_by(LogEntry.kind).all(),
-        )
-    )
+    kinds = dict(db.query(LogEntry.kind, func.count(LogEntry.id)).group_by(LogEntry.kind).all())
     if kinds.get("note"):
         out.append(
             _fact(
@@ -2087,12 +2129,14 @@ def _facts_condition(db: Session, st: Stats) -> list[Fact]:
     )
     spare_types = sorted(spare_counts.items(), key=lambda r: (-r[1], r[0] or ""))
     if spare_types and st["spares"]:
+        # A part's type is a nullable column. One with none is labelled Other, and the
+        # gallery files it as "other", so that is the page the link opens.
         out.append(
             _fact(
                 "The commonest thing to have spare",
                 entry.type_label(spare_types[0][0]),
                 f"{spare_types[0][1]} of {st['spares']} on the shelf",
-                f"/browse?f=sparetype&v={quote(spare_types[0][0])}",
+                f"/browse?f=sparetype&v={quote(spare_types[0][0] or 'other')}",
             )
         )
     return out
@@ -2110,10 +2154,12 @@ def _collection_stats(db: Session) -> Stats:
     n_computers = _held(db.query(func.count(Computer.asset_id)), Computer).scalar() or 0
     n_parts = _held(db.query(func.count(Part.asset_id)), Part).scalar() or 0
 
-    # What the count is depends on the query -- COUNT() gives an integer and SUM()
-    # a decimal -- so it rides along rather than being named here.
-    def ranked[N](query: Iterable[Row[tuple[str | None, N]]], limit: int | None = None) -> Ranked:
-        rows = [(k, n, k) for k, n in query if (k or "").strip()]
+    # COUNT() gives an integer and SUM() a decimal, which SQLAlchemy types as the
+    # integer column it adds up -- or as None, which is what SUM() makes of a group
+    # whose counts are all NULL. That group has no number to rank, so it goes the way
+    # of a blank name.
+    def ranked(query: Iterable[tuple[str | None, int | None]], limit: int | None = None) -> Ranked:
+        rows = [(k, n, k) for k, n in query if k is not None and k.strip() and n is not None]
         rows.sort(key=lambda r: (-r[1], r[0]))
         return rows[:limit] if limit else rows
 
@@ -2155,6 +2201,7 @@ def _collection_stats(db: Session) -> Stats:
             db.query(Computer.installed_ram_kb).filter(Computer.installed_ram_kb.isnot(None)),
             Computer,
         )
+        if kb is not None
     ]
     common_ram = sorted(
         ((entry.fmt_kb(kb), ram.count(kb), kb) for kb in set(ram)), key=lambda r: (-r[1], r[0])

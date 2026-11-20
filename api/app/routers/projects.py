@@ -462,7 +462,6 @@ def _project_of_the_day(db: Session, authed: bool, instead_of: str = "") -> Proj
         db.query(LogEntry.asset_id, func.max(LogEntry.created_at))
         .filter(LogEntry.asset_id.in_([p.asset_id for p in pool]))
         .group_by(LogEntry.asset_id)
-        .tuples()
     )
     now = _now()
     weights = []
