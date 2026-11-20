@@ -144,6 +144,12 @@ class TestFilingASurveyThatWaits:
         assert 'value="Intel 486DX2-66"' in form.text
         assert 'value="MS-DOS 6.22"' in form.text
 
+    def test_new_computer_starts_with_the_topbench_score_the_survey_read(self, client):
+        made = survey(client, CPU="80286", CPUKHZ="12000", TOPBENCH="21")
+        form = client.get(f"/computers/new?survey={made['id']}")
+        assert form.status_code == 200, form.text
+        assert 'name="topbench" value="21"' in form.text
+
     def test_saving_the_new_computer_files_the_survey_against_it(self, client):
         made = survey(client, CPU="80286", CPUKHZ="12000")
         r = client.post(
@@ -324,6 +330,60 @@ class TestASurveysPage:
         page = content(client.get(f"/surveys/{made['id']}").text)
         assert "01/01/1980" in page and "06/11/2026" in page
 
+    @pytest.mark.parametrize(
+        ("said", "shown"),
+        [
+            pytest.param(
+                {"EXTKB": "15220", "EXTKB_FROM": "E801H"},
+                "16 MiB: 639 KiB below 1 MiB and 15220 KiB above it (INT 15h E801h)",
+                id="E801h",
+            ),
+            pytest.param(
+                {"EXTKB": "15220", "EXTKB_FROM": "88H"},
+                "16 MiB: 639 KiB below 1 MiB and 15220 KiB above it (INT 15h 88h)",
+                id="88h",
+            ),
+            pytest.param(
+                {"EXTKB": "15220", "EXTKB_FROM": "CMOS"},
+                "16 MiB: 639 KiB below 1 MiB and 15220 KiB above it (the CMOS)",
+                id="the CMOS",
+            ),
+            pytest.param(
+                {"EXTKB": "15220", "EXTKB_FROM": "XMS"},
+                "16 MiB: 639 KiB below 1 MiB and 15220 KiB above it (the XMS driver)",
+                id="the XMS driver",
+            ),
+            pytest.param(
+                {"EXTKB": "15220"},
+                "16 MiB: 639 KiB below 1 MiB and 15220 KiB above it",
+                id="a program that does not say",
+            ),
+            pytest.param(
+                {"EXTKB": "0", "EXTKB_FROM": "88H"},
+                "639 KiB: 639 KiB below 1 MiB and nothing above it (INT 15h 88h)",
+                id="nothing above 1 MiB",
+            ),
+            pytest.param({"EXTKB": None}, "639 KiB", id="an XT"),
+        ],
+    )
+    def test_it_shows_how_the_machines_memory_was_worked_out(self, client, computer, said, shown):
+        """The total, the two figures it came from, and how the survey program found the
+        memory above 1 MiB where it says."""
+        made = survey(client, TAG=computer()["asset_id"], RAMKB="639", **said)
+        page = content(client.get(f"/surveys/{made['id']}").text)
+        assert f"<dt>Memory</dt><dd>{shown}</dd>" in page
+
+    def test_it_shows_the_machines_topbench_score_where_topbench_ran(self, client, computer):
+        """Beside the machine's clock, and nothing where the survey program did not run
+        it."""
+        made = survey(client, TAG=computer()["asset_id"], TOPBENCH="104")
+        page = content(client.get(f"/surveys/{made['id']}").text)
+        # The report at the foot of the page has the number in it too, so this looks for
+        # it where the page says it in words.
+        assert re.search(r"<dt>TopBench score</dt>\s*<dd>104</dd>", page)
+        made = survey(client, TAG=computer()["asset_id"])
+        assert "TopBench" not in content(client.get(f"/surveys/{made['id']}").text)
+
     def test_it_shows_the_text_in_each_rom(self, client, computer):
         made = survey(
             client,
@@ -338,6 +398,12 @@ class TestASurveysPage:
         made = survey(client, TAG=machine["asset_id"], RAMKB="512", EXTKB="0")
         page = content(client.get(f"/surveys/{made['id']}").text)
         assert "640 KiB" in page and "512 KiB" in page
+
+    def test_it_shows_what_the_survey_corrected(self, client, computer):
+        machine = computer(installed_ram="639KiB")
+        made = survey(client, TAG=machine["asset_id"], RAMKB="639", EXTKB="15220")
+        page = content(client.get(f"/surveys/{made['id']}").text)
+        assert "Corrected memory from 639 KiB to 16 MiB." in page
 
     def test_it_shows_what_was_expected_and_not_found(self, client, computer, part):
         machine = computer()
@@ -375,6 +441,14 @@ class TestASurveysPage:
         assert get(client, "computers", machine["asset_id"])["cpu"] == "80286-12"
         assert len(client.get("/api/files").json()) == 1
         assert "QX123" in client.get("/surveys/seen").text
+
+    def test_delete_keeps_what_it_corrected(self, client, computer):
+        machine = computer(installed_ram="639KiB")
+        made = survey(client, TAG=machine["asset_id"], RAMKB="639", EXTKB="15220")
+        assert (
+            client.post(f"/surveys/{made['id']}/delete", follow_redirects=False).status_code == 303
+        )
+        assert get(client, "computers", machine["asset_id"])["installed_ram"] == "16 MiB"
 
 
 # --- Seen ------------------------------------------------------------------------------------

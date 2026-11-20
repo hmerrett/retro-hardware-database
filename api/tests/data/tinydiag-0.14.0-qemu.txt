@@ -1,0 +1,157 @@
+TINYDIAG v0.14.0 (eef497d+)  PC/XT/AT diagnostic  Asset tag : none
+===============================================================================
+Date/time : 2026-11-20 10:24:53  (RTC present)
+Machine   : AT class                   Model byte: FC, sub 00, rev 01
+BIOS      : vendor not recognised, dated 06/23/99
+CPU       : Pentium class              Clock     : about 1000.19 MHz
+CPUID     : GenuineIntel family 5 model 4 stepping 3
+FPU       : on-chip                    V86 mode  : no
+RAM       : 639K (INT 12h)             Free      : 516K, 123K in use
+Extended  : 15220K above 1M (E801H)    XMS       : 3.00, 15156K free
+Video     : VGA colour                 Text mode : 03h, 80 columns
+AT parts  : 2nd PIC yes, 8042 yes (status 1Ch), RTC yes
+DOS       : 3.30, run from A:
+Command   : DIAG /SURVEY /OUT:A:\SURVEY /ONCE /WAIT:5
+Run mode  : single pass in 0:00:06
+TOPBENCH  : 1051
+-------------------------------------------------------------------------------
+Test                 Result Fails  Detail
+Timer tick (IRQ0)    PASS       0  BIOS tick count is advancing
+CPU                  PASS       0  Pentium class: flags, registers, ALU ok
+FPU                  PASS       0  on-chip: sqrt and pi checks ok
+BIOS and BASIC ROMs  PASS       0  BIOS 64K sum ok
+Option ROMs          PASS       0  2 ok at C000 CA00
+8253 timer           PASS       0  3 channels ok, ch1 not set for refresh
+8237 DMA             PASS       0  refresh running, ch0-3 5-7 and pages ok
+8259 interrupts      PASS       0  both 8259s: mask, ISR, no hot IRQ, IRQ0 ok
+NMI and parity       PASS       0  latches clear, no NMI
+RAM, free area       PASS       0  516K, 15156K XMS, HMA: March-U, bus ok
+RAM in use           PASS       0  123K in use: saved, tested, restored
+Serial ports         PASS       0  COM1 16550A IRQ4, no plug
+Parallel ports       PASS       0  LPT1 latch ok, no plug
+Keyboard             PASS       0  8042, keyboard ok, no stuck key; A20 in use
+Video RAM            PASS       0  VGA 32K: page and off-screen ok
+Floppy               PASS       0  80 cyl x 2 sides, write ok, rpm not timed
+RTC and CMOS         PASS       0  no CMOS sum, 1 s = 1000 ms, IRQ8 at 791 Hz
+-------------------------------------------------------------------------------
+Result    : PASS (17 tests: 17 passed, 0 failed, 0 skipped)
+
+[RHDB]
+TOOL=TINYDIAG
+VERSION=0.14.0
+REV=eef497d+
+TAG=
+FILE=00C0FFEE.TXT
+TAGTIMEOUT=0
+DATE=2026-11-20
+TIME=10:24:53
+RTC=1
+CLASS=AT
+MODEL=FC
+SUBMODEL=00
+BIOSREV=01
+BIOSDATE=06/23/99
+BIOSVENDOR=
+CPU=PENTIUM
+CPUVENDOR=GenuineIntel
+CPUSIG=0543
+CPUKHZ=1000190
+FPU=ONCHIP
+V86=0
+RAMKB=639
+FREEKB=516
+EXTKB=15220
+EXTKB_FROM=E801H
+VIDEO=VGA
+VIDEOMONO=0
+PIC2=1
+KBC=1
+DOS=3.30
+COMMAND=/SURVEY /OUT:A:\SURVEY /ONCE /WAIT:5
+MODE=ONCE
+PASSES=1
+ELAPSED=6
+STOPPED=
+TOPBENCH=1051
+TESTS=17
+PASSED=17
+FAILED=0
+SKIPPED=0
+NA=0
+NOTRUN=0
+RESULT=PASS
+TEST_TICK=PASS
+DETAIL_TICK=BIOS tick count is advancing
+TEST_CPU=PASS
+DETAIL_CPU=Pentium class: flags, registers, ALU ok
+TEST_FPU=PASS
+DETAIL_FPU=on-chip: sqrt and pi checks ok
+TEST_ROM=PASS
+DETAIL_ROM=BIOS 64K sum ok
+TEST_OPTROM=PASS
+DETAIL_OPTROM=2 ok at C000 CA00
+TEST_PIT=PASS
+DETAIL_PIT=3 channels ok, ch1 not set for refresh
+TEST_DMA=PASS
+DETAIL_DMA=refresh running, ch0-3 5-7 and pages ok
+TEST_PIC=PASS
+DETAIL_PIC=both 8259s: mask, ISR, no hot IRQ, IRQ0 ok
+TEST_NMI=PASS
+DETAIL_NMI=latches clear, no NMI
+TEST_RAM=PASS
+DETAIL_RAM=516K, 15156K XMS, HMA: March-U, bus ok
+TEST_RAMSYS=PASS
+DETAIL_RAMSYS=123K in use: saved, tested, restored
+TEST_COM=PASS
+DETAIL_COM=COM1 16550A IRQ4, no plug
+TEST_LPT=PASS
+DETAIL_LPT=LPT1 latch ok, no plug
+TEST_KBD=PASS
+DETAIL_KBD=8042, keyboard ok, no stuck key; A20 in use
+TEST_VRAM=PASS
+DETAIL_VRAM=VGA 32K: page and off-screen ok
+TEST_FDC=PASS
+DETAIL_FDC=80 cyl x 2 sides, write ok, rpm not timed
+TEST_RTC=PASS
+DETAIL_RTC=no CMOS sum, 1 s = 1000 ms, IRQ8 at 791 Hz
+COM1=03F8 16550A IRQ4 BAUD9600=NOT-TIMED PLUG:NONE
+LPT1=0378 BIDIR PLUG:NONE
+KBC_PORTS=CMD:61 OUT:CF IN:80 A20:IN-USE
+RTC_CHECKS=SECOND_MS:1000 IRQ8_HZ:791 CMOS_SUM:NONE
+FLOPPY1=1.44M
+EDID1=00FFFFFFFFFFFF0049143412000000002A180104A520147806EE91A3544C9926
+EDID2=0F5054210800E1C0D1C0D100A940B300950081808140EA2900C051201C304026
+EDID3=444045CB10000018000000F7000A004082002820000000000000000000FD0032
+EDID4=7D1EA0FF010A202020202020000000FC0051454D55204D6F6E69746F720A013A
+SYSTEM_MAKER=Tinydiag Test
+SYSTEM_MODEL=Survey PC
+SYSTEM_SERIAL=SYS-0001
+BOARD_MAKER=Test Boards
+BOARD_MODEL=TB-440
+BOARD_SERIAL=BRD-0001
+DISK1_MODEL=QEMU HARDDISK
+DISK1_SERIAL=QM00001
+DISK1_KB=20480
+DISK1_CHS=40/16/63
+DISK1_TYPE=ATA
+DISK2_MODEL=QEMU DVD-ROM
+DISK2_SERIAL=QM00003
+DISK2_TYPE=ATAPI
+DISK3_KB=9576
+DISK3_CHS=19/16/63
+DISK3_TYPE=BIOS
+NIC_MAC=02:00:00:C0:FF:EE
+NIC_DRIVER=PKTSTUB
+NIC_ROM=CA00
+OS=MS-DOS with Windows
+ROM1=C000 39424 00C0FFEE.C00
+ROM2=CA00 3584 00C0FFEE.CA0
+ROM3=E800 98304 00C0FFEE.E80
+PCI1=8086:1237 0600
+PCI2=8086:7000 0601
+PCI3=8086:7010 0101
+PCI4=8086:7113 0680
+PCI5=1234:1111 0300
+PCI6=8086:100E 0200
+PCI7=1AF4:1001 0100
+[END]

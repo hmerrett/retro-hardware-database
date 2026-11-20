@@ -265,7 +265,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `enrich.py` | fetching a photo for an item from its reference URL |
 | `labels.py` | what a label says and where on it that goes, for either surface: the two labels as Settings → Labels sets them up, every kind following its label's list, the stock deciding a label's shape, and a crowded label making room before it leaves anything off (ADR-0037, ADR-0039) |
 | `printing.py` | the queue of labels waiting for a printer on somebody else's machine, and what any item's label is read from, for the queue and the label routes alike |
-| `surveys.py` | a machine's report of itself filed against it (ADR-0043): which machine it is, the three answers, filling what is empty, Working from the tests, its ROMs, its history line, and what it has seen |
+| `surveys.py` | a machine's report of itself filed against it (ADR-0043): which machine it is, the three answers, filling what is empty and correcting the one memory total an older survey wrote short (ADR-0054), Working from the tests, its ROMs, its history line, and what it has seen |
 | `surveyreport.py` | reading a survey report's `[RHDB]` section, and a machine's question before its tests |
 | `romtext.py` | the readable text in a ROM, and what the register makes of it: which BIOS it is, what a card's ROM calls the card |
 | `pciids.py` | names for what a PCI bus reports: the chipsets and cards of the period, and the part each class is filed as |
