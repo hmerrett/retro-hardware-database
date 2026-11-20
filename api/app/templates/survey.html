@@ -109,7 +109,7 @@
 <div class="pbody">
   {% if filled %}<p>{{ filled | join(', ') }}.</p>{% elif not corrected %}<p class="muted">Nothing: the record already had it, or the survey has not been filed.</p>{% endif %}
   {# A correction is not a fill: something was recorded, and the survey changed it
-     (ADR-0053). Said in the words of the history line it also wrote. #}
+     (ADR-0054). Said in the words of the history line it also wrote. #}
   {% for line in corrected %}<p>{{ line }}</p>{% endfor %}
   {% if differs %}
   <table class="table">

@@ -1546,7 +1546,7 @@ class Filing:
     filled: list[str] = field(default_factory=list)
     differs: list[dict[str, str]] = field(default_factory=list)
     # What it changed that was recorded, as a difference is kept: the field, what was
-    # recorded and what was read (ADR-0053).
+    # recorded and what was read (ADR-0054).
     corrected: list[dict[str, str]] = field(default_factory=list)
     made: list[tuple[str, str]] = field(default_factory=list)
 
@@ -2180,7 +2180,7 @@ def _fill_score(c: Computer, score: int | None, done: Filing) -> None:
 
 
 def _written_short(c: Computer, keys: Mapping[str, str]) -> bool:
-    """A memory total an older survey wrote short (ADR-0053): exactly the conventional
+    """A memory total an older survey wrote short (ADR-0054): exactly the conventional
     memory this report gives, which is all a survey that could not see above 1 MiB
     under HIMEM.SYS had to write, on a machine this report finds memory above 1 MiB in.
     The caller has already seen that it is a bare total, as a survey writes one."""

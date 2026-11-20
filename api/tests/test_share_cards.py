@@ -156,7 +156,7 @@ class TestWhatAGridPageSharesAs:
         """Even with a photographed collection behind them. Four unrelated machines
         would describe a page of drivers worse than the logo does."""
         photo("parts", part()["asset_id"], RED)
-        for path in ("/files", "/stats", "/machines"):
+        for path in ("/files", "/stats", "/machines", "/items"):
             assert "/static/og-image.png" in og_image(client, path), path
 
 

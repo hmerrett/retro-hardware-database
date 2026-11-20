@@ -1171,7 +1171,7 @@ class Survey(Base):
     filled: Mapped[str] = mapped_column(Text, nullable=False)
     differs: Mapped[str] = mapped_column(Text, nullable=False)
     # What it changed that was already recorded, which is neither of the two above: the
-    # one memory total an older survey wrote short (ADR-0053). Empty for every survey
+    # one memory total an older survey wrote short (ADR-0054). Empty for every survey
     # taken before there was such a thing.
     corrected: Mapped[str] = mapped_column(Text, nullable=False, server_default="[]")
     missing: Mapped[str] = mapped_column(Text, nullable=False)

@@ -202,7 +202,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `assets.py` | what a machine's page and a part's page do the same way: photographs, notes, forms, disposal, deletion, one page or tabs |
 | `pages.py` | the small pieces an editable page needs: what has been typed before, and a note posted with photographs |
 | `work.py` | the jobs on a project and the things it is about, read from the project, the item and the API alike |
-| `routers/items.py` | /items/<id>: the address a label carries, and the history written under it |
+| `routers/items.py` | /items, every item on one page by name (and the way a crawler reaches each); /items/<id>, the address a label carries, and the history written under it |
 | `routers/files.py` | the files kept beside the register, what each is for, and who may see it |
 | `routers/computers.py` | the pages of a machine |
 | `routers/parts.py` | the pages of a part, including the spec pickers |
@@ -265,7 +265,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `enrich.py` | fetching a photo for an item from its reference URL |
 | `labels.py` | what a label says and where on it that goes, for either surface: the two labels as Settings → Labels sets them up, every kind following its label's list, the stock deciding a label's shape, and a crowded label making room before it leaves anything off (ADR-0037, ADR-0039) |
 | `printing.py` | the queue of labels waiting for a printer on somebody else's machine, and what any item's label is read from, for the queue and the label routes alike |
-| `surveys.py` | a machine's report of itself filed against it (ADR-0043): which machine it is, the three answers, filling what is empty and correcting the one memory total an older survey wrote short (ADR-0053), Working from the tests, its ROMs, its history line, and what it has seen |
+| `surveys.py` | a machine's report of itself filed against it (ADR-0043): which machine it is, the three answers, filling what is empty and correcting the one memory total an older survey wrote short (ADR-0054), Working from the tests, its ROMs, its history line, and what it has seen |
 | `surveyreport.py` | reading a survey report's `[RHDB]` section, and a machine's question before its tests |
 | `romtext.py` | the readable text in a ROM, and what the register makes of it: which BIOS it is, what a card's ROM calls the card |
 | `pciids.py` | names for what a PCI bus reports: the chipsets and cards of the period, and the part each class is filed as |

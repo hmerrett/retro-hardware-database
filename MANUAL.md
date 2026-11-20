@@ -136,6 +136,9 @@ The grid shows **48 cards a page**, and the table **100 rows a page**, with
 not just this page, and when the category or the disposed box is holding
 something back they say so as a fraction: *(showing 13 of 14)*.
 
+Under the pages is **Every item**, which opens the whole collection as one list
+([every item on one page](#every-item-on-one-page)).
+
 The table is for running an eye down a long list. It holds the same items in the
 same order as the cards, and the category, the sort and the disposed box work the
 same way; the sort stays in the toolbar rather than on the table's headings. The
@@ -158,6 +161,30 @@ or searching keeps each item where the hand put it, so page 2 carries on from
 page 1 rather than being a fresh shuffle with repeats. Choosing Random from
 another sort deals a new hand. The hand is part of the link, so somebody you send
 it to sees the same shuffle.
+
+### Every item on one page
+
+**Every item** (`/items`) lists every computer and every part in the register on
+one page, in alphabetical order of name. Each line is the item's tag, its name and
+what kind of thing it is, and the tag and the name both lead to the item's page. A
+disposed item is listed and says so, as it does on a model's page.
+
+There are no photographs and no pages to turn, so the browser's own find (Ctrl-F,
+or Find in Page on a phone) looks through the whole collection at once. It is the
+page for finding one thing by name, or for checking the register against a shelf.
+
+It is public, like the item pages it leads to, and named in the sitemap. When
+[**Visitors must log in**](#visitors-must-log-in) is on, it is behind the login
+with everything else.
+
+It is also how a search engine finds its way to every item. The gallery deals a
+fresh shuffle for each visit, so a crawler calling at the front page is shown a
+different 48 things every time, and the link to the next page carries the hand in
+its address, which makes that a new address on every visit too. `robots.txt` asks
+crawlers to leave shuffled addresses alone. This page is the same list on every
+visit and changes only when the collection does, so it is the way in they are
+given instead. A shuffle you send to somebody still opens for them as you left it,
+since the request is made to crawlers alone.
 
 ### The first screen of a new installation
 
@@ -424,8 +451,8 @@ of.
   link to a search for `sound blaster` arrives looking like sound cards rather
   than like every other link to this site. Fewer than four fill the space instead
   of leaving a hole.
-- **Files, numbers and models** show the site's card. There are no photographs on
-  those pages to make a picture out of.
+- **Files, numbers, models and the list of every item** show the site's card.
+  There are no photographs on those pages to make a picture out of.
 
 Nothing is written on the tiled picture: the page's title and the line saying
 what is on it are already in the card, beside the image, wherever these previews

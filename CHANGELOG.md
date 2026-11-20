@@ -16,6 +16,17 @@ need a hand is written under the release that needs it.
 
 ## Unreleased
 
+**Every item on one page.** Under the gallery's pages, **Every item** opens the
+whole collection as one list at `/items`: every computer and part by name, with its
+tag and what kind of thing it is. There are no photographs on it, so the browser's
+own find searches all of it at once. It is also how search engines now reach the
+items. The gallery deals a new shuffle for every visit, which gave a crawler nothing
+it could find twice, and most item pages had never been read by one. `robots.txt`
+now asks crawlers to leave shuffled addresses alone, and the sitemap names `/items`.
+
+**Upgrading:** nothing to do. Asking Google to index `/items` (URL inspection in
+Search Console) gets it read sooner than waiting for the next crawl.
+
 **Pages open every time, in Safari too.** The site told browsers it spoke HTTP/3,
 which it never did: that needs UDP on port 443, and only TCP was ever opened. A
 browser that took up the offer stalled, or gave up on the page, before it fell back,

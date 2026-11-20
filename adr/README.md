@@ -139,7 +139,7 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   [0050](0050-a-survey-asks-about-what-it-could-not-see.md),
   [0051](0051-a-survey-asks-the-hardware-what-it-is.md),
   [0052](0052-a-survey-can-make-a-motherboard-on-its-own.md) and
-  [0053](0053-a-survey-corrects-a-memory-total-an-older-survey-wrote-short.md))
+  [0054](0054-a-survey-corrects-a-memory-total-an-older-survey-wrote-short.md))
 - [0044](0044-a-survey-asks-the-make-and-model-of-what-nobody-can-name.md) — A
   survey asks the make and model of what nobody can name — *Accepted* (amends
   [0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md); amended by
@@ -170,6 +170,8 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   a motherboard on its own — *Accepted* (amends
   [0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md) and
   [0045](0045-a-machine-with-no-motherboard-on-record-is-asked-about-one.md))
-- [0053](0053-a-survey-corrects-a-memory-total-an-older-survey-wrote-short.md) — A
+- [0053](0053-search-engines-are-given-the-items-as-a-list.md) — Search engines
+  are given the items as a list, and leave the shuffle alone — *Accepted*
+- [0054](0054-a-survey-corrects-a-memory-total-an-older-survey-wrote-short.md) — A
   survey corrects a memory total an older survey wrote short — *Accepted* (amends
   [0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md))

@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3450 behaviours, from 98 files.*
+*3466 behaviours, from 99 files.*
 
 
 ## A barcode takes the room the words leave
@@ -2498,6 +2498,42 @@ Regenerate with:
 - an address a button uses goes to the buttons page  
   Rotate posts to /parts/<tag>/photo-rotate, and a browser's address bar can offer that back later, or a link to it be copied and opened (MANUAL section 2).
 - a program that opens a buttons address is still refused
+
+
+## Every item on one page
+
+*test_every_item_on_one_page.py — 16 behaviours*
+
+
+**The list**
+
+- it lists every computer and every part
+- it is in alphabetical order of name  
+  Whatever the case a name was typed in.
+- each line is the tag the name and the kind
+- the tag and the name both lead to the item s page
+- a disposed item is listed and says so
+- there are no pages to turn  
+  However many pages the gallery would spread them across.
+- it names no project and no location  
+  The register's one pool of tags holds both, and each has rules of its own about who is told it exists: a private project, Show locations.
+- the gallery leads to it
+
+**Who may read it**
+
+- a visitor may
+- a site closed to visitors keeps it behind the login
+
+**The way in for search engines**
+
+- it is named in the sitemap
+- it lists every item the sitemap names  
+  The two lists of what a crawler may read are one list.
+- it is the same on every visit
+- it is its own canonical
+- a crawler is let in to it and to everything on it
+- a crawler is asked to leave the shuffle alone  
+  Every link the gallery makes back into itself carries the hand, and that is what robots.txt names.
 
 
 ## File public switch
