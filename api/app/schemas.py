@@ -282,6 +282,9 @@ class PartOut(PartIn):
     project: str | None = None
     # See ComputerOut.location_path.
     location_path: str = ""
+    # A network card's own address, as a survey read it (ADR-0043). Read only: the
+    # API is behind the login entire, and nothing but a survey writes one.
+    ethernet_address: str = ""
 
 
 # --- locations -----------------------------------------------------------------

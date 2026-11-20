@@ -29,7 +29,8 @@ own server is [INSTALL.md](INSTALL.md).
 20. [The REST API](#20-the-rest-api)
 21. [The tool server](#21-the-tool-server)
 22. [Command-line tools](#22-command-line-tools)
-23. [Housekeeping](#23-housekeeping)
+23. [Surveys](#23-surveys)
+24. [Housekeeping](#24-housekeeping)
 
 ---
 
@@ -204,9 +205,10 @@ the edges of the wide pages (see [On a wide screen](#on-a-wide-screen)).
   The Scan button appears only where there is a camera to use, so a computer
   with none is not offered it. Beside the side rail, Scan is in the rail.
 - **+ New** — offers Computer, Part, Project or Location. Logged in only.
-- **☰** — the theme, **Audit**, **Might sell**, **Traffic**, **Settings**, **Account** and
-  **Log out**, each where your account reaches it, and (in the installed app, where
-  the browser provides neither) share and reload.
+- **☰** — the theme, **Audit**, **Surveys**, **Might sell**, **Traffic**,
+  **Settings**, **Account** and **Log out**, each where your account reaches
+  it, and (in the installed app, where the browser provides neither) share and
+  reload.
 
 On a tablet, or a desktop window narrower than about 1000px, the sections move
 into the **☰** menu, at its top. The banner stays on one line at every width:
@@ -472,6 +474,12 @@ Three things can be said there.
   shown to a stranger should.
 
 None of the three is offered to a search engine.
+
+**An address a button uses goes to the button's page.** Each button that changes
+something (Rotate, Crop, Delete and the rest) sends its form to an address of its
+own. A browser's address bar may offer one back later, and a link to one can be
+copied and opened. Opened as a page, such an address goes to the page the button is
+on, rather than to an error.
 
 **Programs get what programs want.** The JSON API answers an error as it always
 has — the status and a `detail` — and so does anything else that did not ask for
@@ -751,7 +759,7 @@ Field by field:
 | **TopBench score** | The DOS benchmark's score for *this* machine. Only shown while the machine is not a catalogue model — there is no TopBench for a Spectrum. |
 | **Memory** | Three inputs; see [section 7](#7-memory). |
 | **Drives** | A table of rows; see [section 8](#8-drives). |
-| **Condition** | Working, Untested, Partially working, Faulty, For parts/repair, Restored. Blank by default — "not recorded" is a real answer and should not be guessed as "Working". |
+| **Condition** | Working, Untested, Partially working, Faulty, For parts/repair, Restored. Blank by default — "not recorded" is a real answer and should not be guessed as "Working". A [survey](#working-from-the-tests) whose every test passed writes **Working**, because a test that was run is not a guess. |
 | **Source** | Where or how you got it. |
 | **Acquired date** | |
 | **Location** | The location the machine is kept in — a shelf, a box, a room. Chosen from your locations, or a new one named here. See [where it is kept](#where-it-is-kept). |
@@ -1197,6 +1205,12 @@ and it becomes a part with its own tag.
 (A floppy drive on a shelf, with no machine to fit it to, becomes a part after
 all — there is nowhere else to put it.)
 
+A [survey](#23-surveys) asks about every drive it finds instead, so a floppy
+drive, a CD-ROM drive or a CompactFlash card it finds can be made a tagged part
+there, or answered as part of the machine, which is a row here. The part form
+keeps filing those kinds as rows. A drive a machine's rows already describe is
+taken for that row by a survey, so it is never recorded twice.
+
 ### The drives table
 
 On the machine form, each row has: how many, kind, form factor, size, media,
@@ -1362,7 +1376,10 @@ All four share **Main chip** and **Interface (bus)**, then:
 
 - **Video** — Connector(s) (comma-separate several), Memory, Type
 - **Sound** — FM synthesis, Ports
-- **Network** — Connector (e.g. 10BASE-T, BNC, AUI)
+- **Network** — Connector (e.g. 10BASE-T, BNC, AUI), and the card's own
+  Ethernet address (`00:00:C0:12:34:56`), which a
+  [survey](#serial-numbers-and-addresses) fills in. Only people signed in are
+  shown it.
 - **I/O** — Ports
 
 ### Storage
@@ -2718,7 +2735,7 @@ it is kept](#where-it-is-kept)). It has:
 | Field | |
 |---|---|
 | **Name** | What it is called where it is: `Shelf 2`, `Box 14`, `Blue crate`. It does not need to say where it is, because the path already does. Required. |
-| **Kind** | Building, room, rack, shelf, box, bag or other. It describes the location and gives no rules: a bag may hold a box if that is how your loft is. |
+| **Kind** | Building, room, rack, shelf, box, bag, bench or other. It describes the location and gives no rules about what goes in what: a bag may hold a box if that is how your loft is. A bench is the one kind that changes anything, because a survey leaves what is kept directly on it where it is ([bench cards](#bench-cards)). |
 | **Inside** | The location it is in. Leave it blank for the top of a tree, such as a building or a room. |
 | **Notes** | How to find it, for whoever is sent to fetch something: `third rack on the left`, `under the stairs, behind the hoover`. |
 
@@ -2949,7 +2966,8 @@ which keeps its tag, and the first is deleted.
 
 Every item has a dated history, and it fills itself in. Creating, editing,
 photographing, linking, unlinking, disposing, correcting a disposal and restoring
-all write a line saying what changed.
+all write a line saying what changed, and a [survey](#in-the-history) writes one
+saying what it found.
 
 Detaching a board writes on both sides of the one event: the machine's history
 says which tag its board became, and the board's history opens by saying which
@@ -3068,7 +3086,8 @@ Every time a thing or a location changes what it is in, its history records a
 move: put on a shelf, fitted in a machine, mounted on a card, taken out of one. A
 move says where it was and where it went, each as a link, along with when and who
 moved it. It also says how: **by edit** on a page or a form, **by scan** in the
-audit, or **through the API**. That is how *where was this before it went to the
+audit, **by survey** ([a part of its own](#a-part-of-its-own)), or **through the
+API**. That is how *where was this before it went to the
 workshop?* gets an answer, and *which machines has this card been in?*, and how
 something that cannot be found leaves a trail of the last places it was. A card
 fitted or taken out before the register kept moves has a line of history saying
@@ -3345,9 +3364,10 @@ Every account has one of two roles.
 
 *What is kept back from visitors* is everything the rest of this manual says a
 visitor is not shown: unpublished files, private projects, where things are kept,
-the for-sale shortlist, what an order cost, and the time of day on the history. A
-viewer reads all of it and changes none of it — the account for somebody you would
-show the whole collection to but would not hand the keys.
+the for-sale shortlist, what an order cost, surveys and the Ethernet addresses
+they read, and the time of day on the history. A viewer reads all of it and
+changes none of it — the account for somebody you would show the whole
+collection to but would not hand the keys.
 
 A viewer who opens something only an administrator may use — an edit form, the
 settings — is told so, rather than being sent to log in again as the same person.
@@ -3925,6 +3945,7 @@ Interactive documentation and a console are at `/docs`, linked from
 | `GET` | `/api/items/{id}/moves` | where a thing or a location has been, newest first |
 | `GET` | `/api/machines` | the catalogue of machines known as models — home computers, consoles, documented branded PCs — and the variations each was built in. Public, like [/machines](#the-list-of-what-it-knows), because none of it is about this register |
 | `GET` | `/api/files` | the files kept beside the register, and the asset tags each is linked to |
+| `GET` | `/api/surveys`, `/api/surveys/{id}` | [surveys](#23-surveys), waiting first and then newest first, and one survey: its machine and how it was found, its tests, what it found and the answer each thing was given |
 | `GET`, `POST` | `/api/projects` | list, or start one. `?open=true` for the ones neither finished nor abandoned, `?status=stalled` for one state |
 | `GET`, `PATCH`, `DELETE` | `/api/projects/{id}` | fetch (with its items, tasks and orders), partial update, delete |
 | `POST`, `DELETE` | `/api/projects/{id}/items`, `/api/projects/{id}/items/{asset_id}` | put a computer or part in a project, or take it out |
@@ -3964,9 +3985,9 @@ of.
 it.
 
 A location takes `name`, `kind` (`building`, `room`, `rack`, `shelf`, `box`,
-`bag`, `other`), `parent` (the tag of the location it is in, or `null` for the
-top) and `notes`. A `parent` that would put it inside itself is refused with
-`422`. A `DELETE` leaves whatever was in it nowhere.
+`bag`, `bench`, `other`), `parent` (the tag of the location it is in, or `null`
+for the top) and `notes`. A `parent` that would put it inside itself is refused
+with `422`. A `DELETE` leaves whatever was in it nowhere.
 
 `PATCH` changes only the fields you send.
 
@@ -4154,6 +4175,54 @@ know will not start being one, and retrying it every ten seconds only earns the
 address a rate limit. The agent holds no state, so
 restarting it is always safe and it recovers from a lost network by itself.
 
+### survey_agent.py
+
+The half that runs beside the machines being [surveyed](#23-surveys), on any
+computer that can read the folder their reports are written into. The one that
+serves them their network drives is the obvious one. It answers their questions,
+sends their reports and writes back what the register said. Like the print agent
+it needs nothing but Python 3.
+
+```sh
+export RHDB_API=https://db.example.com
+export RHDB_SURVEY_AGENT=bench
+export RHDB_SURVEY_KEY=1a7d…            # this agent's key, from the server's .env
+export RHDB_SURVEY_DIR=/srv/surveys     # the folder the machines write into
+python3 survey_agent.py
+```
+
+It watches that folder and every folder inside it.
+
+- **A question** is a file ending `.ASK`, holding the lines a report would hold
+  about what the machine has found so far, and the machine's `TAG` once it has
+  been typed. The agent sends it with the ROM copies it names. Within a few
+  seconds the answer is beside it, ending `.ANS`: `TAG=` with the machine, when
+  the register can tell which it is; an `_ANSWER` line for each thing found that
+  already has one (a tag, with `BENCH` after it for one kept on a bench, or
+  `MACHINE`, or `OUT`); a `_NAME` line for each thing the register can name
+  (`SYSTEM_NAME` for the machine itself); and `NIC_ROM=` with the network card's
+  boot ROM, when its text says which one that is.
+- **A report** is any other file with an `[RHDB]` section. It is sent once it
+  has been left alone for ten seconds, and the register's answer is written
+  beside it, ending `.RCT`: a few short lines for the survey program to show as
+  they are. The report and its ROMs then move into `SENT`.
+- **A soak's report** is rewritten after every pass, so it is sent when the soak
+  stops. One that has not changed for an hour is sent as it stands, because the
+  machine was switched off.
+- **A report the register refuses** moves into `REFUSED`, with a file ending
+  `.WHY` beside it saying why. Its receipt says so too, so the machine waiting for
+  one is not left waiting. One it could not deliver stays where it is and is
+  tried again.
+
+Every name it writes fits in eight characters and three, so a DOS machine can
+read it. A report carried on a floppy from a machine with no network can be
+copied into the folder by hand, and is sent like any other.
+
+`--check`, `--once` and the unit file `tools/survey-agent.service` work as the
+[print agent's](#print_agentpy) do. One thing differs: the agent moves files the
+machines wrote, so it runs as the user that owns the folder, and the unit names
+that folder a second time, in `ReadWritePaths`, as the one place it may write.
+
 ### import_report.py
 
 Reads a hardware detection report from a boot disk — HWiNFO on a 386 or better,
@@ -4177,6 +4246,9 @@ What it maps:
 
 Memory is deliberately left alone: HWiNFO's total is unreliable on pre-Pentium
 machines, so a machine's memory is entered by hand.
+
+A machine that can run a [survey](#23-surveys) program reports itself instead,
+and is recognised the next time without being asked.
 
 ### adopt_machines.py
 
@@ -4217,7 +4289,636 @@ machine is added. Add one, run this, and commit both; a test fails if you forget
 Unlike the other scripts here it reads the catalogue file directly rather than the
 API, so it needs no network and no login.
 
-## 23. Housekeeping
+---
+
+## 23. Surveys
+
+A machine can fill in its own record. Started with a survey program, it tests
+itself and writes a report of what it is made of, down to the serial numbers of
+its hard disks. An agent on a computer nearby sends the report to the register,
+which files it against the machine.
+
+Everything a survey finds gets one of three answers:
+
+- **Left out.** Nothing is made of it.
+- **Part of the machine.** It goes into the machine's own record, or its
+  motherboard's.
+- **A part of its own.** It is a tagged part fitted in the machine: one the
+  register has, or a new one.
+
+The machine itself is one the register has, or a new one. Every serial number
+and Ethernet address a survey reads is recorded, whatever its answer, so nothing
+is new twice.
+
+Most answers are the register's to give. The processor and the memory are
+always part of the machine, and a hard disk it has met before is known by its
+serial number. The rest are asked once and remembered, so surveying a machine
+again means starting it with the survey program and leaving it to get on with
+it. A survey also keeps a copy of every ROM it read, and marks a machine that
+passed every test **Working**.
+
+### What it takes
+
+- **A survey program** on the machine, which writes the report described in
+  [what a report says](#what-a-report-says). A machine that can start from the
+  network runs one with no disk at all, so nothing has to be carried to it or
+  back.
+- **The survey agent**, on a computer that can read the folder the reports are
+  written into and can reach the register ([survey_agent.py](#survey_agentpy)).
+- **A key for the agent**, in `.env` on the server:
+
+```
+RHDB_SURVEY_AGENTS=bench:1a7d…
+```
+
+Each entry is `name:key`. Give it a third part naming a [print
+agent](#printing-to-a-printer-somewhere-else), as `bench:1a7d…:workshop-pi`, and
+the label for every tag a survey makes is printed there, so a new hard disk's
+label is waiting by the time the machine is switched off. Without one, a survey
+offers to print them at the machine, where the small label goes to a print
+agent ([at the machine](#at-the-machine)). Generate a key with
+`openssl rand -hex 32`, one for each agent. With nothing set the register takes
+no surveys.
+
+**The key opens nothing else.** The agent can send surveys, and ask what the
+register already knows about the machine in front of it: which machine it is,
+and the answers it holds for what the survey has found. It cannot list or read
+anything else, and it never learns your password.
+
+**The agent asks, and the register never calls out**, as with the print agent.
+Nothing has to be forwarded to the bench, and an agent that is switched off is
+not an error: the reports wait in their folder until it is back. So does a
+report written while the register cannot be reached.
+
+### At the machine
+
+Before it tests anything, the survey reads what it can about what the machine is
+made of, including whatever can say which one it is: each hard disk's serial
+number, the network card's Ethernet address, a Plug and Play card's and a
+monitor's serial numbers, and on a later PC the serial numbers its BIOS keeps for
+the machine and its board. It asks the register,
+through the agent, which machine this is and which of the things it found
+already have an answer. The agent sends the machine's ROMs with the question, so
+the register can also say what each thing is: a card by its ROM or its chip, a
+hard disk by the name it gives itself, a later PC by what its BIOS says.
+
+- **A machine the register recognises** is named on the screen, and nothing is
+  asked about it.
+- **Otherwise the survey asks for the machine's tag.** Type it from the label,
+  **N** for a new machine, **B** for a new motherboard on its own (a bare board
+  on the bench), or Enter to leave it for later.
+- **For each thing found that has no answer yet**, it asks for one (the
+  motherboard first, in a machine with none on record), showing the thing by
+  the register's name for it where there is one: the tag on its label,
+  **N** for a new part, **M** if it is built into the motherboard (for a drive,
+  part of the machine), **X** to leave it out, or Enter to decide later. It
+  offers only the answers that fit ([what it does with what it
+  finds](#what-it-does-with-what-it-finds)). In a machine being added (**N**),
+  Enter makes a new part as **N** does, since everything in it is new. On a
+  board being added (**B**) it does not: what is plugged into a bare board on
+  the bench is often there only for the test, so Enter leaves it for later.
+- **N for something nobody can name** asks its make and then its model, so the
+  new record has a name from the start. Type them from its label, or press Enter
+  to leave either out. A new machine is asked the same, unless its BIOS says what
+  it is, and is offered the company that wrote its BIOS as its make where that is
+  who made it ([who made it, from its BIOS](#who-made-it-from-its-bios)). A new
+  motherboard is asked the same, as printed on the board, unless its BIOS names
+  it. Nothing that already has a name is asked about.
+- **Parts on record it did not find.** In a machine the register knows, each
+  part the register has fitted in it that the survey did not find is shown in
+  turn: Enter if it is still fitted, **X** if it has been taken out. A part
+  taken out is left with no location until you put it away.
+- **Anything else.** Then the survey asks for anything else fitted that it
+  could not see, as many times as there is something to give: the tag of a part
+  the register has (it is fitted in the machine, as a tag typed for anything
+  found is), **N** for a new part (its make and model are asked), or Enter when
+  there is nothing more.
+- **Labels for what is new.** Where the small label goes to a print agent's
+  queue (its **Goes to**, [where a label goes](#where-a-label-goes)) and the
+  survey is about to make something (**N** or **B** for the machine, or **N**
+  for anything it found), it asks once, after everything else, whether to
+  print a small label for each new tag on that printer. **Y** puts them on its
+  queue when the report is filed: the machine's label (or the new board's) and
+  each new part's. Enter prints none. A survey agent with a printer of its own prints them anyway ([what it
+  takes](#what-it-takes)), and is not asked.
+
+The tests run, the report is written and the agent sends it. The register's
+answer comes back to the screen, naming the machine and saying what it filled in
+and what is waiting for you.
+
+With nobody at the keyboard, nothing is asked. The tests run, the report goes,
+and whatever needed an answer waits on [the Surveys page](#the-surveys-page). If
+the register cannot be reached, the survey asks only for the machine's tag, and
+a new machine's or board's make and model.
+
+### Which machine it is
+
+The register works it out in this order:
+
+1. **The answer at the machine.** A machine's tag or a motherboard's (a
+   motherboard fitted in a machine stands for the machine), **N** for a new
+   computer, or **B** for a new motherboard on its own.
+2. **What is inside it.** A hard disk, a CD-ROM drive, a CompactFlash card, a
+   network card or a Plug and Play card the register has in a machine, as a part
+   fitted in it or as part of it, says it is that machine. A monitor does not:
+   one is moved from machine to machine more often than anything inside them. So
+   does a serial number from the BIOS that matches a machine's, or a
+   motherboard's fitted in one. A motherboard the register has in no machine,
+   known by that serial number, says this is that board when nothing was typed
+   (a bare board surveyed on the bench). With a machine's tag typed, or **N**, it
+   is a board going into that machine.
+3. **Neither**, and the survey waits for you to say.
+
+A survey that cannot be sure does nothing and waits:
+
+- the answer at the machine and what is inside disagree (`RH-4K7Q` typed, or
+  **N** or **B**, with a hard disk the register has in `RH-9J2X`). With **B**, a
+  motherboard the register already has, known by its serial number, disagrees
+  too, since **B** would add it twice;
+- what is inside points at two machines;
+- the tag typed is not a machine or a motherboard: a part, a location, a
+  project, something disposed of, or a tag the register never issued.
+
+The register issues every tag ([asset tags](#asset-tags)), so a tag it never
+issued is a typing mistake, and a survey never makes anything under one. **N**
+is how a new machine is asked for. It has no name until you give it one, so it
+is called by its tag, and its label is printed on the agent's printer if it has
+one.
+
+**B** is how a new motherboard is asked for: a board on its own, tested on the
+bench before it goes into a case. It is named as a new board in a machine is
+([a part of its own](#a-part-of-its-own)) and filed as a bare board is ([part of
+the machine](#part-of-the-machine)). Like a new machine, it has no location
+until you put it away, and its label is printed on the agent's printer if it
+has one.
+
+The survey's page says how it found the machine (typed, or recognised by its
+hard disk `RH-K7Q2`), so it is always plain why a survey went where it did.
+
+### What it does with what it finds
+
+Which answers a thing can have follows the register's own rules about what is a
+part and what is a line on a machine's record ([two ways of describing a
+machine](#two-ways-of-describing-a-machine), [drives](#8-drives)):
+
+| Found | Its answer |
+|---|---|
+| The processor and its maths coprocessor, the memory, the operating system, the BIOS, the chipset, the machine's own maker, model and serial number | Always part of the machine. Nobody is asked. |
+| A hard disk | A part of its own, or left out |
+| The motherboard, in a machine with none on record | A part of its own, or left out |
+| A floppy drive, a CD-ROM drive or a CompactFlash card | A part of its own, part of the machine (a row in its **Drives**), or left out |
+| The network card, the video card, any other card seen through its ROM or on a PCI bus (a disk controller, a sound card), and the serial and parallel ports | A part of its own, built into the motherboard, or left out |
+| A sound card that answers as a Sound Blaster does (at 220h to 280h), or an AdLib's sound chip (at 388h) | the same |
+| A Gravis UltraSound (at 220h to 260h), or an MPU-401 MIDI interface (at 330h) on a card of its own | the same |
+| A Plug and Play card | the same |
+| Expanded memory on a PC, an XT or an AT, through the memory card's own driver | the same |
+| A monitor that says what it is | A part of its own, or left out |
+| Anything else fitted, given at the machine | A part of its own |
+
+A sound card and expanded memory are looked for, since neither has a ROM or a
+PCI number to be found by. The survey program tries a Sound Blaster's reset at
+each of its usual addresses and an AdLib's timers at 388h, which a card in no
+way like either at those addresses would not answer. Expanded memory is found
+through the driver of the card that provides it, so a card whose driver is not
+loaded is not found, and on a 386 or later expanded memory is EMM386's, made by
+the processor, and is not a card at all. What none of this finds is asked for
+under **Anything else**.
+
+The rest is found the way DOS diagnostic programs always found it, by asking the
+hardware itself:
+
+- **Plug and Play cards** answer the isolation every Plug and Play BIOS and
+  driver uses. Each gives its maker's code (`CTL` is Creative Labs), its model,
+  a serial number and, nearly always, its own name (`Creative SB AWE64 PnP`).
+  The survey program reads them where the BIOS or a driver set them up, and
+  changes none of it. A Sound Blaster, an AdLib, an MPU-401 or a Gravis
+  UltraSound found at a Plug and Play card's own ports is that card, not a second
+  one, and a Plug and Play network card the survey runs through is the network
+  card.
+- **A monitor** says what it is through the video card (DDC, which most monitors
+  made since 1994 have, with a video card whose BIOS can ask): its maker, its
+  model and its serial number.
+- **The video card's chip** answers in its own registers, so a VGA card that
+  neither the PCI bus nor its ROM names is named by its chip (`Tseng Labs
+  ET4000`): Tseng Labs, Cirrus Logic, S3, Trident, Western Digital and Paradise,
+  Oak, Video Seven and Headland, Chips and Technologies, ATI, Compaq and Genoa.
+  The registers the survey program changes to ask are put back. Two cannot be
+  read back, and are left as each card's own software leaves them: a Trident
+  chip's register mode, and a Tseng Labs chip's extensions, locked. A Tseng Labs
+  chip is not asked for beside a second, monochrome display adapter, whose
+  setting shares its port.
+- **A Gravis UltraSound** is found by its sound memory, and **an MPU-401** by its
+  reset. Both answer at addresses a network card can be set to, and the survey
+  reports through its network card, so they are only looked for where that card
+  is on the PCI bus. Elsewhere, give either under **Anything else**. A Sound
+  Blaster 16 has an MPU-401 of its own (any Sound Blaster whose DSP is 4 or
+  later), so one found beside it is that card's.
+- **The ports**: which chip each serial port has (the `16550A` a fast modem
+  needs, or the `8250` of the first PCs), and whether a parallel port is an ECP
+  port or a bidirectional one (which a parallel-port Zip drive wants).
+
+A game port is not looked for. It says nothing until a joystick is plugged into
+it, and it could be the sound card's or the I/O card's.
+
+The network card a survey runs through is one thing, however the survey sees
+it: by its Ethernet address, on the PCI bus, and through its boot ROM where the
+survey can tell which ROM that is. It is asked about once.
+
+An answer is remembered. The next survey that finds the same thing in the same
+machine gives it the same answer without asking. A thing with a serial number
+or an address is known by that wherever it turns up, and anything else by what
+it says it is: the name in its ROM, its maker and model on the PCI bus, the
+addresses of the ports, a floppy drive's size. Two of the same in one machine
+are counted, since the survey cannot tell which is which. An answer that no
+longer holds, because the part it named has been taken out since, is asked
+again.
+
+A drive the register already has in the machine is not asked about either:
+
+- **A row in its Drives** of the same kind (a floppy drive's or a Gotek's of
+  the same size, an optical drive's, a CF or SD card's) means the drive is part
+  of the machine. Each row stands for as many drives as it counts.
+- **A part fitted in it** of the same kind (`Floppy/Gotek` of the same size,
+  `Optical`, `SD/CF card`) is that drive, unless the part's serial number says
+  it is another.
+
+So a machine whose drives were written down before surveys asked about them is
+never recorded twice. A drive that matches neither is asked about, which is also
+how a survey says the BIOS has a 1.44MB drive where the record has a 1.2MB one.
+
+A survey also lists what the register has in the machine that it would expect
+to find and did not: a hard disk that did not answer, a card that has gone.
+Nothing is changed. It is there to be looked at.
+
+### Serial numbers and addresses
+
+Every serial number and Ethernet address is recorded the first time a survey
+sends it, whatever its answer, with the machine it was in and when: a hard
+disk's, a CD-ROM drive's or a CompactFlash card's, a network card's address, a
+Plug and Play card's serial number and a monitor's. Each survey
+that reads it again moves where and when it was last seen. So a thing is only
+ever new once: a disk left out is known the next time, wherever it turns up,
+and stays left out until you change its answer.
+
+- **A part of its own** carries its serial number as its **Serial number**, and
+  a network card its address as its **Ethernet address**.
+- **Part of the machine**, it is kept with the machine: the machine's own serial
+  number, the address of a network chip on its board.
+- **Left out**, or not answered yet, it is kept on its own and belongs to
+  nothing.
+
+They are all listed under **Seen** on [the Surveys page](#the-surveys-page).
+Signed in, a search for a serial number or an address finds it there too, so the
+number on a drive's label says where that drive has been, even if it was never
+made a part.
+
+### Part of the machine
+
+What is part of the machine goes into its record, filling what has not been
+recorded and never changing what has. Where the survey read something
+different, its page shows the two side by side and leaves the record alone: 640
+KiB recorded and 512 KiB found is worth knowing, and which is right is yours to
+say.
+
+| Found | Written into |
+|---|---|
+| The processor and its measured speed | **CPU**, the way the form asks for it: `Intel 486DX2-66`. A chip that answers CPUID is named by what it answers (`AMD K6-2-300`, `Intel Pentium MMX-233`). A chip too old to say who made it is written without a maker, as `80286-12`. |
+| A maths coprocessor | the **FPU** socket, on a machine the catalogue gives one (`Intel 8087`); otherwise **FPU** on the motherboard fitted in it |
+| The memory the BIOS counts | **Installed RAM**, as a plain total, when nothing about the machine's memory is recorded yet. Above 1 MiB it is rounded up to whole MiB, because an AT's BIOS leaves out the 384 KiB under its ROMs. |
+| The operating system on the first hard disk | **Operating system** |
+| What a later PC's BIOS says the machine is: its maker, model and serial number | **Manufacturer**, **Model** and **Serial number**. A placeholder such as `To be filled by O.E.M.` or `System Product Name` says nothing, and is ignored. With no maker from there, the company that wrote its BIOS, where that is who made it ([who made it, from its BIOS](#who-made-it-from-its-bios)). |
+| A floppy drive, a CD-ROM drive or a CompactFlash card answered as part of the machine | a row in **Drives**: a floppy drive's bay and size as the BIOS has them (`3.5"`, `1.44MB`), the others' model. A row already there for it is left as it is. |
+| The BIOS's maker, version and date | the **BIOS ROM** socket, on a machine the catalogue gives one (`BIOS 10/27/82` on an IBM 5150); otherwise **BIOS** on the motherboard fitted in it |
+| The chipset a later PC's bus names | **Chipset** on the motherboard fitted in it |
+| A card, or the ports, answered as part of the machine | **Onboard video** or **Ports** on the motherboard fitted in it (`2× Serial (16550A), Parallel (ECP)`), or a line of their own for anything else (`Onboard sound`) |
+
+A machine with no motherboard on record is asked about one, as a thing of its
+own: the tag of a board the register has, **N** to make one, or **X** for none.
+Its BIOS, its chipset, its serial number and the lines of anything built into it
+then go on that board, and the BIOS's ROM is linked to it. With none, a board's
+lines are remembered and nothing is written. A machine whose catalogue model
+keeps its BIOS in a socket of its own (an IBM 5150's **BIOS ROM**) is never
+asked.
+
+The speed is the one measured, so a machine surveyed with its turbo switched
+off is written at its slower speed.
+
+A motherboard on its own (a bare board tested on the bench before it goes back
+in a case) is filed the same way, and gets what belongs to a board: its BIOS,
+its chipset, its serial number and its condition. Type its tag at the machine,
+or **B** for one the register does not have yet.
+
+### A part of its own
+
+A part of its own is a tagged part fitted in the machine. The answer at the
+machine says which:
+
+- **Its tag** names a part the register has. This is how a disk catalogued by
+  hand, before anything had read its serial number, is joined to its own record
+  rather than added twice.
+- **N** makes a new one, fitted in the machine and named as it names itself: a
+  hard disk as `QUANTUM FIREBALL1080A`, with its interface, capacity and
+  geometry; a CD-ROM drive (`Optical`) or a CompactFlash card (`SD/CF card`,
+  with its capacity and geometry) the same way; a floppy drive by its size
+  (`1.44MB`, for 3.5" disks), since a floppy drive cannot say what it is, so
+  the make and model typed at the machine are its name; a sound card or an
+  expanded memory card the same way, since neither can say who made it (a
+  Sound Blaster clone answers just as a Sound Blaster does), and an MPU-401 the
+  same; a Gravis UltraSound as itself; a Plug and Play card by its maker's code
+  and its own name (`Creative Labs`, `SB AWE64 PnP`); a monitor by its maker and
+  model (`Dell`, `P1110`), with its serial number; anything else given at the
+  machine by its make and model; a card by its ROM, its chip on the PCI bus or
+  its chip's registers (`Tseng Labs`, `ET4000`); a network card
+  by its chip where it is on the PCI bus, and otherwise by the driver it was run
+  with, or the Plug and Play card it is; the ports as an I/O card with them on
+  it, its **Ports** saying what they are (`2× Serial (16550A), Parallel
+  (ECP)`); a motherboard as a later PC's
+  BIOS names it (SMBIOS), with the serial number it keeps, or by the company that
+  wrote its BIOS where that is who made it (`Compaq`). One that names
+  nothing is named by the make and model typed at the machine, into its
+  **Manufacturer** and **Model**. Its label is printed on the agent's printer, if
+  it has one.
+
+A make and model typed for a new machine go into its **Manufacturer** and
+**Model** the same way. They do not choose a catalogue model for it, because the
+catalogue names models its own way (`PC XT` for a 5160): pick that on the form, or
+with [adopt_machines.py](#adopt_machinespy), and the next survey fills in the BIOS
+and the rest. What was typed names the record and nothing else. It is never how
+the thing is known the next time.
+
+Then, wherever the register has that part:
+
+| The register has it | The survey |
+|---|---|
+| fitted in this machine | confirms it, and fills in what its record is missing, such as a disk's capacity and geometry. |
+| on a bench itself | leaves it where it is ([bench cards](#bench-cards)). |
+| kept anywhere else (a shelf, a box), or nowhere | moves it into the machine, as a scan in the [audit](#audit) would. The move is recorded as made **by survey**. |
+| in another machine | waits for you. A survey never takes a part out of another machine. |
+
+A hard disk the survey can see only through the BIOS (MFM, RLL, ESDI, and SCSI
+behind most controllers), or an early IDE disk that reports no serial number,
+cannot say which one it is. It is answered like a card, and known the next time
+by its size in the same machine.
+
+### Who made it, from its BIOS
+
+Most PCs' BIOSes were written by a few companies (AMI, Award, Phoenix, Quadtel,
+MR BIOS, Chips and Technologies) for everybody's boards, and say nothing about
+whose board they are on. Some makers wrote their own: Compaq, IBM, Amstrad,
+Olivetti, Tandy, Zenith, Toshiba and Commodore. HP and Dell had theirs written
+by Phoenix and put their own name in it. A BIOS from one of those makers says who
+made the board it is on, and nearly always the machine:
+
+- **A new motherboard** is named by that maker (`Compaq`), unless a later PC's
+  BIOS names the board itself (SMBIOS). So it is not asked its make and model at
+  the machine. A board on record with no **Manufacturer** has it filled in.
+- **A new machine** is offered that maker at the machine (`Make (Enter for
+  Compaq):`). Press Enter to take it, or type what the badge says. A machine
+  with no **Manufacturer** recorded, new or not, has it filled in when nothing
+  was typed and a later PC's BIOS gives no maker of its own.
+
+The register reads the maker from the copy of the BIOS that comes with the
+survey, and from the survey program's own reading of the BIOS when no copy
+came. A BIOS from one of those houses that carries another maker's name for
+compatibility (some say `COMPAQ`) names nobody.
+
+A badge can say otherwise. An AT&T 6300 is an Olivetti inside, with an Olivetti
+BIOS, and a Sinclair PC200 is an Amstrad. Type the badge at the machine, or put
+it right on the form. A survey never changes a **Manufacturer** that is already
+recorded, and does not list its BIOS's maker as a difference from one.
+
+**A card's ROM** names who made it in the same way. A video card's BIOS, a disk
+controller's or a SCSI card's names the company whose chip or card it is (`Tseng
+Labs`, `Western Digital`, `Adaptec`), and a branded machine's own cards carry the
+machine's maker (`Compaq`). A new card made from it has that company as its
+**Manufacturer**, as a card on the PCI bus has its chip's maker, and the rest of
+the ROM's name for it as its **Model** (`ET4000`). A ROM that names a program
+rather than a company (netboot, the XTIDE Universal BIOS) gives the card a model
+and no maker, because the card is whoever built it.
+
+### Bench cards
+
+A **bench** is a location of kind *Bench* ([a location](#a-location)): the
+table where machines are tested. Anything kept directly on one, and anything
+mounted on that (a boot ROM on the bench's network card), is the bench's own
+equipment, and a survey never takes it for part of the machine in front of it.
+It is never fitted in the machine, never counted when working out which machine
+this is, and never moved. So the network card that starts every machine on the
+bench in turn stays on the bench, and the survey's page names it as the card the
+survey came through.
+
+A box, a tray or a drawer on the bench is storage like any other. A card kept in
+one is found and fitted the way a card on a shelf is, because a tray of spare
+cards beside the machines is stock, not the bench's kit. To make a card the
+bench's, put it on the bench itself.
+
+A card becomes a bench card by being put on a bench. The first time a survey
+reads its address:
+
+- type its tag at the machine, if the register already has it on a bench, and
+  the address is recorded where it stands;
+- or press Enter to decide later, and **Add to bench** on the survey's page;
+- or press **N**, which fits the new card in the machine being tested, and then
+  move it to the bench. Until then the register takes it for that machine's own
+  card.
+
+From then on it is recognised and left alone, whichever machine it is in.
+
+The bench's monitor is the bench's in the same way. Kept on the bench itself, it
+is known by its serial number and left there, whichever machine it is showing,
+and **Add to bench** on the survey's page makes one of a monitor a survey found.
+
+A machine standing on the bench is still a machine. What is fitted in it is its
+own, so moving a machine to the bench to work on it does not make its cards the
+bench's.
+
+### Working, from the tests
+
+**Condition** is blank until somebody says, because "not recorded" should never
+be guessed as **Working** ([adding a computer](#5-adding-a-computer)). A survey
+is not a guess. It is the tests, run, and its line in the history says how they
+went.
+
+So a survey whose every test passed marks the machine **Working**, when its
+condition was blank or **Untested**. A test that does not apply to the machine
+(a clock on an XT, a second interrupt controller on a PC) does not count against
+it. One that was skipped does, because a skipped test has not been run.
+
+A soak (the tests over and over until somebody stops them) counts the same, and
+its line in the history says how long it ran.
+
+Otherwise the condition is left alone:
+
+- **A failed test** goes in the history and is marked on the Surveys page. A
+  failure says where to look rather than what the machine is, so a survey never
+  writes **Faulty**.
+- **A condition somebody chose** (**Partially working**, **Faulty**, **For
+  parts/repair**, **Restored**) is never changed. A machine recorded as
+  **Faulty** that passes every test is pointed out on the survey's page instead.
+
+Only the machine's condition changes. The parts in it keep theirs, because the
+tests are of the machine and do not say which card each result belongs to.
+
+### ROMs
+
+A survey can send copies of the machine's ROMs: the BIOS, and each option ROM
+(a video card's, a disk controller's, a network card's boot ROM). Each is kept
+as a [file](#11-files), with a note saying what it is (`BIOS, Award 4.51PG
+08/22/96`, `option ROM at C800`), linked to what it belongs to: the BIOS to the
+machine or its motherboard, and a card's ROM to the card, or to the machine if
+the card is part of it. The ROM of something left out is not kept. A network
+card's boot ROM goes with the card wherever the survey can tell which ROM that
+is, so a bench card's boot ROM is the bench card's in every machine. Where the
+survey program cannot tell (netboot's ROM says neither that it is a network
+card's nor whose), the register reads the ROM's text, and one ROM that says it
+starts a machine from the network is the card's.
+
+The BIOS is the ROM that runs to the top of the first megabyte, wherever it
+starts. On an XT that is F000. A later board's BIOS is bigger, and starts lower
+(E000, or E800).
+
+- **The same ROM is one file.** One read again, from this machine or from
+  another of the same model, is the file already kept, linked to one more
+  thing.
+- **They start private**, whatever **New files are public** says. A BIOS is
+  somebody's copyright, and publishing one should be a decision.
+- **The text in each ROM is on the survey's page**: copyright lines, version
+  strings, the identification string an AMI or Award BIOS carries (which names
+  its chipset and its board's maker), and the name a video card's ROM gives its
+  chip. The BIOS's maker, version and date are read from it, and so are the maker
+  and the name of a card made from its ROM ([who made it, from its
+  BIOS](#who-made-it-from-its-bios)).
+
+A BIOS date is written as the BIOS writes it, month first (`10/27/82`), because
+that is how it is known and looked up.
+
+### The Surveys page
+
+**☰ → Surveys**, or `/surveys`. Anybody signed in can read it, and an
+administrator can act on it.
+
+**Waiting** comes first: the surveys that need you. Under it is every survey,
+newest first, with its machine, when it was taken and how its tests went.
+
+A survey waits for one of two things:
+
+- **A machine.** Nothing has been done, because it is not certain which machine
+  this is. Type a tag and press **File**, and it is filed there as if the tag
+  had been typed at the machine; where that would move a part out of another
+  machine, the page says so first. **New computer** opens the form for a new
+  machine with what the survey found already in it. Saving makes the machine
+  and files the survey against it. **New motherboard** does the same for a
+  bare board, with the form for a new part set to a motherboard.
+- **An answer.** Everything else is done, and something found is waiting for
+  the answer nobody gave at the machine. Its line offers the answers that fit:
+  a box for a part's tag with **Link**, **New part**, **Add to bench** for a
+  hard disk, a drive or a network card, **On the motherboard** (for a drive,
+  **Part of the machine**) and **Leave out**.
+
+A survey's page shows:
+
+- when it was taken, through which agent, and through which bench card if any;
+- the machine, and how it was found;
+- each test and its result, with what a failed one found;
+- everything it found, and the answer each was given;
+- what it filled in, and what it read that differs from the record;
+- what the register expected to find and did not;
+- the ROMs, and the text in them;
+- the report itself, as the program wrote it.
+
+An answer can be changed there afterwards. A disk left out can be made a part,
+and the next survey follows the new answer.
+
+It also shows the machine's own date and time beside the real ones. A machine
+whose clock thinks it is 1980 has a flat battery, and this is the quickest way
+to find one.
+
+**Delete** removes a survey and its report. What it filled in stays, since that
+is the record now, and so do its ROM files and the serial numbers it recorded.
+
+**Seen**, the page's second list, is every serial number and Ethernet address a
+survey has sent: what each belongs to (a part, a machine) or that it was left
+out, and where and when it was last seen. Each opens the last survey that read
+it.
+
+### In the history
+
+Each survey writes one line on the machine's history, marked *survey* and dated
+when it was taken (by the agent's clock, since a machine's own is often wrong):
+
+- `Surveyed: every test passed. Filled in CPU, memory and operating system.`
+- `Surveyed: 2 of 17 tests failed (RAM, floppy).`
+- `Surveyed: 14 of 17 tests passed, 3 skipped.`
+- `Surveyed: every test passed, 48 passes over 12 hours.`
+
+"Every test passed" means every test that applies to the machine, and the
+counts are of those: a clock test on an XT is no test at all, so it is not one
+of the 17. A skipped test has not been run, so a survey with one never says
+every test passed.
+
+A visitor sees it, as they see the rest of the history, and it says nothing a
+visitor is not shown: no serial number, no address, nowhere anything is kept.
+For somebody signed in it links to the survey's page. A part a survey adds or
+moves gets the lines any part would, and an Ethernet address is never written
+into any of them.
+
+### Who sees what
+
+- **Surveys**, their reports, the **Seen** list and the text in the ROMs are for
+  people signed in.
+- **Ethernet addresses** are shown only to people signed in, and only their
+  searches find them. An address is what a network knows a machine by, and a
+  visitor has no use for one.
+- **A hard disk's serial number**, once the disk is a part, is its **Serial
+  number**, which is public and searchable like every serial number in the
+  register. One that belongs to nothing is on **Seen** alone.
+- **ROM files** start private.
+- **The history line** is public, and says nothing that is not.
+
+### What a survey never does
+
+It never changes something already recorded, and never makes anything nobody
+asked for: a new machine or part comes only from **N** or **B** at the machine,
+or from **New computer**, **New motherboard** or **New part** on its page. It never moves the machine it is
+surveying or anything kept directly on a bench, and never takes a part out of another
+machine. It never writes a condition other than **Working** or changes one
+somebody chose, and never publishes or deletes anything.
+
+### What a report says
+
+This is for whoever writes a survey program. A report is plain text, and may
+say anything at all to the person reading it. The register reads its `[RHDB]`
+section: a line `[RHDB]`, then one `KEY=VALUE` to a line. A file with several
+reports in it, one after another, is several surveys, and a key the register
+does not know is ignored, so a program is free to say more than this.
+
+| Key | Says |
+|---|---|
+| `TAG` | the machine's tag as typed at the machine, `NEW` (**N**), `NEW BOARD` (**B**), or empty |
+| `TOOL`, `VERSION` | the program, and which version of it |
+| `DATE`, `TIME` | the machine's own clock |
+| `RESULT` | `PASS`, `FAIL` or `ABORTED` |
+| `TEST_<name>`, `DETAIL_<name>` | each test's result (`PASS`, `FAIL`, `SKIP`, `NA` for one that does not apply, or `NOTRUN`), and what it found |
+| `MODE`, `PASSES`, `ELAPSED` | `ONCE` or `SOAK`, and for a soak how many passes in how long |
+| `CPU`, `CPUVENDOR`, `CPUSIG`, `CPUKHZ`, `FPU` | the processor, its maker where it says, its CPUID signature (family, model and stepping, as four hex digits), its measured speed, and the maths coprocessor |
+| `RAMKB`, `EXTKB` | conventional and extended memory as the BIOS counts it, in KiB |
+| `FLOPPY<n>` | a floppy drive as the BIOS has it: `360K`, `1.2M`, `720K`, `1.44M` or `2.88M` |
+| `BIOSVENDOR`, `BIOSDATE` | the BIOS's maker and date |
+| `SYSTEM_MAKER`, `SYSTEM_MODEL`, `SYSTEM_SERIAL` | what a later PC's BIOS says about the machine (SMBIOS), or for a new machine whose BIOS does not say, the make and model typed at the machine |
+| `BOARD_MAKER`, `BOARD_MODEL`, `BOARD_SERIAL` | and what it says about the board, or for a new board whose BIOS does not say, the make and model typed at the machine |
+| `DISK<n>_MODEL`, `DISK<n>_SERIAL`, `DISK<n>_KB`, `DISK<n>_CHS`, `DISK<n>_TYPE` | each drive: its name, serial number, capacity, geometry, and `ATA`, `ATAPI`, `CFA`, or `BIOS` for one seen only through the BIOS |
+| `NIC_MAC`, `NIC_DRIVER`, `NIC_ROM` | the network card the survey ran through, its driver's name, and the segment of its boot ROM where the survey can tell |
+| `VIDEO` | the video card, as the BIOS sees it |
+| `COM<n>`, `LPT<n>` | each serial and parallel port, at its address |
+| `PCI<n>` | a card on the PCI bus, as `vendor:device class` |
+| `ROM<n>` | a ROM copied beside the report, as `segment size filename` |
+| `OS` | the operating system on the first hard disk |
+| `BOARD_ANSWER`, `DISK<n>_ANSWER`, `NIC_ANSWER`, `VIDEO_ANSWER`, `PCI<n>_ANSWER`, `ROM<n>_ANSWER`, `PORTS_ANSWER` | the answer given at the machine for that thing: a tag, `NEW`, `MACHINE`, `OUT`, or empty for later |
+| `DISK<n>_MAKER`, `DISK<n>_MODEL`, `NIC_MAKER`, `VIDEO_MAKER`, `ROM<n>_MODEL` and so on | the make and model typed at the machine for a new part nobody could name. A disk with a model of its own is never asked, so `DISK<n>_MODEL` is the one or the other |
+
+---
+
+## 24. Housekeeping
 
 ### Derived values
 

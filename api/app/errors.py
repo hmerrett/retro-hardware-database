@@ -11,12 +11,18 @@ end -- are rendered as a page in the site's own chrome. Who asked is what decide
 the API keeps its JSON whoever asks for it, and so does anything that did not ask
 for HTML, which leaves `curl`, the tool server and the command-line tools exactly
 as they were.
+
+A fourth is answered by going somewhere else. A button that changes something
+posts to an address of its own (`/parts/RH-4K7Q/photo-rotate`), which a browser's
+address bar offers back later and a link preview opens, and FastAPI's answer to
+that, a line of JSON saying the method is not allowed, read to its owner as the
+site being down. Opened as a page, a button's address goes to the button's page.
 """
 
 from fastapi import FastAPI, Request, Response
 from fastapi.exception_handlers import http_exception_handler
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from starlette.responses import PlainTextResponse
+from starlette.responses import PlainTextResponse, RedirectResponse
 
 from .accounts.roles import VISITOR
 from .auth import _is_api_path
@@ -80,13 +86,23 @@ def page(request: Request, status: int) -> Response:
     )
 
 
+def _buttons_page(path: str) -> str:
+    """The page a button's address belongs to: the address with its last word taken
+    off. `/parts/RH-4K7Q/photo-rotate` is a button on `/parts/RH-4K7Q`."""
+    return path.rstrip("/").rsplit("/", 1)[0] or "/"
+
+
 async def http_error(request: Request, exc: Exception) -> Response:
-    """A raised `HTTPException`: a page for the three, the JSON for everything else.
+    """A raised `HTTPException`: a page for the three, the button's page for a
+    button's address opened as a page, and the JSON for everything else.
 
     Registered for `HTTPException` alone, so the fallback is only ever reached with
     one; the check is what tells mypy that, and it costs nothing.
     """
     if isinstance(exc, StarletteHTTPException):
+        opened = request.method in ("GET", "HEAD")
+        if exc.status_code == 405 and opened and _wants_page(request):
+            return RedirectResponse(_buttons_page(request.url.path), status_code=303)
         if exc.status_code in PAGES and _wants_page(request):
             return page(request, exc.status_code)
         return await http_exception_handler(request, exc)

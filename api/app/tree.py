@@ -50,13 +50,15 @@ CALLED = {COMPUTER: "a machine", PART: "a part", LOCATION: "a location", PROJECT
 KEPT, FITTED, MOUNTED = "kept", "fitted", "mounted"
 HELD = {LOCATION: KEPT, COMPUTER: FITTED, PART: MOUNTED}
 
-# How a move was made, as the history says it.
-EDIT, SCAN, API, UNDO = "edit", "scan", "api", "undo"
+# How a move was made, as the history says it. A survey moves a part it recognises
+# from a shelf, or from nowhere, into the machine it found it in (ADR-0043).
+EDIT, SCAN, API, UNDO, SURVEY = "edit", "scan", "api", "undo", "survey"
 HOW_WORDS = {
     EDIT: "by edit",
     SCAN: "by scan",
     API: "through the API",
     UNDO: "undone in the audit",
+    SURVEY: "by survey",
 }
 
 # How a path is written where it is text -- a move's ends, the API, a label.

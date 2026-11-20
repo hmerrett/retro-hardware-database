@@ -134,6 +134,10 @@
   {% if from_part %}
   <p class="hint" title="Photos, source, acquired date and notes are not carried over.">Copied from <a href="/parts/{{ from_part }}">{{ from_part }}</a>.</p>
   {% endif %}
+  {% if from_survey is defined and from_survey %}
+  <p class="hint" title="Saving makes the board and files the survey against it.">Filled in from <a href="/surveys/{{ from_survey }}">survey {{ from_survey }}</a>.</p>
+  <input type="hidden" name="survey" value="{{ from_survey }}">
+  {% endif %}
   <input type="hidden" name="computer_id" value="{{ computer_id }}">
   <input type="hidden" name="parent_id" value="{{ parent_id }}">
 

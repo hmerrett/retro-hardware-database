@@ -77,6 +77,9 @@ services:
       # agent holds (ADR-0025). Empty is a stack with no print queue, which is
       # what an installation that prints from the browser wants.
       RHDB_PRINT_AGENTS: ${RHDB_PRINT_AGENTS:-}
+      # The survey agents beside the machines that report themselves, and the key
+      # each holds (ADR-0043). Empty is a register that takes no surveys.
+      RHDB_SURVEY_AGENTS: ${RHDB_SURVEY_AGENTS:-}
     ports:
       - "127.0.0.1:8000:8000"
     volumes:
@@ -127,10 +130,13 @@ services:
       RHDB_DOMAIN: ${RHDB_DOMAIN:?set RHDB_DOMAIN in .env (see .env.example)}
       RHDB_ACME_EMAIL: ${RHDB_ACME_EMAIL:?set RHDB_ACME_EMAIL in .env (see .env.example)}
     volumes:
-      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      # Anything this installation adds to the proxy -- other names, a redirect from
-      # a domain it used to live at. Not in git: see caddy/conf.d/README.md.
-      - ./caddy/conf.d:/etc/caddy/conf.d:ro
+      # The directory rather than the Caddyfile alone. A file mounted on its own is
+      # the one the container started with: `git pull` writes a new file in its
+      # place, so a reload read the old one and Caddy went on serving it. Through the
+      # directory, a reload (deploy.sh's) reads what is there now. conf.d comes with
+      # it: anything this installation adds to the proxy (other names, a redirect
+      # from a domain it used to live at), not in git (caddy/conf.d/README.md).
+      - ./caddy:/etc/caddy:ro
       - caddy_data:/data
       - caddy_config:/config
       - caddy_logs:/var/log/caddy

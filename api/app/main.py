@@ -51,6 +51,8 @@ from .routers import (
     settings as settings_page,
     storage as storage_pages,
     styles,
+    api_surveys,
+    surveys as survey_pages,
 )
 from . import auth
 from .routers import stats as stats_routes
@@ -223,10 +225,12 @@ def create_app() -> FastAPI:
         project_pages.router,
         location_pages.router,
         storage_pages.router,
+        survey_pages.router,
         api_assets.router,
         api_locations.router,
         api_projects.router,
         print_queue.router,
+        api_surveys.router,
         health.router,
     ):
         app.include_router(router)

@@ -105,7 +105,8 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
 - [0034](0034-a-location-is-a-record-in-the-register.md) — A location is a record
   in the register — *Accepted* (supersedes
   [0027](0027-a-remembered-vocabulary-is-deleted-when-it-is-turned-off.md); amended
-  by [0036](0036-where-a-thing-is-is-one-tree.md))
+  by [0036](0036-where-a-thing-is-is-one-tree.md) and
+  [0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md))
 - [0035](0035-a-text-file-is-read-as-a-page-of-the-register.md) — A text file is
   read as a page of the register — *Accepted* (amends
   [0030](0030-a-pdf-is-read-in-the-browser.md))
@@ -127,3 +128,42 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
 - [0042](0042-a-file-row-carries-its-public-switch.md) — A file's row carries its
   Public switch, and nothing else — *Accepted* (amends
   [0028](0028-a-file-is-linked-to-the-things-it-is-for-by-their-ids.md))
+- [0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md) — A
+  survey gives everything it finds one of three answers — *Accepted* (amends
+  [0034](0034-a-location-is-a-record-in-the-register.md); amended by
+  [0044](0044-a-survey-asks-the-make-and-model-of-what-nobody-can-name.md),
+  [0045](0045-a-machine-with-no-motherboard-on-record-is-asked-about-one.md),
+  [0046](0046-only-what-is-directly-on-a-bench-is-the-benchs.md),
+  [0048](0048-a-survey-asks-about-every-drive-it-finds.md),
+  [0049](0049-a-survey-offers-to-print-the-labels-of-what-it-makes.md) and
+  [0050](0050-a-survey-asks-about-what-it-could-not-see.md))
+- [0044](0044-a-survey-asks-the-make-and-model-of-what-nobody-can-name.md) — A
+  survey asks the make and model of what nobody can name — *Accepted* (amends
+  [0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md); amended by
+  [0047](0047-a-computer-makers-bios-names-the-board-and-the-machine.md))
+- [0045](0045-a-machine-with-no-motherboard-on-record-is-asked-about-one.md) — A
+  machine with no motherboard on record is asked about one — *Accepted* (amends
+  [0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md))
+- [0046](0046-only-what-is-directly-on-a-bench-is-the-benchs.md) — Only what is
+  directly on a bench is the bench's — *Accepted* (amends
+  [0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md))
+- [0047](0047-a-computer-makers-bios-names-the-board-and-the-machine.md) — A
+  computer maker's BIOS names the board and the machine — *Accepted* (amends
+  [0044](0044-a-survey-asks-the-make-and-model-of-what-nobody-can-name.md))
+- [0048](0048-a-survey-asks-about-every-drive-it-finds.md) — A survey asks about
+  every drive it finds — *Accepted* (amends
+  [0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md))
+- [0049](0049-a-survey-offers-to-print-the-labels-of-what-it-makes.md) — A survey
+  offers to print the labels of what it makes — *Accepted* (amends
+  [0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md))
+- [0050](0050-a-survey-asks-about-what-it-could-not-see.md) — A survey asks about
+  what it could not see — *Accepted* (amends
+  [0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md))
+- [0051](0051-a-survey-asks-the-hardware-what-it-is.md) — A survey asks the
+  hardware what it is — *Accepted* (amends
+  [0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md) and
+  [0050](0050-a-survey-asks-about-what-it-could-not-see.md))
+- [0052](0052-a-survey-can-make-a-motherboard-on-its-own.md) — A survey can make
+  a motherboard on its own — *Accepted* (amends
+  [0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md) and
+  [0045](0045-a-machine-with-no-motherboard-on-record-is-asked-about-one.md))

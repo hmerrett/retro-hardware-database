@@ -1376,6 +1376,18 @@
     padding: 6px var(--space-4); border-top: 1px solid var(--line); overflow-wrap: anywhere; }
   .linkrows li:first-child { border-top: 0; }
   .linkrows form { margin: 0 0 0 auto; }
+  /* A survey's found list (survey.html): the thing on one line and the answers it
+     fits on one row under it, so every row reads from the same left edge whatever
+     the length of the words above -- drawn with the add-form components, whose
+     boxes grow and whose form is pushed to the right, every row wrapped somewhere
+     of its own. A box and the button that sends it wrap as a pair, never apart,
+     and each box asks for the width of what it takes: a tag, or a bench's name. */
+  .answers > li { padding-block: var(--space-3); }
+  .answers .answer { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center;
+    gap: var(--space-3) var(--space-4); margin: 0; }
+  .answers .pair { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+  .answers .pair > .input { width: 12ch; }
+  .answers .pair > .select { width: auto; max-width: 14em; }
   /* What follows a panel's list -- the link box under what a file is linked to; what
      an item's other units have, and the upload, under its files -- is a different
      thing and says so with a rule. */

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% import "_ui.html" as U with context %}
+{% block title %}File survey {{ s.id }} — {{ site_name() }}{% endblock %}
+{% block backname %}Surveys{% endblock %}
+{% block content %}
+{# What filing a survey would do before it does it (MANUAL §23, "The Surveys page"):
+   a survey never takes a part out of another machine, so where filing would, a person
+   says so here first. #}
+{% macro thing(tag) -%}<a href="/items/{{ tag }}">{{ names.get(tag, tag) }}</a> <span class="tag muted">{{ tag }}</span>{%- endmacro %}
+<div class="pagehead"><h1 class="heading">File survey {{ s.id }} against {{ names.get(machine, machine) }}</h1></div>
+<p>Filing it there moves these out of the machines the register has them in:</p>
+<ul>{% for part, was in moving %}<li>{{ thing(part) }}, out of {{ thing(was) }}</li>{% endfor %}</ul>
+<form method="post" action="/surveys/{{ s.id }}/file">
+  <input type="hidden" name="tag" value="{{ tag }}">
+  <input type="hidden" name="confirm" value="1">
+  {{ U.button('File and move them', type='submit') }}
+  {{ U.button('Cancel', href='/surveys/' ~ s.id) }}
+</form>
+{% endblock %}

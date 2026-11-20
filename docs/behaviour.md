@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3087 behaviours, from 95 files.*
+*3426 behaviours, from 98 files.*
 
 
 ## A barcode takes the room the words leave
@@ -162,6 +162,400 @@ Regenerate with:
   Rather than printing the wrong size on a printer somebody is not watching.
 - a key is not a password and a password is not a key  
   The two doors do not open each other: the owner's credentials are not an agent's key, and an agent's key is not the owner's credentials.
+
+
+## A machine that reports itself
+
+*test_a_machine_that_reports_itself.py — 265 behaviours*
+
+
+**What it takes**
+
+- with no agent named the register takes no surveys  
+  Not an empty list: the feature does not exist until a key has been written down in the environment, as with the print agent.
+- a wrong key is refused
+- the agents key opens its own door and nothing else  
+  Asked by somebody holding only the key: the suite's client is otherwise signed in as an administrator, and everything would answer.
+- a tag a survey makes has its label printed on the agents printer  
+  So a new machine's label is waiting by the time it is switched off.
+- an agent named without a printer prints nothing
+
+**A question before the tests**
+
+- a machine the register recognises is named
+- each thing found is given the answer already held
+- a card kept on a bench is answered as the benchs
+- something left out is answered out
+- a question carrying the tag is answered for that machine  
+  A thing with no serial number is known only in the machine it was answered in, so the answer for it needs the machine, which the person may have just typed.
+- something never seen has no answer
+- the answer names each thing the register can name  
+  So the machine shows each thing by that name, and asks its make and model only of what nobody can name: a card by its ROM, which comes with the question, a card on the PCI bus by its chip, a disk by its own model.
+- what the register can only describe has no name  
+  A ROM that names nobody, a chip the PCI table does not know, the ports, and a disk the BIOS knows by its size alone.
+- a message a rom prints is not the cards name  
+  QEMU's VGA BIOS prints "cirrus mode switch regular", which names a maker and says nothing about the card.
+- a machine is named by what its bios says
+- a bios that says nothing names nothing
+- a question without its roms is still answered  
+  As an agent from before ROMs went with the question sends one: what a ROM would have named is unnamed, and the rest is answered as ever.
+- a network boot rom the survey could not place is the cards  
+  netboot's ROM says neither that it is a network card's nor whose.
+- two roms that boot from the network are left to be answered
+- no rom is given to a card no packet driver ran
+- asking with roms keeps nothing  
+  The ROMs are read for what they say, and kept with the survey that sends them, not with the question.
+- asking records nothing  
+  A question is not a survey.
+- the answer to a survey names the machine and what is waiting  
+  It comes back to the machine's screen, so whoever is there knows it went and whether anything needs them.
+- the answer names a machine with no name by its tag once  
+  A machine made at the machine has nothing to be called yet but its tag, and a screen reading "RH-9Q0D RH-9Q0D" looks like a fault.
+- the answer says how the tests went in the historys words  
+  The tests' own names keep their capitals: RAM, not ram.
+
+**Labels for what is new**
+
+- the answer offers the printer the small label goes to
+- nothing is offered where the small label is a pdf
+- an agent with a printer of its own is not asked
+- yes queues the small label of everything the survey makes
+- without yes nothing is printed
+- the receipt says the labels were sent
+- yes queues the label of a new board
+
+**Which machine it is**
+
+- the tag typed at the machine files the survey there
+- a motherboards tag files the survey against the board  
+  A bare board on the bench, tested before it goes back in a case.
+- a motherboard fitted in a machine stands for the machine
+- n at the machine makes a new computer
+- a new machine is named by the make and model typed for it
+- what was typed chooses no catalogue model  
+  The catalogue names models its own way, and adopting one is a choice a person confirms.
+- a new computer has no name until somebody gives it one  
+  So it is called by its tag, as any machine with nothing filled in is.
+- a machine is recognised by a hard disk fitted in it
+- a machine is recognised by its network card
+- a machine is recognised by a network chip recorded as part of it
+- a machine is recognised by the serial number its bios keeps
+- a board serial number recognises the machine the board is fitted in
+- with nothing to go on a survey waits for a machine
+- a tag that disagrees with what is inside waits and does nothing
+- n that disagrees with what is inside waits and makes nothing
+- b at the machine makes a new motherboard and no computer  
+  A bare board on the bench that the register does not have yet (ADR-0052).
+- b that disagrees with what is inside waits and makes nothing
+- b for a board the register has waits rather than add it twice  
+  With N, a board known by its serial number is going into the new case; with B it is the board itself.
+- insides that point at two machines wait
+- a tag that is not a machine or a motherboard waits
+- a tag the register never issued makes nothing  
+  The register issues every tag, so a tag it never issued is a typing mistake, never a new record.
+- a card kept on a bench never says which machine this is
+
+**What it does with what it finds**
+
+- what is always part of the machine is never asked about
+- a hard disk cannot be part of the machine  
+  The register keeps a hard disk as a part of its own, so a disk answered as part of the machine has not been answered.
+- a card may be part of the machine
+- an answer is remembered for the same thing in the same machine
+- a thing with a serial number is known wherever it turns up
+- a thing with no serial number is known only in the machine it was answered in  
+  A VGA card in one machine says nothing about the VGA card in another.
+- two of the same in one machine are counted  
+  The survey cannot tell which is which, so the second is the new one.
+- the network card is one thing however the survey sees it  
+  By its address, and on the PCI bus: the card the survey ran through is asked about once, and a new one is named by its chip where the register knows it.
+- a second network card on the pci bus is a card of its own
+- an answer that no longer holds is asked again
+- what the register expected and did not find is listed and left  
+  A disk recorded in the machine that did not answer when the others did.
+
+**Drives**
+
+- each drive is asked about with all three answers
+- n makes a floppy drive named by what was typed
+- n makes a cd rom drive or a card named by itself
+- m writes a row in the machines drives
+- a drive its rows already record is part of the machine
+- a row stands for as many drives as it counts
+- a gotek row stands for a floppy drive
+- rows for cd rom drives and cards stand for them
+- a drive its rows do not record is asked  
+  The BIOS has a 1.44MB drive where the record has a 1.2MB one.
+- a drive fitted in it as a part is that part
+- a fitted drive with another serial is another drive
+- an answer for a floppy drive is remembered
+- a cd rom drive is known by its serial and says which machine
+
+**What it could not see**
+
+- the answer names each part on record it did not find
+- a part the survey found is not named again
+- a part said to be taken out leaves the machine
+- only a part in this machine is taken out
+- a tag given for anything else fits that part
+- n for anything else makes a part named by what was typed
+- a sound blaster is found and asked its make  
+  A clone answers as a Sound Blaster does, so the card is not named by it.
+- n makes a sound card
+- an adlib alone is a sound card
+- an adlib beside a sound blaster is the sound blasters
+- expanded memory on an at is a memory card
+- expanded memory on a 386 is not a card
+- an answer for a sound card is remembered
+- the page says a built in card is on the motherboard
+
+**What the hardware says**
+
+- a plug and play card is named by its maker and its own name
+- n makes a part of its maker and model
+- its serial number is not written as the parts  
+  It is printed on no label, so it is not what the field holds.
+- it is known by its serial number wherever it turns up
+- one whose serial number says nothing is known per machine
+- a plug and play card says which machine it is
+- a sound blaster at its ports is that card
+- the machine is told so it asks about the card once
+- a sound blaster 16s mpu 401 is asked about once
+- a plug and play network card is the network card
+- a monitor is named by its maker and model
+- qemus monitor is named from what it gave
+- n makes a display with its serial number
+- a monitor is known by its serial number wherever it turns up
+- its number serves where it writes none out
+- one that gives no serial number is known per machine
+- a monitor does not say which machine it is
+- the benchs monitor is left on the bench
+- the page offers to add a monitor to the bench
+- a vga card is named by its chip where nothing else names it
+- qemus isa cirrus card is named by its chip
+- a later s3 is named by its second id
+- a wd chip is named by the digits in its registers
+- a chip on the pci bus is named by the bus
+- n makes a video card of its chip
+- its rom names it before its chip
+- an answer given before its chip was read still holds
+- a gravis ultrasound is named as itself
+- an mpu 401 is asked its make
+- a sound blaster 16s mpu 401 is that cards
+- the ports say each serial ports chip and each parallel ports mode
+- ports answered before are not asked again
+
+**Serial numbers and addresses**
+
+- every serial number and address is recorded whatever its answer
+- a disk left out stays left out until its answer is changed
+- a part of its own carries its serial number
+- a network card carries its address
+- an address that is part of the machine makes no part
+
+**Part of the machine**
+
+- the processor is written the way the form asks for it  
+  From what a survey program sends: the family it says (80486), the CPUID signature that says which 486 it is, and the speed it measured.
+- a chip that answers cpuid is named by what it answers  
+  An AMD K6-2 says it is of the Pentium's family, and is written as itself.
+- a chip too old to say who made it is written without a maker
+- a 486 too early for cpuid is written as the survey says it
+- the speed written is the speed measured  
+  So a machine surveyed with its turbo switched off is written at its slower speed.
+- the coprocessor goes in the catalogues fpu socket
+- without a socket the coprocessor goes on the motherboard
+- memory is written as a plain total when nothing is recorded
+- above a mebibyte memory is rounded up to whole mebibytes  
+  Because an AT's BIOS leaves out the 384 KiB under its ROMs.
+- memory already recorded is left alone and the difference shown
+- the operating system on the first hard disk is written
+- what a later pcs bios says fills its maker model and serial number
+- a placeholder from the bios says nothing
+- the bios goes in the catalogues bios socket
+- otherwise the bios goes on the motherboard
+- the chipset a later pc names goes on the motherboard
+- ports answered as part of the machine go on the motherboard
+- anything else built in gets a line of its own
+- with no motherboard on record the answer is kept and nothing written
+- a bare motherboard gets what belongs to a board
+
+**The motherboard**
+
+- a machine with no board on record is asked about one
+- n makes one fitted in the machine and its bios goes on it
+- a new machine gets its board the same way
+- a board its bios names takes that name
+- a placeholder never names a board
+- x is remembered
+- a board cannot be part of the machine  
+  Part of the machine is what the catalogue's sockets are for.
+- a machine with a board on record is not asked
+- a catalogue machine that keeps its own bios is not asked  
+  An IBM 5150's BIOS goes in its BIOS ROM socket.
+- a board the register has is joined by its tag
+- a board the register has is known by its serial
+- a loose board known by its serial goes into a new machine  
+  With N typed, a board on a shelf is a board being put in a case.
+- with nothing typed a loose board is the board being surveyed  
+  A bare board on the bench, known by its serial number.
+- a board made by b is named as a new board in a machine is
+- a board made by b takes the name of the computer maker whose bios it is
+- a board made by b gets what belongs to a board
+- a board made by b is its own motherboard and is not asked about one
+- a board made by b has no location until it is put away
+- b makes a board from a report that says nothing of one  
+  B said there is one, which is enough.
+- a board made on the surveys page gets the bios too
+- the answer names a board its bios names
+
+**A part of its own**
+
+- a new part that names nothing is named by what was typed
+- a disk the bios knows only by its size is named by what was typed
+- only what was typed is written  
+  Enter at the model leaves the name the register would have given it.
+- a typed name is never how the thing is known again  
+  The next survey of the machine finds the same card by what the card says about itself, and nobody types anything that time.
+- a tag answered at the machine joins the part to its serial number  
+  How a disk catalogued by hand, before anything had read its serial number, is joined to its own record rather than added twice.
+- n makes a new hard disk named as it names itself
+- n makes a new card named by its rom
+- n makes a new card named by its chip on the pci bus
+- n makes a network card named by its driver with its address
+- n makes the ports an io card with them on it
+- a part fitted in this machine is confirmed and filled in
+- a part kept on a shelf is moved into the machine by survey
+- a part kept nowhere is moved into the machine
+- a part in another machine is never taken out
+- a disk that cannot say which one it is is known by its size in the same machine  
+  An MFM disk seen only through the BIOS, answered like a card.
+
+**Who made it from its bios**
+
+- a new board is named by the maker that wrote its bios
+- hp and dell are known by their name in a bios phoenix wrote
+- a bios house names nobody
+- the copy of the bios is read for its maker  
+  With no word from the survey program about who wrote it.
+- a clone bios that says compaq names nobody  
+  The copy says Phoenix wrote it, and is believed over the survey program, which found COMPAQ first.
+- the answer names the board so it is not asked
+- smbios names the board before its bios maker
+- a board on record with no maker has it filled in
+- a new machine is offered its bios maker
+- the maker offered is the one smbios gives where it gives one
+- a new machine takes its bios maker when nothing was typed
+- the badge typed at the machine wins  
+  An AT&T 6300 is an Olivetti inside.
+- a machine with no maker recorded has it filled in
+- the new computer form starts with its bios maker
+- a recorded maker is never changed or called a difference
+- a new card is made by the company its rom names
+- a branded machines own card carries its maker  
+  The Compaq 286's video BIOS says only whose it is.
+- the answer names a card by its maker and its model
+- a rom that names a program gives a model and no maker
+
+**Bench cards**
+
+- a location can be a bench
+- a card kept on a bench is never fitted in the machine
+- a part mounted on a bench card is the benchs too  
+  A boot ROM on the bench's network card goes where the card goes.
+- a card in a box on a bench is fitted like a card on a shelf  
+  A tray of spare cards beside the machines is stock, not the bench's kit.
+- a bench cards address is recorded where it stands
+- the survey names the card it came through
+- add to bench makes a new card on a bench
+- a card made in a machine and moved to a bench is a bench card from then on  
+  The first time its address is read, N fits it in the machine being tested; moved to the bench afterwards, it is left alone in every machine after.
+- a bench card is left alone whichever machine it is in
+- a machine standing on a bench keeps its own cards  
+  What is fitted in a machine is the machine's, wherever the machine is.
+
+**Working from the tests**
+
+- a survey whose every test passed marks the machine working
+- a test that does not apply does not count against it  
+  A clock on an XT, a second interrupt controller on a PC.
+- a skipped test does because it has not been run
+- a soak counts the same
+- a failed test never writes faulty  
+  A failure says where to look rather than what the machine is.
+- a run that was stopped part way marks nothing
+- a condition somebody chose is never changed
+- a failure never takes working away
+- a faulty machine that passes every test is pointed out
+- the parts in the machine keep their condition  
+  The tests are of the machine, and do not say which card each result belongs to.
+
+**RO ms**
+
+- a rom is kept as a private file with a note saying what it is
+- the bios is linked to the machine
+- the bios is linked to the motherboard when there is one
+- a cards rom is linked to the card
+- a cards rom is linked to the machine when the card is part of it
+- the rom of something left out is not kept
+- the same rom is one file linked to one more thing
+- roms start private whatever new files are public says  
+  A BIOS is somebody's copyright, and publishing one should be a decision.
+- a network cards boot rom goes with the card  
+  So a bench card's boot ROM is the bench card's in every machine, and is never asked about.
+- a later boards bios is the bios wherever it starts  
+  It runs to the top of the first megabyte.
+- its maker and version are read wherever it starts
+- an option rom below the bios is still a card
+- a network boot rom is the cards in the report too  
+  Where the machine did not hear which ROM it is (the register was not reached, or an agent from before ROMs went with the question), the report's ROMs say it.
+- the text in each rom is kept with the survey
+- the bioss maker version and date are read from its text
+- a bios date is written month first  
+  As the BIOS writes it, because that is how it is known and looked up.
+
+**In the history**
+
+- each survey writes one line marked survey
+- the line is dated when the survey was taken  
+  By the agent's clock, since a machine's own is often wrong.
+- a machine a survey made was made before it was surveyed  
+  Its history reads in the order it happened: made, then surveyed.
+- a board a survey made was made before it was surveyed
+- the line says every test passed and what was filled in
+- the line says how many tests failed and which
+- the line says how many tests were skipped  
+  A skipped test has not been run, so the line never says every test passed.
+- the counts are of the tests that apply  
+  A clock test on an XT is no test at all, so it is not one of the total.
+- so are the failures
+- a test that does not apply still lets it say every test passed
+- a soaks line says how long it ran
+- the line says nothing a visitor is not shown  
+  No serial number, no address, nowhere anything is kept: the history is public.
+- an ethernet address is never written into a parts history
+
+**What A survey never does**
+
+- it never changes something already recorded
+- it never makes anything nobody asked for
+- it never moves the machine it is surveying
+
+**What A report says**
+
+- a report without an rhdb section is refused
+- an rhdb section with nothing in it is refused
+- a file with several reports in it is several surveys
+- a key the register does not know is ignored
+- the report is kept as the program wrote it
+- the machines own clock is kept beside the real one  
+  A machine whose clock thinks it is 1980 has a flat battery.
+
+**A report as tinydiag writes it**
+
+- n at the machine makes a computer of what it found
+- its receipt says three tests were skipped
+- left alone it waits to be told which machine it is
 
 
 ## A second of a model
@@ -1720,7 +2114,7 @@ Regenerate with:
 
 ## Deployment
 
-*test_deployment.py — 19 behaviours*
+*test_deployment.py — 24 behaviours*
 
 
 **The api trusts its proxy**
@@ -1775,6 +2169,18 @@ Regenerate with:
 
 - the image is pinned to a minor release
 - ci runs the suite on the same one
+
+**The site offers only what it serves**
+
+- http3 is not offered
+- http3 is offered only where its port is published  
+  The fault itself was an offer nothing answered.
+- a browser is told to forget an offer made before  
+  A browser keeps an offer for as long as it was told to, a month here, and `clear` is how it is told to drop it sooner.
+- a deploy reloads caddy after the stack is up  
+  The Caddyfile is mounted rather than built in, so a change to it reaches nothing until Caddy reads it again, and `up` does not make it.
+- the reload reads the caddyfile that is there now  
+  Through its directory, not as a file of its own.
 
 
 ## Drivedb
@@ -2035,7 +2441,7 @@ Regenerate with:
 
 ## Error pages
 
-*test_error_pages.py — 12 behaviours*
+*test_error_pages.py — 14 behaviours*
 
 - a missing page is a page
 - a missing page arrives in the site chrome  
@@ -2054,6 +2460,9 @@ Regenerate with:
   Asked for in a browser or by a script alike: /api is a program's surface.
 - a client that did not ask for html keeps the json
 - a fault outside a page is the plain answer it was
+- an address a button uses goes to the buttons page  
+  Rotate posts to /parts/<tag>/photo-rotate, and a browser's address bar can offer that back later, or a link to it be copied and opened (MANUAL section 2).
+- a program that opens a buttons address is still refused
 
 
 ## File public switch
@@ -4901,7 +5310,7 @@ Regenerate with:
 - its label address opens its page  
   /items/<tag> is the address every label carries, whatever the tag is.
 - new location makes one and opens its page
-- the form offers the seven kinds
+- the form offers the eight kinds
 - a kind it does not offer is refused
 - a name is required
 - inside says which location it is in
@@ -5444,6 +5853,127 @@ Regenerate with:
 - the tree behind them is locked
 - its image installs the lock and nothing else
 - dependabot keeps it current as it does the apps
+
+
+## The survey agent
+
+*test_the_survey_agent.py — 28 behaviours*
+
+- a question is answered beside it  
+  The machine asks before it tests anything, so that a machine the register knows is named on its screen and nothing is asked of whoever is there.
+- a question is not a survey  
+  Asking writes nothing: the serial number in a question is recorded when the survey that carries it arrives, and not before.
+- a question goes with the roms it names  
+  So the register can say what a card is by its ROM before the tests.
+- a question sends no rom from outside its own folder
+- a report is sent and its receipt written beside it
+- a report is sent once  
+  SENT is a folder inside the one it watches, and what is in it has gone.
+- a report still being written is left alone  
+  A report is sent once it has been left alone for ten seconds.
+- the receipt is lines a dos screen can show  
+  The survey program shows it as it is: short lines, in the machine's own character set, ending the way DOS ends a line.
+- its roms go into sent with it
+- reports in folders inside it are sent too  
+  A boot network may give each machine a folder of its own.
+- a file with no rhdb section is not a report  
+  Notes, a README, a soak's log: the folder is a shared drive, and the agent sends only what a survey program wrote for it.
+- a report copied in from a floppy is sent like any other  
+  A machine with no network carries its report on a floppy, and the file keeps the date it was written.
+- a soak still running is left alone  
+  A soak rewrites its report after every pass.
+- a soak that stopped is sent
+- a soak left alone for an hour is sent as it stands  
+  Because the machine was switched off part-way, which is how most soaks end.
+- a report the register refuses moves into refused with the reason
+- a refused report says so where the machine is waiting  
+  The machine waits for a receipt; one that never came would leave whoever is at it watching a screen that will not change.
+- a report it could not deliver stays and is tried again  
+  An agent with no register to talk to is not an error: the report waits in its folder until it can be sent.
+- every name it writes fits eight characters and three  
+  So a DOS machine can read every file the agent writes.
+- a wrong key stops rather than retrying for ever  
+  A key the register does not know will not start working, and asking again for ever would hide the one fault a person has to fix.
+- check says the key works
+- check on a wrong key says so in the code the unit stops on
+- it needs to be told where the register is
+- it needs to be told which folder to watch
+- the service file matches the script it starts
+- the unit and the script agree on what is set  
+  A variable in the unit that the script ignores, or one the script needs and the unit leaves out, is a service that does nothing and says nothing.
+- the unit lets it write in the folder it watches and nowhere else  
+  It moves what the machines left and writes beside it.
+- the unit names what the manual names
+
+
+## The surveys page
+
+*test_the_surveys_page.py — 39 behaviours*
+
+
+**Reading it**
+
+- anybody signed in can read the surveys
+- a visitor is shown none of it
+- only an administrator can act on a survey
+- waiting comes first and then newest first
+- the page shows waiting above the rest
+- a survey with a failed test is marked
+
+**Filing A survey that waits**
+
+- file does what the tag typed at the machine would have done
+- filing that would take a part out of another machine says so first
+- new computer opens the form with what the survey found
+- saving the new computer files the survey against it
+- new motherboard opens the part form with what the survey found
+- saving the new motherboard files the survey against it
+
+**Answering on the page**
+
+- a survey waiting on an answer has done everything else
+- new part makes it as n at the machine would
+- link joins a part the register has
+- leave out leaves it out
+- part of the machine is an answer a card may be given
+- an answer can be changed afterwards
+
+**The row the answers stand in**
+
+- the answers stand in a row of their own under the thing
+- a box stands with the button that sends it  
+  The tag box means nothing a line away from Link, so a box and its button are one flex item -- the row wraps between answers, never inside one.
+- a box is named for the ear and sized for what it takes  
+  The button beside a box is its visible meaning, so the box's label is there for the screen reader alone (`.sr-only`); a caption floating over every box was much of the clutter.
+
+**A surveys page**
+
+- it shows the report as the program wrote it
+- it shows the machines own clock beside the real one
+- it shows the text in each rom
+- it shows what was read that differs from the record
+- it shows what was expected and not found
+- delete removes a survey and keeps what it filled in
+
+**Seen**
+
+- seen lists each serial number and address with what it belongs to
+- seen says a plug and play card or a monitor is one
+- seen says where and when each was last seen
+- each opens the last survey that read it
+- signed in a search finds a serial number a survey has seen  
+  So the number on a drive's label says where that drive has been, even if it was never made a part.
+
+**Who sees what**
+
+- a visitor is never shown an ethernet address
+- a visitors search never finds an ethernet address
+- an ethernet address is never printed on a label
+- a hard disks serial number is public once it is a part
+- a serial number that belongs to nothing is kept from a visitors search
+- a visitor sees the survey line and not the link to it
+- the survey pages are walked with every other page  
+  So they are held to the content policy and the accessibility rules like the rest (ADR-0021, ADR-0014): those tests walk this list.
 
 
 ## The three steps

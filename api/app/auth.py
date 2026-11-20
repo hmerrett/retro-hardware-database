@@ -136,12 +136,14 @@ def _is_api_path(path: str) -> bool:
     return path.startswith(("/api", "/docs")) or path == "/openapi.json"
 
 
-# The one prefix a machine holding no password may knock on. Everything under it
-# takes a print agent's own key, checked by the route rather than here -- the same
-# shape ADR-0009 uses for files, where the door is open and the row decides. The
-# gate cannot do it: it would have to know which agent, which is the route's answer
-# and the whole of what the key is for.
+# The prefixes a machine holding no password may knock on: the print agent's and the
+# survey agent's (ADR-0025, ADR-0043). Everything under them takes an agent's own key,
+# checked by the route rather than here -- the same shape ADR-0009 uses for files,
+# where the door is open and the row decides. The gate cannot do it: it would have to
+# know which agent, which is the route's answer and the whole of what the key is for.
 AGENT_PREFIX = "/api/print/agent/"
+SURVEY_AGENT_PREFIX = "/api/survey/agent/"
+AGENT_PREFIXES = (AGENT_PREFIX, SURVEY_AGENT_PREFIX)
 
 
 def note_wrong_secret(request: Request) -> bool:
@@ -178,14 +180,18 @@ def _always_open(path: str) -> bool:
         "/apple-touch-icon-precomposed.png",
     ):
         return True
-    return path.startswith(("/static/", "/style/", AGENT_PREFIX))
+    return path.startswith(("/static/", "/style/", *AGENT_PREFIXES))
 
 
 # Pages that are not public, and that a viewer may read: they show what a visitor is
 # not shown, and change nothing. Anything not listed here or public is an
 # administrator's, so a new page nobody thought to list is kept from a viewer rather
 # than shown to one.
-VIEWER_PAGES = frozenset({"/for-sale"})
+VIEWER_PAGES = frozenset({"/for-sale", "/surveys"})
+
+# The same for pages under a path: each survey's own page and the list of what surveys
+# have seen are read by a viewer, and everything done to one is a POST (ADR-0043).
+VIEWER_PREFIXES = ("/surveys/",)
 
 # A person's own account: their password, their sessions, their tokens. Anybody
 # signed in, whatever their role, and every method -- changing your own password is
@@ -205,7 +211,9 @@ def may(principal: Principal, method: str, path: str, closed: bool) -> bool:
         return True
     if method != "GET":
         return False
-    if can(principal, READ_PRIVATE) and (path in VIEWER_PAGES or _is_api_path(path)):
+    if can(principal, READ_PRIVATE) and (
+        path in VIEWER_PAGES or path.startswith(VIEWER_PREFIXES) or _is_api_path(path)
+    ):
         return True
     if closed and not principal.signed_in:
         return False
@@ -314,7 +322,7 @@ def _who(path: str, cookie: str, header: str) -> tuple[Principal, bool]:
     guess at an account's token."""
     offered = (
         _is_api_path(path)
-        and not path.startswith(AGENT_PREFIX)
+        and not path.startswith(AGENT_PREFIXES)
         and header.startswith(("Bearer ", "Basic "))
     )
     if not cookie and not offered:

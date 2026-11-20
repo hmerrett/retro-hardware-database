@@ -16,6 +16,59 @@ need a hand is written under the release that needs it.
 
 ## Unreleased
 
+**Pages open every time, in Safari too.** The site told browsers it spoke HTTP/3,
+which it never did: that needs UDP on port 443, and only TCP was ever opened. A
+browser that took up the offer stalled, or gave up on the page, before it fell back,
+Safari most of all. Now it offers HTTP/2 and HTTP/1.1 only, and tells a browser to
+forget the offer it was given before. A change to the Caddyfile now takes effect
+with the rest: Caddy is given its whole directory rather than the one file, which a
+`git pull` left it reading the old copy of, and `./deploy.sh` reloads it.
+
+**Upgrading:** nothing to do. The next `./deploy.sh`, or `docker compose up -d` after
+a pull, recreates Caddy with its directory, and it reads the new Caddyfile then.
+
+**A machine can report itself.** A survey program run on the machine (tinydiag, from
+a network drive or a floppy) writes down what it finds: processor, memory, BIOS,
+disks, network and video cards, ROMs, and how its tests went. The survey agent, a
+small program on the server beside the machines, sends that to the register. The
+register works out which machine it is from the tag typed at the machine, a disk's
+serial number or a card's Ethernet address. It fills in what the record is missing,
+records every serial number and address it is shown, and marks the machine Working
+when every test passed. Anything it cannot place waits on the new Surveys page for
+an answer: part of the machine, a part of its own, or left out. A card kept on a
+bench itself (not in a tray or drawer on it) is never fitted in the machines it
+tests. Something new that nobody can name
+(an MFM disk, a card with no ROM, a machine whose BIOS does not say what it is) is
+asked its make and model at the machine, so it is named when it is made. A machine
+with no motherboard on record is asked about one, so its BIOS, chipset and board
+serial number have somewhere to go. A BIOS written by the company that made the
+machine (Compaq, IBM, Amstrad and others, or one carrying HP's or Dell's name) names
+the board and offers the machine its make, and a card's ROM that names who made it
+(Tseng Labs, Adaptec, Compaq) gives a new card its manufacturer. Floppy drives,
+CD-ROM drives and CompactFlash cards are asked about like any other thing: a tagged
+part, part of the machine (a row in its Drives list), or left out. A drive the
+machine's rows or fitted parts already record is taken for that, so nothing is
+recorded twice. Where the small label goes to a print agent, the machine offers to
+print the small label of everything the survey makes, once, and Y queues them.
+After the things it found, a survey asks about the parts on record it did not find
+(still fitted, or taken out) and for anything else fitted, and it looks for a sound
+card and expanded memory itself. It asks the hardware what it is, as DOS diagnostic
+programs did: Plug and Play cards give their maker, their own name and a serial
+number, a monitor its maker, model and serial number (a new Display part), and a
+VGA card its chip (Tseng Labs, Cirrus Logic, S3, Trident and others) where nothing
+else names it. A Plug and Play card and a monitor are known by their serial numbers
+wherever they turn up, and the bench's monitor stays on the bench. The ports' line
+says each serial port's chip and whether a parallel port is ECP or bidirectional,
+and a Gravis UltraSound or an MPU-401 is found where the survey's network card is
+on the PCI bus. A bare board tested on its own can be added as a motherboard rather
+than a whole machine: B at the machine, or New motherboard on the Surveys page.
+
+**Upgrading:** nothing to do unless you want surveys. Give an agent a key in
+`RHDB_SURVEY_AGENTS` in `.env`, run `tools/survey_agent.py` where the machines'
+reports are written, and set your bench's location kind to Bench (the manual's
+*Surveys* has the whole of it). Ethernet addresses are shown only to people signed
+in.
+
 **Each release is published as images, so an installation no longer builds them.**
 When a release is made, the app and the tool server are built for x86-64 and 64-bit
 ARM and published at `ghcr.io/hmerrett/retro-hardware-database`. Installing one is

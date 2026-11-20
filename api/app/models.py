@@ -22,6 +22,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
+from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import Mapped, MappedColumn, mapped_column
 
 from .db import Base
@@ -234,6 +235,13 @@ class Part(Thing):
     # because a spare card is as likely to be the thing going as a whole machine.
     for_sale: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="0"
+    )
+    # A network card's own address, as a survey reads it off the card (ADR-0043). The
+    # owner's alone, like the sale flag: kept off a visitor's page, out of their search
+    # (common.OWNER_ONLY), off the spec line and so off the label, and out of every
+    # history line, because it is what a network knows a machine by.
+    ethernet_address: Mapped[str] = mapped_column(
+        String(17), nullable=False, default="", server_default=""
     )
 
     __mapper_args__ = _mapped(polymorphic_identity="part")
@@ -596,6 +604,12 @@ class StoredFile(Base):
     # somebody says it is, and the tick that says so is the only thing standing
     # between a scanned invoice and the open web (ADR-0009).
     public: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    # The SHA-256 of the bytes, kept for the ROMs a survey copies, so that one read again
+    # -- from this machine, or another of the same model -- is the file already kept,
+    # linked to one more thing (ADR-0043). Empty for an upload, which nothing matches.
+    digest: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="", server_default="", index=True
+    )
 
     # Not columns. filesdb.with_links hangs these on the rows of a page so that a
     # list of files costs two queries and not two per file, and the templates read
@@ -1116,3 +1130,90 @@ class ApiToken(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+# --- surveys: a machine's report of itself (ADR-0043) -----------------------------
+# A survey program on the machine tests it and writes a report; an agent beside it
+# sends the report, and the register files it against the machine. Kept as a row of
+# its own rather than as a history line or a file, because it is read back -- its
+# findings are answered on its page, sometimes days later -- and because a report a
+# week for every machine would bury the files that want attention.
+#
+# The lists a survey carries (what it found, what it filled in, what differed, the
+# ROMs and the text in them) are JSON in text columns, read and written whole by
+# surveys.py: nothing queries inside them, and a column for each would be a table for
+# each with nothing to join it to.
+
+
+class Survey(Base):
+    """One survey, as an agent sent it and as the register filed it.
+
+    `taken` is the agent's clock, not the machine's: a machine's clock is often wrong,
+    and `clock` keeps what it said, which is how a flat battery is found. `machine` is
+    the computer, or the bare motherboard, it was filed against, and `waiting` is what
+    it is waiting for: a machine, an answer, or nothing."""
+
+    __tablename__ = "surveys"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    agent: Mapped[str] = mapped_column(String(64), nullable=False, default="", server_default="")
+    taken: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    clock: Mapped[str] = mapped_column(String(32), nullable=False, default="", server_default="")
+    report: Mapped[str] = mapped_column(MEDIUMTEXT, nullable=False)
+    keys: Mapped[str] = mapped_column(MEDIUMTEXT, nullable=False)
+    machine: Mapped[str | None] = mapped_column(String(16), index=True)
+    how: Mapped[str] = mapped_column(String(16), nullable=False, default="", server_default="")
+    by: Mapped[str] = mapped_column(String(128), nullable=False, default="", server_default="")
+    waiting: Mapped[str | None] = mapped_column(String(16), index=True)
+    reason: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
+    result: Mapped[str] = mapped_column(String(16), nullable=False, default="", server_default="")
+    bench_card: Mapped[str | None] = mapped_column(String(16))
+    findings: Mapped[str] = mapped_column(MEDIUMTEXT, nullable=False)
+    filled: Mapped[str] = mapped_column(Text, nullable=False)
+    differs: Mapped[str] = mapped_column(Text, nullable=False)
+    missing: Mapped[str] = mapped_column(Text, nullable=False)
+    roms: Mapped[str] = mapped_column(MEDIUMTEXT, nullable=False)
+    # The history line the survey wrote, so the line can link back to it. SET NULL,
+    # because the owner may delete the line and the survey is still the survey.
+    log_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("log_entry.id", ondelete="SET NULL"), index=True
+    )
+
+
+class SurveySeen(Base):
+    """A serial number or an Ethernet address a survey has read, recorded the first
+    time and moved on by every survey that reads it again (ADR-0043).
+
+    What it belongs to is `answer` and `asset_id`: a part of its own, the machine it is
+    part of, or nothing at all, which is what left out and not yet answered both are.
+    So nothing is new twice: a disk left out is known the next time, wherever it turns
+    up. `kind` is disk, mac, system or board."""
+
+    __tablename__ = "survey_seen"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    kind: Mapped[str] = mapped_column(String(8), nullable=False)
+    value: Mapped[str] = mapped_column(String(128), nullable=False)
+    answer: Mapped[str | None] = mapped_column(String(8))
+    asset_id: Mapped[str | None] = mapped_column(String(16), index=True)
+    first_seen: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    last_seen: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    last_in: Mapped[str | None] = mapped_column(String(16))
+    last_survey: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("surveys.id", ondelete="SET NULL"), index=True
+    )
+    __table_args__ = (UniqueConstraint("kind", "value", name="uq_survey_seen_kind_value"),)
+
+
+class SurveyAnswer(Base):
+    """An answer given for a thing that cannot say which one it is -- a VGA card, the
+    ports, a disk seen only through the BIOS -- kept for the machine it was found in
+    (ADR-0043). `thing` is what it says it is (its kind and what the report names it
+    by), and `nth` which of the same it is, since two in one machine are counted."""
+
+    __tablename__ = "survey_answers"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    machine: Mapped[str] = mapped_column(String(16), nullable=False)
+    thing: Mapped[str] = mapped_column(String(191), nullable=False)
+    nth: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0, server_default="0")
+    answer: Mapped[str] = mapped_column(String(8), nullable=False)
+    part: Mapped[str | None] = mapped_column(String(16))
+    __table_args__ = (UniqueConstraint("machine", "thing", "nth", name="uq_survey_answer"),)

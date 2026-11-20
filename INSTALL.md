@@ -97,6 +97,7 @@ Now edit `.env`. Every setting, and what it does:
 | `RHDB_BASE_URL` | The public URL of your site. Defaults to `https://$RHDB_DOMAIN`; set it only if they differ. |
 | `RHDB_WATERMARK` | `1` to watermark your own photos with your site logo as they are served, `0` to serve them untouched. The logo is whatever is in `branding/`, or the shipped placeholder. Also a setting on ⋯ → Settings; set here, this wins and the page says so. |
 | `RHDB_PRINT_AGENTS` | Label printers that are not attached to this machine, as `name:key:stock:format` separated by commas. Leave empty unless you are running a print agent — see the manual. |
+| `RHDB_SURVEY_AGENTS` | The survey agents that send in machines' reports of themselves, as `name:key` (or `name:key:printer`) separated by commas. Leave empty unless you are running one (the manual's *Surveys*). |
 | `RHDB_VERSION` | Leave blank. Blank is the release you checked out, whose images step 5 pulls. A number here stays put when the checkout moves on, and the next pull would fetch that release's images for code they were not built from. |
 
 Two of these matter more than they look:
@@ -334,10 +335,10 @@ migration step to remember.
 
 Two things do **not** update that way:
 
-- **`caddy/Caddyfile`.** It is mounted into the container as a single file, so
-  Compose sees nothing changed and leaves Caddy running the old config without
-  saying so. Use `docker compose up -d --force-recreate caddy`, then check it
-  took with `docker compose exec caddy cat /etc/caddy/Caddyfile`.
+- **`caddy/Caddyfile`.** Caddy reads it when it starts or is told to reload, and
+  Compose sees nothing to restart when only the file changed. `./deploy.sh` tells it
+  to reload. After pulling images, do the same:
+  `docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile`.
 - **`.env`.** It is read when a container is created. After editing it, run
   `docker compose up -d` to recreate the containers that use it.
 

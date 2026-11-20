@@ -1,6 +1,7 @@
 # 0034 — A location is a record in the register
 
 **Status:** Accepted — amended by [ADR-0036](0036-where-a-thing-is-is-one-tree.md)
+and [ADR-0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md)
 **Date:** 2026-10-01
 **Supersedes:** [ADR-0027](0027-a-remembered-vocabulary-is-deleted-when-it-is-turned-off.md)
 

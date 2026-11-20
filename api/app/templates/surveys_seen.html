@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% import "_ui.html" as U with context %}
+{% import "_panel.html" as PN %}
+{% block title %}Seen — {{ site_name() }}{% endblock %}
+{% block backname %}Surveys{% endblock %}
+{% block content %}
+{# Every serial number and Ethernet address a survey has read (MANUAL §23, "Serial
+   numbers and addresses"): what each belongs to, or that it belongs to nothing, and
+   where and when it was last seen. For people signed in. #}
+{% macro thing(tag) -%}<a href="/items/{{ tag }}">{{ names.get(tag, tag) }}</a> <span class="tag muted">{{ tag }}</span>{%- endmacro %}
+<div class="pagehead"><h1 class="heading">Seen</h1>
+  <p class="hint">Every serial number and Ethernet address a survey has read. {{ U.button('Surveys', href='/surveys') }}</p></div>
+{% call PN.panel('Seen', rows | length or '') %}
+{% if rows %}
+<table class="table stack">
+  <thead><tr><th scope="col">What</th><th scope="col">Number</th><th scope="col">Belongs to</th><th scope="col">Last seen in</th><th scope="col">Last seen</th><th scope="col">Survey</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+  <tr>
+    <td data-label="What">{{ kinds.get(r.kind, r.kind) }}</td>
+    <td data-label="Number" class="break"><code>{{ r.value }}</code></td>
+    <td data-label="Belongs to">{% if r.answer == 'part' and r.asset_id %}{{ thing(r.asset_id) }}{% elif r.answer == 'machine' and r.asset_id %}Part of {{ thing(r.asset_id) }}{% elif r.answer == 'out' %}Left out{% else %}<span class="muted">Not answered yet</span>{% endif %}</td>
+    <td data-label="Last seen in">{% if r.last_in %}{{ thing(r.last_in) }}{% else %}<span class="muted">No machine yet</span>{% endif %}</td>
+    <td data-label="Last seen">{{ when(r.last_seen) }}</td>
+    <td data-label="Survey">{% if r.last_survey %}<a href="/surveys/{{ r.last_survey }}">Survey {{ r.last_survey }}</a>{% endif %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}<p class="pbody muted">No survey has read a serial number or an address yet.</p>{% endif %}
+{% endcall %}
+{% endblock %}

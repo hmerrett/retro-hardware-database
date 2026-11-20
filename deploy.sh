@@ -18,6 +18,12 @@ echo "==> Rebuilding and restarting containers"
 export RHDB_COMMIT="$(git rev-parse --short HEAD)"
 docker compose up -d --build
 
+echo "==> Reloading Caddy's configuration"
+# The Caddyfile is mounted rather than built in, so a change to it reaches nothing
+# until Caddy reads it again. A reload is graceful and checks the file first: one
+# that does not parse stops the deploy here and leaves the running one in place.
+docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
+
 echo "==> Pruning dangling images"
 docker image prune -f >/dev/null || true
 

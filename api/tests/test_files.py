@@ -1205,10 +1205,13 @@ class TestTheBytes:
         from app import filesdb
 
         monkeypatch.setattr(filesdb, "MAX_BYTES", 32)
+        # Compared with what was there before, since the folder is the whole run's and
+        # other tests keep files in it (a survey's ROMs are .bin too).
+        before = set(filesdb.FILES_DIR.glob("*")) if filesdb.FILES_DIR.is_dir() else set()
         r = upload(client, "big.bin", b"x" * 200)
         assert r.headers["location"].endswith("fileerr=1")
         assert db.query(StoredFile).count() == 0
-        assert not list(filesdb.FILES_DIR.glob("*.bin"))
+        assert set(filesdb.FILES_DIR.glob("*")) - before == set()
 
     def test_an_upload_with_nothing_to_be_linked_to_is_kept_unlinked(self, client):
         """Nothing is lost for want of a page to have started on: the file is kept,
