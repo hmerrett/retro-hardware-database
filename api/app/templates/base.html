@@ -93,8 +93,11 @@
     outside it, since they are fixed to the window rather than to a column. #}
 {% set _nav = site_nav() %}
 {% if _nav == 'side' %}{% set _shut = rail_collapsed(request) %}
+{#- A bare rail reads nothing from the database: the 500 page's, drawn when the
+    database is the likeliest thing to have failed (errors.page). #}
+{% set _bare = bare_rail | default(false) %}
 <div class="shell side{{ ' collapsed' if _shut else '' }}">
-{{ U.rail(_p, request.state.authed, _back, rail_counts(request.state.sees_private), shut=_shut) }}
+{{ U.rail(_p, request.state.authed, _back, {} if _bare else rail_counts(request.state.sees_private), shut=_shut, bare=_bare) }}
 <div>
 {% endif %}
 {{ U.site_header(_p, request.state.authed, _back, q | default('', true)) }}

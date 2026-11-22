@@ -498,7 +498,10 @@ Three things can be said there.
   mention.
 - **Something went wrong.** The fault is at this end rather than in what you
   asked for. It is written to the server's log, where it says far more than a page
-  shown to a stranger should.
+  shown to a stranger should. With the side rail, this page leaves out the number
+  beside each section and **Recent**: both are read from the database, which is the
+  likeliest thing to have gone wrong, so the page arrives at once instead of
+  waiting on it.
 
 None of the three is offered to a search engine.
 

@@ -21,6 +21,7 @@ site being down. Opened as a page, a button's address goes to the button's page.
 
 from fastapi import FastAPI, Request, Response
 from fastapi.exception_handlers import http_exception_handler
+from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import PlainTextResponse, RedirectResponse
 
@@ -78,12 +79,36 @@ def page(request: Request, status: int) -> Response:
         request.state.principal = VISITOR
     if not hasattr(request.state, "noticed"):
         request.state.noticed = True
+    # The 500's rail is bare: no figures beside the sections and no Recent, the two
+    # things a rail reads from the database. The database is the likeliest thing to
+    # have failed, and asking it again would keep this page waiting as long as the
+    # request that failed. A rail with no figures is still a rail (rail.counts).
     return templates.TemplateResponse(
         request,
         "error.html",
-        {"status": status, "heading": heading, "line": line, "noindex": True},
+        {
+            "status": status,
+            "heading": heading,
+            "line": line,
+            "noindex": True,
+            "bare_rail": status == 500,
+        },
         status_code=status,
     )
+
+
+async def drawn(request: Request, status: int) -> Response:
+    """`page`, drawn in a worker thread rather than on the event loop.
+
+    The handlers below are async, and so is the gate that answers a viewer's 403,
+    so they run on the one loop that every request in the process shares. Drawing
+    a page reads the database (the rail's figures, Recent), and a read that finds
+    the pool empty waits for a connection. On the loop, that wait stopped every
+    other request, the ones that would have given a connection back included. So a
+    500 drawn there kept the pool empty, the next request failed and drew another,
+    and on 22 November 2026 the site answered nothing for fourteen hours.
+    """
+    return await run_in_threadpool(page, request, status)
 
 
 def _buttons_page(path: str) -> str:
@@ -104,7 +129,7 @@ async def http_error(request: Request, exc: Exception) -> Response:
         if exc.status_code == 405 and opened and _wants_page(request):
             return RedirectResponse(_buttons_page(request.url.path), status_code=303)
         if exc.status_code in PAGES and _wants_page(request):
-            return page(request, exc.status_code)
+            return await drawn(request, exc.status_code)
         return await http_exception_handler(request, exc)
     return await unhandled_error(request, exc)
 
@@ -122,7 +147,7 @@ async def unhandled_error(request: Request, exc: Exception) -> Response:
     """
     if not _wants_page(request):
         return PlainTextResponse("Internal Server Error", status_code=500)
-    response = page(request, 500)
+    response = await drawn(request, 500)
     response.headers.setdefault("Content-Security-Policy", CONTENT_SECURITY_POLICY)
     return response
 

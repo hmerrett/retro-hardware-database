@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3471 behaviours, from 100 files.*
+*3478 behaviours, from 100 files.*
 
 
 ## A barcode takes the room the words leave
@@ -2478,7 +2478,7 @@ Regenerate with:
 
 ## Error pages
 
-*test_error_pages.py — 14 behaviours*
+*test_error_pages.py — 21 behaviours*
 
 - a missing page is a page
 - a missing page arrives in the site chrome  
@@ -2500,6 +2500,22 @@ Regenerate with:
 - an address a button uses goes to the buttons page  
   Rotate posts to /parts/<tag>/photo-rotate, and a browser's address bar can offer that back later, or a link to it be copied and opened (MANUAL section 2).
 - a program that opens a buttons address is still refused
+
+**Error pages are drawn off the event loop**
+
+- a missing page
+- a page that is not open
+- a refusal the gate makes itself  
+  A viewer at an administrator's page is answered by the gate, before any route, and the gate is async too.
+- a fault at this end
+
+**A fault page asks the database nothing**
+
+- its rail leaves out the figures
+- nothing in its rail asks the database  
+  Recent included: the fixture's reader is the owner, who is shown it.
+- a missing page keeps its figures  
+  A 404 is no sign of a database in trouble.
 
 
 ## Every item on one page

@@ -16,6 +16,17 @@ need a hand is written under the release that needs it.
 
 ## Unreleased
 
+**A busy moment no longer takes the site down.** When a burst of requests used every
+connection to the database, the page that says **Something went wrong** waited for
+one as well, and it waited in the one place where that stops every other request
+(the ones that would have handed a connection back included). So the site never
+recovered by itself: on 22 November 2026 every page timed out for fourteen hours,
+until the app was restarted. Error pages are now drawn where a wait holds up nothing
+else, and **Something went wrong** no longer reads the database for the rail's
+figures, so it arrives at once.
+
+**Upgrading:** nothing to do.
+
 **Every item on one page.** Under the gallery's pages, **Every item** opens the
 whole collection as one list at `/items`: every computer and part by name, with its
 tag and what kind of thing it is. There are no photographs on it, so the browser's

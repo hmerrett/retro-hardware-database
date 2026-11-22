@@ -342,19 +342,20 @@ def _who(path: str, cookie: str, header: str) -> tuple[Principal, bool]:
         return (p, False) if p else (VISITOR, True)
 
 
-def _forbidden(request: Request, api_path: bool) -> Response:
+async def _forbidden(request: Request, api_path: bool) -> Response:
     """Somebody signed in, asking for something their role does not reach.
 
     403 and not the login: sending a signed-in viewer to log in would ask them to
-    prove again who they are, which is not what is wrong."""
+    prove again who they are, which is not what is wrong. The page is drawn in a
+    worker thread, because the gate runs on the event loop (errors.drawn says why)."""
     if api_path:
         return Response("Your account may not do that", status_code=403)
     # Imported here: errors reads _is_api_path from this module, and the page it
     # draws is the site's one 403, so a second one of this module's own would be two
     # answers to the same question.
-    from .errors import page
+    from .errors import drawn
 
-    return page(request, 403)
+    return await drawn(request, 403)
 
 
 async def auth_gate(request: Request, call_next: RequestResponseEndpoint) -> Response:
@@ -396,7 +397,7 @@ async def auth_gate(request: Request, call_next: RequestResponseEndpoint) -> Res
     if _always_open(path) or may(principal, request.method, path, settings.on(CLOSED)):
         return await call_next(request)
     if principal.signed_in:
-        return _forbidden(request, api_path)
+        return await _forbidden(request, api_path)
     if api_path:
         return Response(
             "Authentication required",
