@@ -13,12 +13,16 @@ wrong at this end. What decides whether it is sent at all is who asked -- the AP
 and anything else that did not ask for HTML keeps the JSON it has always had.
 """
 
+import asyncio
+
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
+from sqlalchemy.exc import OperationalError
 
-from app import main
-from conftest import account, sign_in
+from app import main, rail
+from app.web import templates
+from conftest import account, as_viewer, sign_in
 
 
 # What a browser sends. The suite's ordinary client sends `*/*`, which is a
@@ -151,3 +155,87 @@ def test_a_program_that_opens_a_buttons_address_is_still_refused(client, part):
     r = client.get(f"/parts/{tag}/photo-rotate", follow_redirects=False)
     assert r.status_code == 405
     assert r.headers["content-type"].startswith("application/json")
+
+
+def _on_the_loop():
+    """Whether the thread asking is the one running the event loop."""
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return False
+    return True
+
+
+@pytest.fixture
+def drawn_on_the_loop(monkeypatch):
+    """For each page drawn from here on, whether it was drawn on the event loop.
+
+    Read off `site_name`, which every page asks for as it is drawn: it is in the
+    title."""
+    seen = []
+    name = templates.env.globals["site_name"]
+
+    def asked():
+        seen.append(_on_the_loop())
+        return name()
+
+    monkeypatch.setitem(templates.env.globals, "site_name", asked)
+    return seen
+
+
+class TestErrorPagesAreDrawnOffTheEventLoop:
+    """One event loop serves every request, and drawing a page reads the database
+    (the rail's figures and Recent). The handlers that draw these pages are async,
+    so a page drawn where they run waits for a database connection on the loop, and
+    every other request waits with it, the ones that would give a connection back
+    included. On 22 November 2026 that kept every page on the site timing out for
+    fourteen hours. So each of them is drawn in a worker thread (docs/architecture.md
+    section 6)."""
+
+    def test_a_missing_page(self, client, drawn_on_the_loop):
+        assert client.get("/no-such-address", headers=HTML).status_code == 404
+        assert drawn_on_the_loop and not any(drawn_on_the_loop)
+
+    def test_a_page_that_is_not_open(self, faulty, drawn_on_the_loop):
+        assert faulty.get("/boom/forbidden", headers=HTML).status_code == 403
+        assert drawn_on_the_loop and not any(drawn_on_the_loop)
+
+    def test_a_refusal_the_gate_makes_itself(self, client, drawn_on_the_loop):
+        """A viewer at an administrator's page is answered by the gate, before any
+        route, and the gate is async too."""
+        as_viewer(client)
+        drawn_on_the_loop.clear()
+        assert client.get("/settings", headers=HTML).status_code == 403
+        assert drawn_on_the_loop and not any(drawn_on_the_loop)
+
+    def test_a_fault_at_this_end(self, faulty, drawn_on_the_loop):
+        assert faulty.get("/boom/broken", headers=HTML).status_code == 500
+        assert drawn_on_the_loop and not any(drawn_on_the_loop)
+
+
+class TestAFaultPageAsksTheDatabaseNothing:
+    """The likeliest reason the 500 page is being drawn is that the database did not
+    answer. Asked again for the rail's figures, it would keep the page waiting as
+    long as the request that failed (MANUAL section 2, "When a page is not there")."""
+
+    def test_its_rail_leaves_out_the_figures(self, faulty):
+        page = faulty.get("/boom/broken", headers=HTML).text
+        assert '<aside class="rail' in page
+        assert '<i class="n">' not in page
+
+    def test_nothing_in_its_rail_asks_the_database(self, faulty, monkeypatch):
+        """Recent included: the fixture's reader is the owner, who is shown it."""
+        opened = []
+
+        def session():
+            opened.append(True)
+            raise OperationalError("SELECT 1", {}, Exception("not to be asked"))
+
+        monkeypatch.setattr(rail, "SessionLocal", session)
+        assert faulty.get("/boom/broken", headers=HTML).status_code == 500
+        assert opened == []
+
+    def test_a_missing_page_keeps_its_figures(self, client):
+        """A 404 is no sign of a database in trouble."""
+        page = client.get("/no-such-address", headers=HTML).text
+        assert '<i class="n">' in page

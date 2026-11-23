@@ -93,6 +93,12 @@ Three kinds of thing live in the register:
     Jinja2 template ........... server-rendered HTML (no frontend framework), or
                                 a Pydantic model rendered as JSON for `/api/*`
 
+**One event loop serves every request.** A route written as a plain `def` runs in a
+worker thread beside it. The three middlewares and the two exception handlers are
+`async`, so they run on the loop itself, and anything they do that waits is handed
+to a worker thread: the gate's `_who` is, and so are the error pages
+(`errors.drawn`). §6 says why.
+
 MariaDB and the MCP server sit alongside, also on localhost. The whole stack is
 Docker Compose. A release publishes the app's image and the MCP server's to GHCR
 for amd64 and arm64, and an installation pulls them or builds the same images from
@@ -370,6 +376,16 @@ breaking one turns CI red rather than merely being wrong.
   enforced: `test_storage_visibility.py`)*
 - **The API's published shape is pinned.** `api/openapi.json` is committed and a
   change a caller could see fails the suite. *(ADR-0010, enforced)*
+- **Nothing that waits on the database runs on the event loop.** A page reads the
+  database as it is drawn (the rail's figures and **Recent**), and a read that finds
+  the pool empty waits up to 30 seconds for a connection. On the loop, that wait
+  stops every request in the process, including the ones that would have given a
+  connection back. The error handlers and the gate are `async`, so they draw their
+  pages in a worker thread (`errors.drawn`), and the 500 page asks the database
+  nothing at all. On 22 November 2026 a 500 page drawn on the loop kept the pool
+  empty for fourteen hours, and every page on the site timed out. The `async`
+  routes that use a session are the exception still standing (§7).
+  *(enforced: `test_error_pages.py`)*
 - **Configuration comes from the environment; a preference comes from the page.**
   Told apart by who decides: whoever runs the server decides where the database
   is, and whoever owns the collection decides what it is called. Where both can
@@ -418,6 +434,14 @@ breaking one turns CI red rather than merely being wrong.
   standards' *adopt next* list -- `ruff format --check` in CI (#77), `uv` with a
   committed lockfile and a multi-stage Dockerfile (#72), and the development
   compose override (#40) had already landed.
+- **84 `async` routes still use their session on the event loop.** Nearly all are
+  forms, `async` so they can await what was posted, and each then runs its queries
+  on the loop. They are quick while the pool has a connection to give, and only the
+  signed-in reach them, so they cannot hold the site down the way the error pages
+  did (§6). When the pool is empty, each one still stops every request for up to 30
+  seconds. The fix is to await the form and hand the rest to a worker thread. The
+  settings cache is the same: the gate reads it on the loop, so the first request
+  after a save refills it from the database there.
 
 ## 8. Open questions
 

@@ -531,8 +531,10 @@
 
    Every item carries its name in words, in `title` and in `aria-label`, because
    collapsed the words are hidden and an icon on its own names nothing. `counts` is
-   worked out once by the page and handed in rather than asked for per row. #}
-{% macro rail(current, authed, back, counts, shut=false) -%}
+   worked out once by the page and handed in rather than asked for per row. `bare`
+   leaves out Recent, the one thing the rail reads from the database itself, for a
+   page that must not ask it anything (the 500's, errors.page). #}
+{% macro rail(current, authed, back, counts, shut=false, bare=false) -%}
 <aside class="rail{{ ' collapsed' if shut else '' }}">
   {#- Collapsed, the name beside the logo is put away with every item's words, so the
       logo carries it as they carry theirs: in a title, which is where a pointer finds
@@ -570,7 +572,7 @@
   </nav>
   {#- The rail's own argument: at a bench you go back to the same two machines all
       afternoon. Read from the history, so it costs no column and no script. #}
-  {%- set mine = rail_recent() %}
+  {%- set mine = [] if bare else rail_recent() %}
   {%- if mine %}
   <p class="cap">{{ 'Recent' | ui }}</p>
   {%- for item in mine %}
