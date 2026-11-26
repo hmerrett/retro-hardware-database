@@ -178,4 +178,8 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   [0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md))
 - [0055](0055-a-motherboard-whose-own-tests-pass-is-verified.md) — A motherboard
   whose own tests pass is verified — *Accepted* (amends
-  [0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md))
+  [0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md); amended by
+  [0056](0056-verified-leaves-out-the-clocks-battery-and-is-a-blue-check.md))
+- [0056](0056-verified-leaves-out-the-clocks-battery-and-is-a-blue-check.md) —
+  Verified leaves out the clock's battery, and is a blue check — *Accepted* (amends
+  [0055](0055-a-motherboard-whose-own-tests-pass-is-verified.md))

@@ -68,8 +68,8 @@ class Unit(TypedDict):
     image: str
     placeholder: str
     disposed: bool
-    # A board a survey has verified, or a machine whose board is part of its own record
-    # (ADR-0055).
+    # A board a survey has verified, a machine whose board is part of its own record, or
+    # a computer with a verified motherboard fitted in it (ADR-0056).
     verified: bool
 
 
@@ -87,7 +87,7 @@ def _units(db: Session, key: str) -> list[Unit]:
         *(("parts", p) for p in db.query(Part).filter(Part.asset_id.in_(filed))),
     ]
     listings = {kind: folder_images(kind) for kind, _ in held}
-    shown = surveys.verified(db, [obj.asset_id for _, obj in held])
+    shown = surveys.marked(db, [obj.asset_id for _, obj in held])
     units: list[Unit] = []
     for kind, obj in sorted(held, key=lambda h: h[1].asset_id):
         v = filed[obj.asset_id]

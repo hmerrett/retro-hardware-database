@@ -40,8 +40,9 @@
 <div class="itemcols{{ ' tabbed on-' ~ tab if tabbed else '' }}"{% if tabbed %} data-tab="{{ tab }}"{% endif %}>
 <div class="itemhead">
   {#- The tag straight under the name, at every width: it is what somebody checks a
-      scanned label against. -#}
-  <h1 class="title">{{ name }}</h1>
+      scanned label against. A verified motherboard, and a computer whose motherboard
+      is verified, has the blue check by its name (ADR-0056). -#}
+  <h1 class="title">{{ name }}{{ U.tick(verified) }}</h1>
   <div class="tag muted">{{ obj.asset_id }}</div>
   {% if obj.disposed %}
   {#- A warning, not danger: the record is all still here, and Status puts it back.

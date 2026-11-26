@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3514 behaviours, from 100 files.*
+*3525 behaviours, from 100 files.*
 
 
 ## A barcode takes the room the words leave
@@ -166,7 +166,7 @@ Regenerate with:
 
 ## A machine that reports itself
 
-*test_a_machine_that_reports_itself.py — 318 behaviours*
+*test_a_machine_that_reports_itself.py — 327 behaviours*
 
 
 **What it takes**
@@ -513,13 +513,24 @@ Regenerate with:
 **Verified from the boards tests**
 
 - a board whose own tests all passed is verified
-- so is the board in a machine and the machine is not
+- so is the board in a machine and the machine shows it  
+  The mark is the board's, and the machine says which board it is (ADR-0056).
+- a machine stops showing it when its board is taken out
+- or when its board stops being verified
+- the machines history says nothing of it  
+  The board's history says when it was verified; the check is the board's.
 - a card or a peripheral that failed does not count  
   A floppy drive that failed, a keyboard that was not plugged in.
 - nor does the keyboard controller  
   It is on the board, but it is tested with the keyboard.
 - a board test that does not apply does not count against it  
   A coprocessor that is not fitted, a clock on an XT, a BIOS with no checksum.
+- a clock that failed on its battery does not count  
+  The battery runs down and is changed: it is not a fault in the board (ADR-0056).
+- a clock that runs and fails still counts  
+  And so does a clock failure the register cannot put down to the battery.
+- the battery aside the rest must still pass
+- the surveys page says the battery was left out
 - the memory always applies
 - a board test that failed is not verified
 - a board test skipped or never run says nothing
@@ -544,9 +555,13 @@ Regenerate with:
 - the boards page links the survey for somebody signed in
 - a visitor sees it without the survey  
   It is public, as Condition is; the survey is for people signed in.
-- the gallery and every item mark it
+- a verified board has the blue check by its title
+- so has a computer with a verified board fitted
+- the gallery and every item mark it  
+  The board, and the computer it is fitted in, beside their names: on the front page's cards and in its table, and on Every item.
 - a machines list of parts marks it
-- a catalogue models page marks it
+- a catalogue models page marks it  
+  A machine whose board is part of its own record, and one with a verified motherboard fitted in it.
 - a board surveyed on its own ends its line saying so
 - a board in a machine has a line of its own
 - the surveys page says how the boards tests went
@@ -3878,7 +3893,7 @@ Regenerate with:
 
 ## Migrations
 
-*test_migrations.py — 34 behaviours*
+*test_migrations.py — 36 behaviours*
 
 - upgrade head on empty database  
   A fresh database migrates cleanly to head.
@@ -3936,6 +3951,10 @@ Regenerate with:
 - 0051 says what every survey already taken said of its board  
   From what each one kept: its report's keys and the answer it gave for its motherboard.
 - 0051 can be downgraded and upgraded again
+- 0052 takes a clock that failed on its battery as not applying  
+  A Tulip TC16 whose clock had stopped and an Amstrad PC2086 whose battery was flat are verified from the day it runs (ADR-0056).
+- 0052 can be downgraded and upgraded again  
+  Down, the battery counts again, as 0051 counted it.
 
 
 ## Model pages
@@ -4280,7 +4299,7 @@ Regenerate with:
 - every preset states every colour in both modes  
   A token a preset leaves out is inherited from the default preset underneath, which is a colour chosen for a different page -- a black band's text left white-on-white, say.
 - every pair holds in every preset and mode  
-  574 pairs: the 41 the design uses, in fourteen themes.
+  630 pairs: the 45 the design uses, in fourteen themes.
 - a preset names no component  
   A preset is token values and nothing else (ADR-0031).
 - every face in the picker is drawn in its own colours  

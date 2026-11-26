@@ -142,8 +142,9 @@ Under the pages is **Every item**, which opens the whole collection as one list
 The table is for running an eye down a long list. It holds the same items in the
 same order as the cards, and the category, the sort and the disposed box work the
 same way; the sort stays in the toolbar rather than on the table's headings. The
-tag and the name lead to the item's page, and a disposed item says so in its row, as
-a [verified](#verified-from-the-boards-tests) motherboard does.
+tag and the name lead to the item's page, and a disposed item says so in its row. A
+[verified](#verified-from-the-boards-tests) motherboard, and a computer whose
+motherboard is verified, has a blue check by its name, in the table and on its card.
 **Where it is** is shown to whoever is shown a location on an item's page — you
 always, a visitor only for a thing whose [**Visible**](#where-it-is-kept) tick is
 on — and a part fitted in a machine shows where the machine is kept, and says
@@ -168,8 +169,9 @@ it to sees the same shuffle.
 **Every item** (`/items`) lists every computer and every part in the register on
 one page, in alphabetical order of name. Each line is the item's tag, its name and
 what kind of thing it is, and the tag and the name both lead to the item's page. A
-disposed item is listed and says so, as it does on a model's page, and so does a
-[verified](#verified-from-the-boards-tests) motherboard.
+disposed item is listed and says so, as it does on a model's page, and a
+[verified](#verified-from-the-boards-tests) motherboard, or a computer whose
+motherboard is verified, has a blue check by its name.
 
 There are no photographs and no pages to turn, so the browser's own find (Ctrl-F,
 or Find in Page on a phone) looks through the whole collection at once. It is the
@@ -602,7 +604,9 @@ logged in, **Edit** and **Duplicate**. On a phone the row wraps, the way back fi
 
 Under it is the item's name on a line of its own, with its asset tag straight under
 it, so the two stay together at every width — the tag is what you check a scanned
-label against. Then a banner if it has been disposed of or is being built, and the
+label against. A [verified](#verified-from-the-boards-tests) motherboard, or a
+computer whose motherboard is verified, has a blue check beside its name. Then a
+banner if it has been disposed of or is being built, and the
 summary — the prose description, if one is written, or else the model's paragraph
 in muted ink ([Section 6](#a-models-own-page)). It runs as wide as the **Details**
 under it.
@@ -618,7 +622,8 @@ across the top.
 Down the main column:
 
 - **Details** — the record's own fields, and on a motherboard a survey has
-  [verified](#verified-from-the-boards-tests), when and with what.
+  [verified](#verified-from-the-boards-tests), when and with what (on a computer
+  whose motherboard is verified, which board as well).
 - **Machine** — for a machine or a board filed against the catalogue: its model,
   which leads to [the model's own page](#a-models-own-page), then its board issue,
   style and region, and a card per chip socket. ([Section 6](#6-machines-the-catalogue-names).)
@@ -630,7 +635,7 @@ Down the main column:
   logged in, offers **Fit in** with a list of machines. Fitting a spare takes it
   out of the location it was kept in, because it is in the machine now.
 - **Motherboard** and **Parts** — everything fitted in this machine, each as a
-  card showing its tag, kind (and **Verified** on a verified motherboard), name and
+  card showing its tag, kind, name (with a blue check on a verified motherboard) and
   specs, with a bin button at the right of
   each when logged in: **Take out**, which makes the part a spare and deletes
   nothing. What is mounted on a card is listed under that card, so a drive on
@@ -4847,6 +4852,14 @@ keyboard, the video memory and the floppy are tests of cards and peripherals, an
 not count. Nor does the keyboard controller: it is on the board, but the survey
 program tests it with the keyboard, and stops when no keyboard answers.
 
+**The clock's battery.** A clock that has lost what its battery keeps does not count
+against the board, any more than a clock on an XT does: the battery runs down and is
+changed, and is not a fault in the board. That is a clock whose memory says it is no
+longer valid, whose divider has stopped, or whose settings or checksum the BIOS found
+lost, as when it starts at 1 January 1980. A clock that runs but counts its seconds
+wrong, or whose interrupt does not arrive, still fails the board. The survey's page
+says **Passed (the clock's battery does not count)** when that is what happened.
+
 **All of the memory.** Where the BIOS counts memory above 1 MiB, the survey must have
 tested all of it. The survey program reaches it through HIMEM.SYS, so a survey run
 without HIMEM.SYS, or with a RAM disk or a disk cache holding some of it, cannot
@@ -4859,7 +4872,9 @@ in the machine, or a board surveyed on its own (its tag typed at the machine, or
 **B**). A machine whose board is part of its own record (an IBM 5150, whose BIOS ROM
 is a socket on the machine) carries it itself. A machine with no motherboard on record
 verifies nothing until a motherboard is given for it on the survey's page, and a
-survey waiting for its machine verifies nothing until it is filed.
+survey waiting for its machine verifies nothing until it is filed. A computer with a
+verified motherboard fitted in it is shown as verified too, for as long as that board
+is in it and verified.
 
 **The newest survey decides.** A later survey whose board tests fail takes
 **Verified** away, and the next one that passes gives it back, with its own date. A
@@ -4869,11 +4884,16 @@ late does not outvote a newer one. **Verified** is read from the surveys themsel
 so deleting a survey takes away what it said, and changing a survey's answer for its
 motherboard moves what it said to the board given.
 
-On the board's page, **Details** says when it was verified and with what
+A verified board has a blue check beside its name: by the title of its page, in the
+gallery (on its card and in the table), on **Every item**, in a machine's list of
+parts and on a catalogue model's page. So has a computer whose motherboard is
+verified. The check says Verified to a screen reader, and when the pointer rests on
+it. On the board's page, **Details** says when it was verified and with what
 (`2026-11-25, with TINYDIAG 0.14.0`), and links to the survey for somebody signed in.
-In the gallery, on **Every item**, in a machine's list of parts and on a catalogue
-model's page, a **Verified** mark sits beside the board. Its history says when a survey
-verifies it, and when a survey takes that away ([in the history](#in-the-history)).
+On the computer's, it says which board too (`Its motherboard, RH-XQZ7: 2026-11-20,
+with TINYDIAG 0.14.0`). The board's history says when a survey verifies it, and when a
+survey takes that away ([in the history](#in-the-history)). The computer's says
+nothing of it: the check is the board's.
 
 ### ROMs
 
@@ -5005,8 +5025,9 @@ into any of them.
   register. One that belongs to nothing is on **Seen** alone.
 - **ROM files** start private.
 - **The history line** is public, and says nothing that is not.
-- **Verified** is public, as **Condition** is: the mark, when the survey was taken,
-  and the program that ran the tests. The survey it links to is for people signed in.
+- **Verified** is public, as **Condition** is: the blue check, when the survey was
+  taken, and the program that ran the tests. The survey it links to is for people
+  signed in.
 
 ### What a survey never does
 
@@ -5033,7 +5054,7 @@ does not know is ignored, so a program is free to say more than this.
 | `TOOL`, `VERSION` | the program, and which version of it |
 | `DATE`, `TIME` | the machine's own clock |
 | `RESULT` | `PASS`, `FAIL` or `ABORTED` |
-| `TEST_<name>`, `DETAIL_<name>` | each test's result (`PASS`, `FAIL`, `SKIP`, `NA` for one that does not apply, or `NOTRUN`), and what it found. A board is [verified](#verified-from-the-boards-tests) by `TICK`, `CPU`, `FPU`, `ROM`, `PIT`, `DMA`, `PIC`, `NMI`, `RTC`, `RAM` and `RAMSYS`, and `DETAIL_RAM` says how much of the memory above 1 MiB the RAM test reached, as `15156K XMS` |
+| `TEST_<name>`, `DETAIL_<name>` | each test's result (`PASS`, `FAIL`, `SKIP`, `NA` for one that does not apply, or `NOTRUN`), and what it found. A board is [verified](#verified-from-the-boards-tests) by `TICK`, `CPU`, `FPU`, `ROM`, `PIT`, `DMA`, `PIC`, `NMI`, `RTC`, `RAM` and `RAMSYS`, `DETAIL_RAM` says how much of the memory above 1 MiB the RAM test reached, as `15156K XMS`, and `DETAIL_RTC` whether a clock that failed had lost what its battery keeps (`battery flat`, `clock halted`, `oscillator off`, or the CMOS's power or checksum lost) |
 | `MODE`, `PASSES`, `ELAPSED` | `ONCE` or `SOAK`, and for a soak how many passes in how long |
 | `CPU`, `CPUVENDOR`, `CPUSIG`, `CPUKHZ`, `FPU` | the processor, its maker where it says, its CPUID signature (family, model and stepping, as four hex digits), its measured speed, and the maths coprocessor |
 | `TOPBENCH` | the score TopBench gave the machine, a whole number, where the program ran TopBench |

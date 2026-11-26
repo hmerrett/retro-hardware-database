@@ -92,8 +92,9 @@ def _catalogue_rows(db: Session, authed: bool = False) -> list[Card]:
     # One query for every storage part's Kind, rather than re-parsing each specs
     # string (or a lookup per row) just to choose an icon.
     kinds = specdb.storage_kinds(db)
-    # And one for every board a survey has verified (ADR-0055).
-    shown = surveys.verified(db)
+    # And one for what carries the blue check: every board a survey has verified, and
+    # every computer with one fitted in it (ADR-0056).
+    shown = surveys.marked(db)
 
     rows: list[Card] = []
     for c in computers:
