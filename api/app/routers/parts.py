@@ -916,6 +916,9 @@ def gui_part(
             "ref_marks": reference_marks("parts", aid),
             "tuned": tuned_photos("parts", aid),
             "spec_pairs": spec_pairs,
+            # Whether a survey has verified it, from the surveys of it (ADR-0055). Only a
+            # motherboard is ever the board a survey's tests were of.
+            "verified": surveys.verification(db, aid),
             "imgerr": bool(imgerr),
             "notadded": _not_added(request, notadded),
             "fiterr": bool(fiterr),

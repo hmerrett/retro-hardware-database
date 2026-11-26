@@ -1151,7 +1151,8 @@ class Survey(Base):
     `taken` is the agent's clock, not the machine's: a machine's clock is often wrong,
     and `clock` keeps what it said, which is how a flat battery is found. `machine` is
     the computer, or the bare motherboard, it was filed against, and `waiting` is what
-    it is waiting for: a machine, an answer, or nothing."""
+    it is waiting for: a machine, an answer, or nothing. `board` and `board_result` are
+    what its board tests said, and of which board (ADR-0055)."""
 
     __tablename__ = "surveys"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -1174,6 +1175,17 @@ class Survey(Base):
     # one memory total an older survey wrote short (ADR-0054). Empty for every survey
     # taken before there was such a thing.
     corrected: Mapped[str] = mapped_column(Text, nullable=False, server_default="[]")
+    # The motherboard its board tests were of, and what they said: PASS, FAIL, or empty
+    # where it did not run them all (ADR-0055). A board's Verified is read from these,
+    # the newest survey that decided, rather than kept on the board, so deleting a
+    # survey or changing its answer for the board changes what the board is told.
+    # `board` is the board filed against, the one fitted in the machine, or the machine
+    # itself where its board is part of its record; NULL while the survey waits for its
+    # machine, or where the machine has no board on record.
+    board: Mapped[str | None] = mapped_column(String(16), index=True)
+    board_result: Mapped[str] = mapped_column(
+        String(8), nullable=False, default="", server_default=""
+    )
     missing: Mapped[str] = mapped_column(Text, nullable=False)
     roms: Mapped[str] = mapped_column(MEDIUMTEXT, nullable=False)
     # The history line the survey wrote, so the line can link back to it. SET NULL,

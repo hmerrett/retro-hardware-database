@@ -157,6 +157,15 @@
 {%- endif -%}
 {%- endmacro %}
 
+{# A motherboard a survey has verified (ADR-0055), as a row of an item's Details: when
+   the survey that verified it was taken and what ran its tests, which are public, as
+   Condition is, and for whoever may read surveys the survey itself. Nothing at all
+   where it is not verified: most things never are. #}
+{% macro verified_row(v) -%}
+{%- if v %}<div><dt>Verified</dt><dd>{{ v.taken.strftime('%Y-%m-%d') }}{% if v.program %}, with {{ v.program }}{% endif %}
+{%- if request.state.sees_private %}, in <a href="/surveys/{{ v.survey }}">survey {{ v.survey }}</a>{% endif %}</dd></div>{% endif -%}
+{%- endmacro %}
+
 {# A project's status. The tone follows what the status says about the work: done is
    the good news, stalled wants looking at, abandoned is over without being a fault.
    The word is always there, so the tone is never the only telling. #}
@@ -283,6 +292,7 @@
 <span class="chips"><span class="chip">{{ item.cat_label }}</span>
 {%- if item.year %}<span class="chip">{{ item.year }}</span>{% endif %}
 {%- if item.parent %}<span class="chip">in {{ item.parent }}</span>{% endif %}
+{%- if item.verified %}{{ chip('Verified', 'ok') }}{% endif %}
 {%- if o.disposed %}<span class="chip">Disposed</span>{% endif -%}
 </span></span>
 </a>
@@ -296,9 +306,10 @@
    rows of one page should end alike. `thumb` is its picture (see part_thumbs): four
    near-identical drives are told apart by eye, not by model number, and the drawing
    stands in where nobody has photographed one. #}
-{% macro itemcard(p, thumb=none) -%}
+{% macro itemcard(p, thumb=none, verified=false) -%}
 {%- set name = display_name({'name': p.name, 'manufacturer': p.manufacturer, 'model': p.model, 'asset_id': p.asset_id}) -%}
 <article class="itemcard"><header><a class="tag" href="/parts/{{ p.asset_id }}">{{ p.asset_id }}</a>{{ chip(type_label(p.type)) }}
+{%- if verified %}{{ chip('Verified', 'ok') }}{% endif %}
 {%- if p.disposed %}{{ chip('Disposed', 'quiet') }}{% endif %}</header>
 <div class="cardmain">
 {%- if thumb -%}

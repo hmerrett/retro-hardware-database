@@ -37,6 +37,9 @@
     {% for k, v in facts %}
       <div><dt>{{ k }}</dt><dd>{{ v | linked }}</dd></div>
     {% endfor %}
+    {#- A machine whose board is part of its own record (an IBM 5150) carries its
+        board's Verified itself (ADR-0055). #}
+    {{ U.verified_row(verified) }}
     {# Where it is kept: the owner's by default and everybody's by setting (ADR-0027),
        and none at all when the route says this reader is not told. #}
     {{ W.row(where, where_links) }}

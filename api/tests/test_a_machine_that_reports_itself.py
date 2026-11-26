@@ -12,13 +12,14 @@ are sent the way the agent sends them, through its own door with its own key, an
 what became of them is read back through the API, as anything else is.
 """
 
+import re
 from pathlib import Path
 
 import pytest
 
 from app import ramdb, settings
 from app.models import Computer
-from conftest import log_out
+from conftest import content, log_out
 from survey_reports import (
     ADAPTEC_ROM,
     AGENTS,
@@ -2298,6 +2299,354 @@ class TestWorkingFromTheTests:
         assert get(client, "parts", card["asset_id"])["condition"] == ""
 
 
+# --- verified, from the board's tests ---------------------------------------------------
+
+# Every one of the board's tests passed, on an XT: no coprocessor fitted and no clock,
+# which do not apply, and no memory above 1 MiB to reach. The tests of the cards and
+# the peripherals are not in it, since they decide nothing about the board.
+BOARD_PASSED = {
+    "TOOL": "TINYDIAG",
+    "VERSION": "0.14.0",
+    "CPU": "8088",
+    "RESULT": "PASS",
+    "TESTS": "11",
+    "TEST_TICK": "PASS",
+    "TEST_CPU": "PASS",
+    "TEST_FPU": "NA",
+    "TEST_ROM": "PASS",
+    "TEST_PIT": "PASS",
+    "TEST_DMA": "PASS",
+    "TEST_PIC": "PASS",
+    "TEST_NMI": "PASS",
+    "TEST_RTC": "NA",
+    "TEST_RAM": "PASS",
+    "TEST_RAMSYS": "PASS",
+}
+BOARD_FAILED = BOARD_PASSED | {"RESULT": "FAIL", "TEST_RAM": "FAIL"}
+BOARD_TESTS = ["TICK", "CPU", "FPU", "ROM", "PIT", "DMA", "PIC", "NMI", "RTC", "RAM", "RAMSYS"]
+# A 386 with 4 MiB, under HIMEM.SYS: 3 MiB above 1 MiB, all of it reached.
+ABOVE_1MIB = BOARD_PASSED | {
+    "CPU": "80386",
+    "EXTKB": "3072",
+    "DETAIL_RAM": "512K, 3008K XMS, HMA: March-U, bus ok",
+}
+
+
+def verified(client, tag: str, kind: str = "parts") -> str | None:
+    """What a thing's page says under Verified, as words, or None where it says
+    nothing."""
+    r = client.get(f"/{kind}/{tag}")
+    assert r.status_code == 200, r.text
+    found = re.search(r"<dt>Verified</dt><dd>(.*?)</dd>", content(r.text), re.S)
+    return " ".join(re.sub(r"<[^>]+>", "", found.group(1)).split()) if found else None
+
+
+def board(part, **fields) -> str:
+    """A motherboard, as a tag."""
+    return part(type="motherboard", model="P5A", **fields)["asset_id"]
+
+
+def in_a_machine(computer, part) -> tuple[str, str]:
+    """A machine with a motherboard fitted in it: the machine, then the board."""
+    machine = computer()["asset_id"]
+    return machine, board(part, computer_id=machine)
+
+
+def file_it(client, made: dict, tag: str) -> None:
+    r = client.post(f"/surveys/{made['id']}/file", data={"tag": tag}, follow_redirects=False)
+    assert r.status_code == 303, r.text
+
+
+class TestVerifiedFromTheBoardsTests:
+    """A motherboard whose own tests all passed in a survey is marked Verified, whatever
+    else was plugged into it (MANUAL §23, "Verified, from the board's tests";
+    ADR-0055)."""
+
+    def test_a_board_whose_own_tests_all_passed_is_verified(self, client, part):
+        tag = board(part)
+        survey(client, TAG=tag, taken="2026-11-01T09:30:00", **BOARD_PASSED)
+        assert verified(client, tag).startswith("2026-11-01, with TINYDIAG 0.14.0")
+
+    def test_so_is_the_board_in_a_machine_and_the_machine_is_not(self, client, computer, part):
+        machine, tag = in_a_machine(computer, part)
+        made = survey(client, TAG=machine, **BOARD_PASSED)
+        assert (made["board"], made["board_result"]) == (tag, "PASS")
+        assert verified(client, tag)
+        assert verified(client, machine, "computers") is None
+
+    @pytest.mark.parametrize("test", ["OPTROM", "COM", "LPT", "KBD", "VRAM", "FDC"])
+    def test_a_card_or_a_peripheral_that_failed_does_not_count(self, client, part, test):
+        """A floppy drive that failed, a keyboard that was not plugged in."""
+        tag = board(part)
+        survey(client, TAG=tag, **BOARD_PASSED | {"RESULT": "FAIL", f"TEST_{test}": "FAIL"})
+        assert verified(client, tag)
+
+    def test_nor_does_the_keyboard_controller(self, client, part):
+        """It is on the board, but it is tested with the keyboard."""
+        tag = board(part)
+        failed = {
+            "RESULT": "FAIL",
+            "TEST_KBD": "FAIL",
+            "DETAIL_KBD": "8042 self-test gave 00h, not 55h",
+        }
+        survey(client, TAG=tag, **BOARD_PASSED | failed)
+        assert verified(client, tag)
+
+    @pytest.mark.parametrize("test", ["FPU", "RTC", "ROM"])
+    def test_a_board_test_that_does_not_apply_does_not_count_against_it(self, client, part, test):
+        """A coprocessor that is not fitted, a clock on an XT, a BIOS with no checksum."""
+        tag = board(part)
+        survey(client, TAG=tag, **BOARD_PASSED | {f"TEST_{test}": "NA"})
+        assert verified(client, tag)
+
+    @pytest.mark.parametrize("test", ["RAM", "RAMSYS"])
+    def test_the_memory_always_applies(self, client, part, test):
+        tag = board(part)
+        survey(client, TAG=tag, **BOARD_PASSED | {f"TEST_{test}": "NA"})
+        assert verified(client, tag) is None
+
+    @pytest.mark.parametrize("test", BOARD_TESTS)
+    def test_a_board_test_that_failed_is_not_verified(self, client, part, test):
+        tag = board(part)
+        made = survey(client, TAG=tag, **BOARD_PASSED | {"RESULT": "FAIL", f"TEST_{test}": "FAIL"})
+        assert made["board_result"] == "FAIL"
+        assert verified(client, tag) is None
+
+    @pytest.mark.parametrize(
+        "unfinished",
+        [{"TEST_PIT": "SKIP"}, {"RESULT": "ABORTED", "TEST_RTC": "NOTRUN"}, {"TEST_RAMSYS": None}],
+        ids=["skipped", "not run", "missing"],
+    )
+    def test_a_board_test_skipped_or_never_run_says_nothing(self, client, part, unfinished):
+        tag = board(part)
+        made = survey(client, TAG=tag, **BOARD_PASSED | unfinished)
+        assert made["board_result"] == ""
+        assert verified(client, tag) is None
+
+    def test_memory_above_1_mib_counts_when_all_of_it_was_tested(self, client, part):
+        tag = board(part)
+        survey(client, TAG=tag, **ABOVE_1MIB)
+        assert verified(client, tag)
+
+    def test_the_hma_may_be_doss(self, client, part):
+        """DOS=HIGH: the HMA holds DOS, and is not free to test."""
+        tag = board(part)
+        survey(client, TAG=tag, **ABOVE_1MIB | {"DETAIL_RAM": "512K, 3008K XMS: March-U, bus ok"})
+        assert verified(client, tag)
+
+    def test_a_later_processor_with_nothing_above_1_mib_has_all_of_it_tested(self, client, part):
+        tag = board(part)
+        nothing = {"EXTKB": "0", "DETAIL_RAM": "512K free: March-U and bus ok"}
+        survey(client, TAG=tag, **ABOVE_1MIB | nothing)
+        assert verified(client, tag)
+
+    @pytest.mark.parametrize(
+        "memory",
+        [
+            {"DETAIL_RAM": "512K ok; no XMS: 3072K above 1M untested"},
+            {"DETAIL_RAM": "512K ok; no XMS memory free to test"},
+            {"DETAIL_RAM": "512K, 1024K XMS, HMA: March-U, bus ok"},
+            {"EXTKB": None},
+        ],
+        ids=["no HIMEM.SYS", "nothing free", "a RAM disk holding some", "not counted"],
+    )
+    def test_memory_above_1_mib_not_all_tested_says_nothing(self, client, part, memory):
+        """A survey run without HIMEM.SYS, or with a RAM disk or a cache holding some
+        of the memory, cannot verify a board with memory above 1 MiB; nor can a
+        report that does not say how much there is."""
+        tag = board(part)
+        made = survey(client, TAG=tag, **ABOVE_1MIB | memory)
+        assert made["board_result"] == ""
+        assert verified(client, tag) is None
+
+    def test_a_board_made_by_b_is_verified_by_its_survey(self, client):
+        made = survey(client, TAG="NEW BOARD", **BOARDISH | BOARD_PASSED)
+        assert made["board"] == made["machine"]
+        assert verified(client, made["machine"])
+
+    def test_a_machine_whose_board_is_part_of_its_record_carries_it(self, client, computer):
+        """An IBM 5150, whose BIOS ROM is a socket on the machine."""
+        machine = computer(machine={"model_key": "ibm-5150"})["asset_id"]
+        survey(client, TAG=machine, BIOSDATE="10/27/82", **BOARD_PASSED)
+        assert verified(client, machine, "computers")
+
+    def test_a_machine_with_no_board_on_record_verifies_one_given_on_the_page(
+        self, client, computer
+    ):
+        made = survey(client, TAG=computer()["asset_id"], **BOARDISH | BOARD_PASSED)
+        assert made["board"] is None
+        assert answer(client, made, "BOARD", "new").status_code == 303
+        tag = finding(read(client, made["id"]), "BOARD")["part"]
+        assert verified(client, tag)
+
+    def test_a_machine_whose_board_was_left_out_verifies_nothing(self, client, computer):
+        machine = computer()["asset_id"]
+        made = survey(client, TAG=machine, BOARD_ANSWER="OUT", **BOARDISH | BOARD_PASSED)
+        assert made["board"] is None
+        assert verified(client, machine, "computers") is None
+
+    def test_a_survey_waiting_for_its_machine_verifies_nothing_until_it_is_filed(
+        self, client, part
+    ):
+        tag = board(part)
+        made = survey(client, **BOARD_PASSED)
+        assert made["waiting"] == "machine"
+        assert verified(client, tag) is None
+        file_it(client, made, tag)
+        assert verified(client, tag)
+
+    def test_a_later_failure_takes_it_away(self, client, part):
+        tag = board(part)
+        survey(client, TAG=tag, taken="2026-11-01T09:30:00", **BOARD_PASSED)
+        survey(client, TAG=tag, taken="2026-11-02T09:30:00", **BOARD_FAILED)
+        assert verified(client, tag) is None
+
+    def test_the_next_pass_gives_it_back_with_its_own_date(self, client, part):
+        tag = board(part)
+        survey(client, TAG=tag, taken="2026-11-01T09:30:00", **BOARD_PASSED)
+        survey(client, TAG=tag, taken="2026-11-02T09:30:00", **BOARD_FAILED)
+        survey(client, TAG=tag, taken="2026-11-03T09:30:00", **BOARD_PASSED)
+        assert verified(client, tag).startswith("2026-11-03")
+
+    def test_a_survey_that_did_not_run_every_board_test_changes_nothing(self, client, part):
+        tag = board(part)
+        survey(client, TAG=tag, taken="2026-11-01T09:30:00", **BOARD_PASSED)
+        survey(client, TAG=tag, taken="2026-11-02T09:30:00", **BOARD_FAILED | {"TEST_PIC": "SKIP"})
+        assert verified(client, tag) is None
+        survey(client, TAG=tag, taken="2026-11-03T09:30:00", **BOARD_PASSED)
+        survey(client, TAG=tag, taken="2026-11-04T09:30:00", **BOARD_PASSED | {"TEST_PIC": "SKIP"})
+        assert verified(client, tag).startswith("2026-11-03")
+
+    @pytest.mark.parametrize(
+        ("late", "newer", "still"),
+        [(BOARD_PASSED, BOARD_FAILED, False), (BOARD_FAILED, BOARD_PASSED, True)],
+        ids=["a late pass", "a late failure"],
+    )
+    def test_a_survey_filed_late_does_not_outvote_a_newer_one(
+        self, client, part, late, newer, still
+    ):
+        tag = board(part)
+        made = survey(client, taken="2026-11-01T09:30:00", **late)
+        survey(client, TAG=tag, taken="2026-11-02T09:30:00", **newer)
+        file_it(client, made, tag)
+        assert bool(verified(client, tag)) is still
+
+    def test_deleting_a_survey_takes_away_what_it_said(self, client, part):
+        tag = board(part)
+        made = survey(client, TAG=tag, **BOARD_PASSED)
+        r = client.post(f"/surveys/{made['id']}/delete", follow_redirects=False)
+        assert r.status_code == 303
+        assert verified(client, tag) is None
+
+    def test_changing_the_answer_for_its_motherboard_moves_what_it_said(
+        self, client, computer, part
+    ):
+        first, second = board(part), board(part)
+        made = survey(client, TAG=computer()["asset_id"], **BOARDISH | BOARD_PASSED)
+        assert answer(client, made, "BOARD", "link", tag=first).status_code == 303
+        assert verified(client, first)
+        assert answer(client, made, "BOARD", "link", tag=second).status_code == 303
+        assert verified(client, second)
+        assert verified(client, first) is None
+
+    def test_the_boards_page_links_the_survey_for_somebody_signed_in(self, client, part):
+        tag = board(part)
+        made = survey(client, TAG=tag, **BOARD_PASSED)
+        assert verified(client, tag).endswith(f", in survey {made['id']}")
+        assert f'href="/surveys/{made["id"]}"' in content(client.get(f"/parts/{tag}").text)
+
+    def test_a_visitor_sees_it_without_the_survey(self, client, part):
+        """It is public, as Condition is; the survey is for people signed in."""
+        tag = board(part)
+        survey(client, TAG=tag, taken="2026-11-01T09:30:00", **BOARD_PASSED)
+        log_out(client)
+        assert verified(client, tag) == "2026-11-01, with TINYDIAG 0.14.0"
+
+    def test_the_gallery_and_every_item_mark_it(self, client, computer, part):
+        tag = board(part)
+        other = board(part)
+        survey(client, TAG=tag, **BOARD_PASSED)
+        tiles = client.get("/?layout=tiles").text
+        table = client.get("/?layout=table").text
+        items = client.get("/items").text
+        for page, shape in [
+            (tiles, r'<a class="card[^"]*" href="/parts/{}">.*?</a>'),
+            (table, r'<tr>(?:(?!</tr>).)*href="/parts/{}"(?:(?!</tr>).)*</tr>'),
+            (items, r'<tr>(?:(?!</tr>).)*href="/parts/{}"(?:(?!</tr>).)*</tr>'),
+        ]:
+            mine = re.search(shape.format(tag), page, re.S)
+            theirs = re.search(shape.format(other), page, re.S)
+            assert mine and "Verified" in mine.group(0)
+            assert theirs and "Verified" not in theirs.group(0)
+
+    def test_a_machines_list_of_parts_marks_it(self, client, computer, part):
+        machine, tag = in_a_machine(computer, part)
+        survey(client, TAG=machine, **BOARD_PASSED)
+        page = content(client.get(f"/computers/{machine}").text)
+        card = re.search(
+            rf'<article class="itemcard"><header><a class="tag" href="/parts/{tag}">.*?</header>',
+            page,
+            re.S,
+        )
+        assert card and "Verified" in card.group(0)
+
+    def test_a_catalogue_models_page_marks_it(self, client, computer):
+        machine = computer(machine={"model_key": "ibm-5150"})["asset_id"]
+        other = computer(machine={"model_key": "ibm-5150"})["asset_id"]
+        survey(client, TAG=machine, BIOSDATE="10/27/82", **BOARD_PASSED)
+        page = client.get("/machines/ibm-5150").text
+        for tag, said in [(machine, True), (other, False)]:
+            unit = re.search(rf'<a class="result" href="/computers/{tag}">.*?</a>', page, re.S)
+            assert unit and ("· Verified" in unit.group(0)) is said
+
+    def test_a_board_surveyed_on_its_own_ends_its_line_saying_so(self, client, part):
+        tag = board(part, condition="Working")
+        survey(client, TAG=tag, **BOARD_PASSED)
+        survey(client, TAG=tag, **BOARD_FAILED)
+        said = [e["message"] for e in lines(client, tag, "survey")]
+        assert sorted(said) == [
+            "Surveyed: 1 of 9 tests failed (RAM). No longer verified.",
+            "Surveyed: every test passed. Verified.",
+        ]
+
+    def test_a_board_in_a_machine_has_a_line_of_its_own(self, client, computer, part):
+        machine, tag = in_a_machine(computer, part)
+        survey(client, TAG=machine, taken="2026-11-01T09:30:00", **BOARD_PASSED)
+        survey(client, TAG=machine, taken="2026-11-02T09:30:00", **BOARD_PASSED)
+        survey(client, TAG=machine, taken="2026-11-03T09:30:00", **BOARD_FAILED)
+        said = [(e["message"], e["created_at"][:10]) for e in lines(client, tag, "survey")]
+        assert said == [
+            (f"No longer verified: a survey of {machine} failed (RAM).", "2026-11-03"),
+            (f"Verified in a survey of {machine}.", "2026-11-01"),
+        ]
+
+    def test_the_surveys_page_says_how_the_boards_tests_went(self, client, computer, part):
+        machine, tag = in_a_machine(computer, part)
+        made = survey(client, TAG=machine, **BOARD_FAILED)
+        page = client.get(f"/surveys/{made['id']}").text
+        found = re.search(r"<dt>Board tests</dt><dd>(.*?)</dd>", page, re.S)
+        assert found and found.group(1).startswith("Failed (RAM), for ")
+        assert f'href="/items/{tag}"' in found.group(1)
+
+    @pytest.mark.parametrize(
+        ("keys", "said"),
+        [
+            (BOARD_PASSED, "Board tests passed: {} is verified."),
+            (BOARD_FAILED, "Board tests failed (RAM): {} is not verified."),
+            (
+                BOARD_PASSED | {"TEST_DMA": "SKIP"},
+                "Not every board test was run: {} is not verified.",
+            ),
+        ],
+        ids=["passed", "failed", "not all run"],
+    )
+    def test_the_machine_is_told(self, client, part, keys, said):
+        tag = board(part)
+        r = send(client, report(TAG=tag, **keys))
+        assert r.status_code == 200, r.text
+        assert said.format(tag) in r.json()["receipt"].split("\r\n")
+
+
 # --- ROMs ------------------------------------------------------------------------------
 
 
@@ -2797,6 +3146,13 @@ class TestAReportAsTinydiagWritesIt:
         (sent,) = r.json()["surveys"]
         assert sent["waiting"] == "machine"
 
+    def test_with_its_ram_tests_skipped_it_verifies_nothing(self, client):
+        r = send(client, tinydiag_report(TAG="NEW BOARD"))
+        assert r.status_code == 200, r.text
+        (sent,) = r.json()["surveys"]
+        assert read(client, sent["id"])["board_result"] == ""
+        assert verified(client, sent["machine"]) is None
+
 
 def new_machine_from_tinydiag_topbench(client) -> tuple[dict, str, int]:
     """0.14.0's report, sent as if N had been answered at the machine: the machine it
@@ -2822,6 +3178,19 @@ class TestAReportAsTinydiagWritesItWithTopbench:
         machine, receipt, _ = new_machine_from_tinydiag_topbench(client)
         assert machine["condition"] == "Working"
         assert "Every test passed." in receipt.split("\r\n")
+
+    def test_its_board_tests_verify_the_board_it_makes(self, client):
+        """Eleven of the seventeen are the board's, and all of its memory above 1 MiB
+        was reached through HIMEM.SYS: 15156 KiB of XMS and the HMA."""
+        r = send(client, tinydiag_report(TINYDIAG_TOPBENCH, TAG="NEW", BOARD_ANSWER="NEW"))
+        assert r.status_code == 200, r.text
+        (sent,) = r.json()["surveys"]
+        made = read(client, sent["id"])
+        tag = finding(made, "BOARD")["part"]
+        assert (made["board"], made["board_result"]) == (tag, "PASS")
+        assert verified(client, tag).startswith("20")
+        assert verified(client, tag).split(", in ")[0].endswith(", with TINYDIAG 0.14.0")
+        assert f"Board tests passed: {tag} is verified." in r.json()["receipt"].split("\r\n")
 
     def test_its_memory_counted_with_himem_loaded_rounds_up_to_16_mib(self, client):
         """639 KiB below 1 MiB and 15220 KiB above it: rounded up to whole MiB, since

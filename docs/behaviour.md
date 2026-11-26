@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*3478 behaviours, from 100 files.*
+*3514 behaviours, from 100 files.*
 
 
 ## A barcode takes the room the words leave
@@ -166,7 +166,7 @@ Regenerate with:
 
 ## A machine that reports itself
 
-*test_a_machine_that_reports_itself.py — 284 behaviours*
+*test_a_machine_that_reports_itself.py — 318 behaviours*
 
 
 **What it takes**
@@ -510,6 +510,48 @@ Regenerate with:
 - the parts in the machine keep their condition  
   The tests are of the machine, and do not say which card each result belongs to.
 
+**Verified from the boards tests**
+
+- a board whose own tests all passed is verified
+- so is the board in a machine and the machine is not
+- a card or a peripheral that failed does not count  
+  A floppy drive that failed, a keyboard that was not plugged in.
+- nor does the keyboard controller  
+  It is on the board, but it is tested with the keyboard.
+- a board test that does not apply does not count against it  
+  A coprocessor that is not fitted, a clock on an XT, a BIOS with no checksum.
+- the memory always applies
+- a board test that failed is not verified
+- a board test skipped or never run says nothing
+- memory above 1 mib counts when all of it was tested
+- the hma may be doss  
+  DOS=HIGH: the HMA holds DOS, and is not free to test.
+- a later processor with nothing above 1 mib has all of it tested
+- memory above 1 mib not all tested says nothing  
+  A survey run without HIMEM.SYS, or with a RAM disk or a cache holding some of the memory, cannot verify a board with memory above 1 MiB; nor can a report that does not say how much there is.
+- a board made by b is verified by its survey
+- a machine whose board is part of its record carries it  
+  An IBM 5150, whose BIOS ROM is a socket on the machine.
+- a machine with no board on record verifies one given on the page
+- a machine whose board was left out verifies nothing
+- a survey waiting for its machine verifies nothing until it is filed
+- a later failure takes it away
+- the next pass gives it back with its own date
+- a survey that did not run every board test changes nothing
+- a survey filed late does not outvote a newer one
+- deleting a survey takes away what it said
+- changing the answer for its motherboard moves what it said
+- the boards page links the survey for somebody signed in
+- a visitor sees it without the survey  
+  It is public, as Condition is; the survey is for people signed in.
+- the gallery and every item mark it
+- a machines list of parts marks it
+- a catalogue models page marks it
+- a board surveyed on its own ends its line saying so
+- a board in a machine has a line of its own
+- the surveys page says how the boards tests went
+- the machine is told
+
 **RO ms**
 
 - a rom is kept as a private file with a note saying what it is
@@ -580,12 +622,15 @@ Regenerate with:
 - n at the machine makes a computer of what it found
 - its receipt says three tests were skipped
 - left alone it waits to be told which machine it is
+- with its ram tests skipped it verifies nothing
 
 **A report as tinydiag writes it with topbench**
 
 - n at the machine gives the new machine the score topbench gave
 - its seventeen passes mark the new machine working  
   TopBench is run after the tests and is not one of them.
+- its board tests verify the board it makes  
+  Eleven of the seventeen are the board's, and all of its memory above 1 MiB was reached through HIMEM.SYS: 15156 KiB of XMS and the HMA.
 - its memory counted with himem loaded rounds up to 16 mib  
   639 KiB below 1 MiB and 15220 KiB above it: rounded up to whole MiB, since the 384 KiB between them is in neither.
 - its page says how its memory was worked out
@@ -3833,7 +3878,7 @@ Regenerate with:
 
 ## Migrations
 
-*test_migrations.py — 32 behaviours*
+*test_migrations.py — 34 behaviours*
 
 - upgrade head on empty database  
   A fresh database migrates cleanly to head.
@@ -3888,6 +3933,9 @@ Regenerate with:
 - 0048 makes every job already queued the first labels
 - 0048 can be downgraded and upgraded again  
   Down, both labels share the first one's code and face again, and the first's destination is the destination; a code the older version never had goes back to its default.
+- 0051 says what every survey already taken said of its board  
+  From what each one kept: its report's keys and the answer it gave for its motherboard.
+- 0051 can be downgraded and upgraded again
 
 
 ## Model pages

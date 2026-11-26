@@ -24,7 +24,8 @@
      designs for one thing. #}
   {% if motherboard %}
     {{ P.cards([motherboard], 'unlink', '/computers/' ~ c.asset_id ~ tabq,
-               request.state.authed, thumbs | default({}, true), mounted | default({}, true)) }}
+               request.state.authed, thumbs | default({}, true), mounted | default({}, true),
+               verified_parts | default({}, true)) }}
   {% else %}
     <div class="pbody">
     <p class="muted">No board linked yet.</p>
@@ -74,7 +75,8 @@
   {% endif %}
   {% if parts %}
   {{ P.cards(parts, 'unlink', '/computers/' ~ c.asset_id ~ tabq, request.state.authed,
-             thumbs | default({}, true), mounted | default({}, true)) }}
+             thumbs | default({}, true), mounted | default({}, true),
+             verified_parts | default({}, true)) }}
   {% else %}
   <div class="pbody"><p class="muted flush">Nothing fitted in it yet.</p></div>
   {% endif %}

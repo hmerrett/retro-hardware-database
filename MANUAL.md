@@ -142,7 +142,8 @@ Under the pages is **Every item**, which opens the whole collection as one list
 The table is for running an eye down a long list. It holds the same items in the
 same order as the cards, and the category, the sort and the disposed box work the
 same way; the sort stays in the toolbar rather than on the table's headings. The
-tag and the name lead to the item's page, and a disposed item says so in its row.
+tag and the name lead to the item's page, and a disposed item says so in its row, as
+a [verified](#verified-from-the-boards-tests) motherboard does.
 **Where it is** is shown to whoever is shown a location on an item's page — you
 always, a visitor only for a thing whose [**Visible**](#where-it-is-kept) tick is
 on — and a part fitted in a machine shows where the machine is kept, and says
@@ -167,7 +168,8 @@ it to sees the same shuffle.
 **Every item** (`/items`) lists every computer and every part in the register on
 one page, in alphabetical order of name. Each line is the item's tag, its name and
 what kind of thing it is, and the tag and the name both lead to the item's page. A
-disposed item is listed and says so, as it does on a model's page.
+disposed item is listed and says so, as it does on a model's page, and so does a
+[verified](#verified-from-the-boards-tests) motherboard.
 
 There are no photographs and no pages to turn, so the browser's own find (Ctrl-F,
 or Find in Page on a phone) looks through the whole collection at once. It is the
@@ -615,7 +617,8 @@ across the top.
 
 Down the main column:
 
-- **Details** — the record's own fields.
+- **Details** — the record's own fields, and on a motherboard a survey has
+  [verified](#verified-from-the-boards-tests), when and with what.
 - **Machine** — for a machine or a board filed against the catalogue: its model,
   which leads to [the model's own page](#a-models-own-page), then its board issue,
   style and region, and a card per chip socket. ([Section 6](#6-machines-the-catalogue-names).)
@@ -627,7 +630,8 @@ Down the main column:
   logged in, offers **Fit in** with a list of machines. Fitting a spare takes it
   out of the location it was kept in, because it is in the machine now.
 - **Motherboard** and **Parts** — everything fitted in this machine, each as a
-  card showing its tag, kind, name and specs, with a bin button at the right of
+  card showing its tag, kind (and **Verified** on a verified motherboard), name and
+  specs, with a bin button at the right of
   each when logged in: **Take out**, which makes the part a spare and deletes
   nothing. What is mounted on a card is listed under that card, so a drive on
   its controller is in the machine's list too. A part with nothing recorded gets no
@@ -4354,8 +4358,9 @@ Most answers are the register's to give. The processor and the memory are
 always part of the machine, and a hard disk it has met before is known by its
 serial number. The rest are asked once and remembered, so surveying a machine
 again means starting it with the survey program and leaving it to get on with
-it. A survey also keeps a copy of every ROM it read, and marks a machine that
-passed every test **Working**.
+it. A survey also keeps a copy of every ROM it read, marks a machine that
+passed every test **Working**, and marks a motherboard whose own tests all
+passed **Verified**.
 
 ### What it takes
 
@@ -4826,6 +4831,50 @@ Otherwise the condition is left alone:
 Only the machine's condition changes. The parts in it keep theirs, because the
 tests are of the machine and do not say which card each result belongs to.
 
+### Verified, from the board's tests
+
+A motherboard whose own tests all passed in a survey is marked **Verified**. It is
+about the board alone: every chip on it and all of its memory were tested and passed,
+whatever else was plugged in. A board tested on the bench with no keyboard, or in a
+machine whose floppy drive failed, can still be verified.
+
+The board's tests are the timer tick, the processor, the maths coprocessor, the BIOS
+ROM, the 8253 timer, the 8237 DMA controller, the 8259 interrupt controllers, NMI and
+parity, the clock and CMOS, and the memory (the free memory and the memory in use).
+Each must pass, or not apply (a coprocessor that is not fitted, a clock on an XT), and
+the memory always applies. The option ROMs, the serial and parallel ports, the
+keyboard, the video memory and the floppy are tests of cards and peripherals, and do
+not count. Nor does the keyboard controller: it is on the board, but the survey
+program tests it with the keyboard, and stops when no keyboard answers.
+
+**All of the memory.** Where the BIOS counts memory above 1 MiB, the survey must have
+tested all of it. The survey program reaches it through HIMEM.SYS, so a survey run
+without HIMEM.SYS, or with a RAM disk or a disk cache holding some of it, cannot
+verify a board with memory above 1 MiB. The 64 KiB of the HMA may be DOS's. Reaching
+that memory also proves the keyboard controller's other job, the A20 gate, since
+HIMEM.SYS does not load without it.
+
+**What carries it** is the motherboard the survey is filed against: the board fitted
+in the machine, or a board surveyed on its own (its tag typed at the machine, or
+**B**). A machine whose board is part of its own record (an IBM 5150, whose BIOS ROM
+is a socket on the machine) carries it itself. A machine with no motherboard on record
+verifies nothing until a motherboard is given for it on the survey's page, and a
+survey waiting for its machine verifies nothing until it is filed.
+
+**The newest survey decides.** A later survey whose board tests fail takes
+**Verified** away, and the next one that passes gives it back, with its own date. A
+survey that did not run every board test, or did not reach all of the memory, changes
+nothing either way. Surveys are put in order by when they were taken, so one filed
+late does not outvote a newer one. **Verified** is read from the surveys themselves,
+so deleting a survey takes away what it said, and changing a survey's answer for its
+motherboard moves what it said to the board given.
+
+On the board's page, **Details** says when it was verified and with what
+(`2026-11-25, with TINYDIAG 0.14.0`), and links to the survey for somebody signed in.
+In the gallery, on **Every item**, in a machine's list of parts and on a catalogue
+model's page, a **Verified** mark sits beside the board. Its history says when a survey
+verifies it, and when a survey takes that away ([in the history](#in-the-history)).
+
 ### ROMs
 
 A survey can send copies of the machine's ROMs: the BIOS, and each option ROM
@@ -4890,6 +4939,8 @@ A survey's page shows:
   total](#part-of-the-machine));
 - the machine's TopBench score, where the survey program ran TopBench;
 - each test and its result, with what a failed one found;
+- how the board's tests went, and which motherboard they were of
+  ([verified](#verified-from-the-boards-tests));
 - everything it found, and the answer each was given;
 - what it filled in, what it corrected, and what it read that differs from the
   record;
@@ -4922,6 +4973,14 @@ when it was taken (by the agent's clock, since a machine's own is often wrong):
 - `Surveyed: 2 of 17 tests failed (RAM, floppy).`
 - `Surveyed: 14 of 17 tests passed, 3 skipped.`
 - `Surveyed: every test passed, 48 passes over 12 hours.`
+- `Surveyed: every test passed. Verified.`
+
+**Verified** at the end of a line means the survey verified what it was filed against
+(a board surveyed on its own, or a machine whose board is part of its own record), and
+**No longer verified** that its board tests failed and took that away. A motherboard
+fitted in a machine has a line of its own when either happens to it, dated with the
+survey: `Verified in a survey of RH-F792.`, or
+`No longer verified: a survey of RH-F792 failed (RAM).`
 
 "Every test passed" means every test that applies to the machine, and the
 counts are of those: a clock test on an XT is no test at all, so it is not
@@ -4946,6 +5005,8 @@ into any of them.
   register. One that belongs to nothing is on **Seen** alone.
 - **ROM files** start private.
 - **The history line** is public, and says nothing that is not.
+- **Verified** is public, as **Condition** is: the mark, when the survey was taken,
+  and the program that ran the tests. The survey it links to is for people signed in.
 
 ### What a survey never does
 
@@ -4972,7 +5033,7 @@ does not know is ignored, so a program is free to say more than this.
 | `TOOL`, `VERSION` | the program, and which version of it |
 | `DATE`, `TIME` | the machine's own clock |
 | `RESULT` | `PASS`, `FAIL` or `ABORTED` |
-| `TEST_<name>`, `DETAIL_<name>` | each test's result (`PASS`, `FAIL`, `SKIP`, `NA` for one that does not apply, or `NOTRUN`), and what it found |
+| `TEST_<name>`, `DETAIL_<name>` | each test's result (`PASS`, `FAIL`, `SKIP`, `NA` for one that does not apply, or `NOTRUN`), and what it found. A board is [verified](#verified-from-the-boards-tests) by `TICK`, `CPU`, `FPU`, `ROM`, `PIT`, `DMA`, `PIC`, `NMI`, `RTC`, `RAM` and `RAMSYS`, and `DETAIL_RAM` says how much of the memory above 1 MiB the RAM test reached, as `15156K XMS` |
 | `MODE`, `PASSES`, `ELAPSED` | `ONCE` or `SOAK`, and for a soak how many passes in how long |
 | `CPU`, `CPUVENDOR`, `CPUSIG`, `CPUKHZ`, `FPU` | the processor, its maker where it says, its CPUID signature (family, model and stepping, as four hex digits), its measured speed, and the maths coprocessor |
 | `TOPBENCH` | the score TopBench gave the machine, a whole number, where the program ran TopBench |

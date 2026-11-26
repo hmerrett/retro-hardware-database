@@ -46,14 +46,14 @@
 {{- U.button('Take out ' ~ aid, icon='trash', icon_only=true, size='sm', type='submit', title='Take it out: it becomes a spare. Nothing is deleted.') }}</form>
 {%- endmacro %}
 
-{% macro cards(parts, endpoint, back, authed, thumbs={}, mounted={}) %}
+{% macro cards(parts, endpoint, back, authed, thumbs={}, mounted={}, verified={}) %}
 <div class="itemcards">
   {% for p in parts %}
-  {% call U.itemcard(p, thumbs.get(p.asset_id) if thumbs else none) %}
+  {% call U.itemcard(p, thumbs.get(p.asset_id) if thumbs else none, (p.asset_id | upper) in verified) %}
     {%- if authed %}{{ takeout(p.asset_id, endpoint, back) }}{% endif -%}
   {% endcall %}
   {% if mounted and mounted.get(p.asset_id | upper) %}
-  <div class="mounted">{{ cards(mounted[p.asset_id | upper], 'detach', back, authed, thumbs, mounted) }}</div>
+  <div class="mounted">{{ cards(mounted[p.asset_id | upper], 'detach', back, authed, thumbs, mounted, verified) }}</div>
   {% endif %}
   {% endfor %}
 </div>

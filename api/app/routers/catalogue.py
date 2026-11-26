@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
-from .. import entry, machines
+from .. import entry, machines, surveys
 from ..common import folder_images, to_dict
 from ..db import get_db
 from ..models import AssetVariant, Computer, Part
@@ -68,6 +68,9 @@ class Unit(TypedDict):
     image: str
     placeholder: str
     disposed: bool
+    # A board a survey has verified, or a machine whose board is part of its own record
+    # (ADR-0055).
+    verified: bool
 
 
 def _units(db: Session, key: str) -> list[Unit]:
@@ -84,6 +87,7 @@ def _units(db: Session, key: str) -> list[Unit]:
         *(("parts", p) for p in db.query(Part).filter(Part.asset_id.in_(filed))),
     ]
     listings = {kind: folder_images(kind) for kind, _ in held}
+    shown = surveys.verified(db, [obj.asset_id for _, obj in held])
     units: list[Unit] = []
     for kind, obj in sorted(held, key=lambda h: h[1].asset_id):
         v = filed[obj.asset_id]
@@ -107,6 +111,7 @@ def _units(db: Session, key: str) -> list[Unit]:
                 "image": imgs[0] if imgs else "",
                 "placeholder": entry.placeholder_for(ptype),
                 "disposed": bool(obj.disposed),
+                "verified": obj.asset_id.upper() in shown,
             }
         )
     return units

@@ -30,7 +30,7 @@ from sqlalchemy.orm import Session
 # already the register-wide address the QR codes print and the JSON log is read
 # from. They are POSTs, so the auth gate has them whatever the prefix.
 
-from .. import entry, locations
+from .. import entry, locations, surveys
 from ..assets import back_to
 from ..common import to_dict
 from ..db import get_db
@@ -55,6 +55,9 @@ class Line(TypedDict):
     name: str
     kind: str
     disposed: bool
+    # A motherboard a survey has verified, or a machine whose board is part of its own
+    # record (ADR-0055).
+    verified: bool
 
 
 @router.get("/items", response_class=HTMLResponse, include_in_schema=False)
@@ -73,6 +76,7 @@ def gui_every_item(request: Request, db: Session = Depends(get_db)) -> HTMLRespo
     holds projects and locations too, and each has its own rules about who is told
     it exists (a private project, Show locations), so this does not read the
     register."""
+    shown = surveys.verified(db)
     computers: list[Line] = [
         {
             "href": f"/computers/{c.asset_id}",
@@ -80,6 +84,7 @@ def gui_every_item(request: Request, db: Session = Depends(get_db)) -> HTMLRespo
             "name": entry.display_name(to_dict(c)),
             "kind": "Computer",
             "disposed": bool(c.disposed),
+            "verified": c.asset_id.upper() in shown,
         }
         for c in db.query(Computer)
     ]
@@ -90,6 +95,7 @@ def gui_every_item(request: Request, db: Session = Depends(get_db)) -> HTMLRespo
             "name": entry.display_name(to_dict(p)),
             "kind": entry.type_label(p.type or "other"),
             "disposed": bool(p.disposed),
+            "verified": p.asset_id.upper() in shown,
         }
         for p in db.query(Part)
     ]
