@@ -127,7 +127,7 @@
 {%- else %}<img class="rowthumb ph" src="/static/{{ r.placeholder }}" alt="" width="48" height="36" loading="lazy">{% endif -%}
 {%- endset -%}
 {%- set tag %}<a class="aid" href="{{ href }}">{{ o.asset_id }}</a>{% endset -%}
-{%- set name %}<a href="{{ href }}">{{ r.name }}</a>{% if r.verified %} {{ U.chip('Verified', 'ok') }}{% endif %}{% if o.disposed %} {{ U.chip('Disposed', 'quiet') }}{% endif %}{% endset -%}
+{%- set name %}<a href="{{ href }}">{{ r.name }}</a>{{ U.tick(r.verified) }}{% if o.disposed %} {{ U.chip('Disposed', 'quiet') }}{% endif %}{% endset -%}
 {%- set where -%}
 {%- set w = wheres.get(o.asset_id) -%}
 {%- if w %}{% if where_links %}<a href="/locations/{{ w.tag }}">{{ w.path }}</a>{% else %}{{ w.path }}{% endif %}

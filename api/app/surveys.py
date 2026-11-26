@@ -2394,15 +2394,34 @@ _HMA_KB = 64
 # How much of the memory above 1 MiB the RAM test reached through the XMS driver, which
 # tinydiag 0.14.0 says only in its detail: `516K, 15156K XMS, HMA: March-U, bus ok`.
 _REACHED = re.compile(r"\b(\d+)K XMS\b")
+# The clock test's failures that its battery explains (ADR-0056), as tinydiag words
+# them in DETAIL_RTC: what the battery keeps was lost, as when a flat or missing one
+# starts the clock at 1 January 1980. The clock's memory said not valid, its SET bit
+# left on, its divider stopped, the CMOS's power or checksum lost. A clock that runs
+# and fails (its seconds wrong, IRQ8 lost) is the board's, and still counts.
+_BATTERY = re.compile(
+    r"^(battery flat|clock halted|oscillator off|BIOS: CMOS lost power|BIOS: CMOS checksum bad"
+    r"|CMOS checksum:)",
+    re.IGNORECASE,
+)
+_BATTERY_WORDS = "the clock's battery does not count"
 
 
 class BoardTests(NamedTuple):
     """What a report's board tests said of the board: PASS, FAIL, or "" where they
-    decided nothing; and why, in words (the tests that failed, or what was not
-    tested)."""
+    decided nothing; and why, in words (the tests that failed, what was not tested,
+    or, for a pass, that the clock's battery was left out)."""
 
     result: str
     why: str
+
+
+def clock_battery(keys: Mapping[str, str]) -> bool:
+    """Whether the clock test failed on what its battery keeps, which does not count
+    against the board (ADR-0056)."""
+    return keys.get("TEST_RTC", "").strip().upper() == "FAIL" and bool(
+        _BATTERY.match(keys.get("DETAIL_RTC", "").strip())
+    )
 
 
 def all_memory_tested(keys: Mapping[str, str]) -> bool:
@@ -2423,8 +2442,12 @@ def board_tests(keys: Mapping[str, str]) -> BoardTests:
     """How the board's tests went (MANUAL §23, "Verified, from the board's tests"). A
     failure is a failure whatever else was run. Otherwise each must have passed or not
     applied, and all of the memory been reached, or the survey says nothing either
-    way: a test skipped or never run has not been run."""
+    way: a test skipped or never run has not been run. A clock that failed on its
+    battery is taken as not applying, as a clock on an XT is (ADR-0056)."""
     results = {name: keys.get(f"TEST_{name}", "").strip().upper() for name in BOARD_TESTS}
+    battery = clock_battery(keys)
+    if battery:
+        results["RTC"] = "NA"
     failed = [_TEST_WORDS.get(name, name) for name, result in results.items() if result == "FAIL"]
     if failed:
         return BoardTests("FAIL", ", ".join(failed))
@@ -2432,15 +2455,15 @@ def board_tests(keys: Mapping[str, str]) -> BoardTests:
         return BoardTests("", "not every board test was run")
     if not all_memory_tested(keys):
         return BoardTests("", "the memory above 1 MiB was not all tested")
-    return BoardTests("PASS", "")
+    return BoardTests("PASS", _BATTERY_WORDS if battery else "")
 
 
 def board_words(keys: Mapping[str, str]) -> str:
-    """How the board's tests went, for the survey's page: `Passed`, `Failed (RAM)`, or
-    why they decided nothing."""
+    """How the board's tests went, for the survey's page: `Passed`, `Passed (the
+    clock's battery does not count)`, `Failed (RAM)`, or why they decided nothing."""
     said = board_tests(keys)
     if said.result == "PASS":
-        return "Passed"
+        return f"Passed ({said.why})" if said.why else "Passed"
     if said.result == "FAIL":
         return f"Failed ({said.why})"
     return said.why[:1].upper() + said.why[1:]
@@ -2466,11 +2489,13 @@ def _tested_board(
 
 class Verified(NamedTuple):
     """A board's Verified: the survey that gave it, when that survey was taken, and the
-    program that ran its tests (`TINYDIAG 0.14.0`)."""
+    program that ran its tests (`TINYDIAG 0.14.0`). On a computer showing its
+    motherboard's (ADR-0056), `board` is that board's tag."""
 
     survey: int
     taken: datetime
     program: str
+    board: str = ""
 
 
 def verified(db: Session, tags: Iterable[str] | None = None) -> dict[str, tuple[datetime, int]]:
@@ -2504,6 +2529,49 @@ def verification(db: Session, tag: str) -> Verified | None:
     taken, sid = found
     s = db.get(Survey, sid)
     return Verified(sid, taken, program(keys_of(s)) if s is not None else "")
+
+
+def machine_verification(db: Session, tag: str) -> Verified | None:
+    """A computer's Verified, for its page: its own, where its board is part of its own
+    record, or else the Verified of a motherboard fitted in it, which names the board
+    (ADR-0056). None where neither is."""
+    own = verification(db, tag)
+    if own is not None:
+        return own
+    fitted = (
+        db.query(Part.asset_id)
+        .filter(Part.inside_id == tag.upper(), Part.type == "motherboard")
+        .order_by(Part.asset_id)
+    )
+    for (board,) in fitted:
+        found = verification(db, board)
+        if found is not None:
+            return found._replace(board=board.upper())
+    return None
+
+
+def marked(db: Session, tags: Iterable[str] | None = None) -> set[str]:
+    """The tags, of everything or of `tags`, that carry the blue check (ADR-0056): every
+    verified board, every machine whose board is part of its own record and is
+    verified, and every computer with a verified motherboard fitted in it."""
+    boards = set(verified(db))
+    if not boards:
+        return set()
+    holders = {
+        (inside or "").upper()
+        for (inside,) in db.query(Part.inside_id).filter(
+            Part.asset_id.in_(boards), Part.type == "motherboard", Part.inside_id.is_not(None)
+        )
+    }
+    machines = (
+        {c.upper() for (c,) in db.query(Computer.asset_id).filter(Computer.asset_id.in_(holders))}
+        if holders
+        else set()
+    )
+    shown = boards | machines
+    if tags is not None:
+        shown &= {t.upper() for t in tags if t}
+    return shown
 
 
 def _point_board_tests(

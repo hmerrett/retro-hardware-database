@@ -38,7 +38,8 @@
       <div><dt>{{ k }}</dt><dd>{{ v | linked }}</dd></div>
     {% endfor %}
     {#- A machine whose board is part of its own record (an IBM 5150) carries its
-        board's Verified itself (ADR-0055). #}
+        board's Verified itself (ADR-0055), and any other shows the Verified of the
+        motherboard fitted in it, naming the board (ADR-0056). #}
     {{ U.verified_row(verified) }}
     {# Where it is kept: the owner's by default and everybody's by setting (ADR-0027),
        and none at all when the route says this reader is not told. #}

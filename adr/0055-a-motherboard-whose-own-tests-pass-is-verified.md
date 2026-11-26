@@ -1,6 +1,6 @@
 # 0055 — A motherboard whose own tests pass is verified
 
-**Status:** Accepted
+**Status:** Accepted — amended by [ADR-0056](0056-verified-leaves-out-the-clocks-battery-and-is-a-blue-check.md)
 **Date:** 2026-11-25
 **Amends:** [ADR-0043](0043-a-survey-gives-everything-it-finds-one-of-three-answers.md)
 

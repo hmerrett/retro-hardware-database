@@ -30,6 +30,8 @@
   --warning-wash: #ebe0b4;
   --success: #1f5a2a;
   --success-wash: #d3e0c8;
+  --tick: #1a5bc4;
+  --on-tick: #ffffff;
   --scrim: #14130fd8;
   --on-scrim: #ece9e0;
   --on-scrim-muted: #c0bbab;
@@ -66,6 +68,8 @@
   --warning-wash: #332c16;
   --success: #8fdca0;
   --success-wash: #1c2e20;
+  --tick: #6aa8ff;
+  --on-tick: #08162e;
   --scrim: #000000e0;
   --on-scrim: #ece8dc;
   --on-scrim-muted: #b4b0a2;
@@ -103,6 +107,8 @@
     --warning-wash: #332c16;
     --success: #8fdca0;
     --success-wash: #1c2e20;
+    --tick: #6aa8ff;
+    --on-tick: #08162e;
     --scrim: #000000e0;
     --on-scrim: #ece8dc;
     --on-scrim-muted: #b4b0a2;

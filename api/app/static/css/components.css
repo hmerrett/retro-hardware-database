@@ -166,6 +166,16 @@
   .chip.bad { background: var(--danger-wash); }
   .chip.quiet { background: none; color: var(--text-muted); box-shadow: inset 0 0 0 1px var(--line); }
   a.chip { text-decoration: underline; color: var(--accent); }
+  /* The blue check of a verified motherboard, and of a computer whose motherboard is
+     verified (ADR-0056): a disc in a blue of its own, whatever the preset, with the
+     check drawn on it. Sized by the words it follows, so it is in proportion beside a
+     title and in a table alike. */
+  .tick { display: inline-block; width: 0.9em; height: 0.9em; margin-left: 0.3em;
+    vertical-align: -0.1em; line-height: 0; }
+  .tick svg { display: block; width: 100%; height: 100%; }
+  .tick circle { fill: var(--tick); }
+  .tick polyline { fill: none; stroke: var(--on-tick); stroke-width: 2.2; stroke-linecap: round;
+    stroke-linejoin: round; }
 
   /* ---- 6. Panel ----------------------------------------------------------- */
   .panel { margin-top: var(--space-5); overflow: hidden; background: var(--surface-raised);

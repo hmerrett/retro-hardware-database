@@ -55,8 +55,8 @@ class Line(TypedDict):
     name: str
     kind: str
     disposed: bool
-    # A motherboard a survey has verified, or a machine whose board is part of its own
-    # record (ADR-0055).
+    # A motherboard a survey has verified, a machine whose board is part of its own
+    # record, or a computer with a verified motherboard fitted in it (ADR-0056).
     verified: bool
 
 
@@ -76,7 +76,7 @@ def gui_every_item(request: Request, db: Session = Depends(get_db)) -> HTMLRespo
     holds projects and locations too, and each has its own rules about who is told
     it exists (a private project, Show locations), so this does not read the
     register."""
-    shown = surveys.verified(db)
+    shown = surveys.marked(db)
     computers: list[Line] = [
         {
             "href": f"/computers/{c.asset_id}",

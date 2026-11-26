@@ -12,9 +12,9 @@
   It is also the page a crawler is given to every item, which is why it has no
   photographs and no pager: one fetch reads the whole list, and it is the same list
   every time. The tag and the name both lead to the item, as in the gallery's table,
-  and a disposed item is listed and says so, as on a model's page. So does a
-  motherboard a survey has verified (ADR-0055). Three columns, so it stays a table
-  on a phone.
+  and a disposed item is listed and says so, as on a model's page. A motherboard a
+  survey has verified, and a computer whose motherboard is, has the blue check by its
+  name (ADR-0056). Three columns, so it stays a table on a phone.
 #}
 <div class="pagehead">
   <h1 class="heading">Every item</h1>
@@ -23,7 +23,7 @@
 {%- set trows = [] -%}
 {%- for line in lines -%}
 {%- set tag %}<a class="aid" href="{{ line.href }}">{{ line.tag }}</a>{% endset -%}
-{%- set name %}<a href="{{ line.href }}">{{ line.name }}</a>{% if line.verified %} {{ U.chip('Verified', 'ok') }}{% endif %}{% if line.disposed %} {{ U.chip('Disposed', 'quiet') }}{% endif %}{% endset -%}
+{%- set name %}<a href="{{ line.href }}">{{ line.name }}</a>{{ U.tick(line.verified) }}{% if line.disposed %} {{ U.chip('Disposed', 'quiet') }}{% endif %}{% endset -%}
 {%- if trows.append([tag, name, line.kind]) %}{% endif -%}
 {%- endfor %}
 {{ U.table([('Tag', 'num'), ('Name', ''), ('Kind', '')], trows, mode='plain') }}

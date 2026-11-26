@@ -2330,6 +2330,17 @@ ABOVE_1MIB = BOARD_PASSED | {
     "EXTKB": "3072",
     "DETAIL_RAM": "512K, 3008K XMS, HMA: March-U, bus ok",
 }
+# An AT whose clock failed on what its battery keeps, as a Tulip TC16's did: its clock
+# had stopped, and DOS had started at 1 January 1980. Everything else passed.
+CLOCK_BATTERY = BOARD_PASSED | {
+    "CPU": "80286",
+    "EXTKB": "0",
+    "RESULT": "FAIL",
+    "TEST_RTC": "FAIL",
+    "DETAIL_RTC": "oscillator off: register A = 7Fh",
+}
+# The blue check beside a name (ADR-0056), as it opens.
+TICK = '<span class="tick" role="img" aria-label="Verified" title="Verified">'
 
 
 def verified(client, tag: str, kind: str = "parts") -> str | None:
@@ -2339,6 +2350,15 @@ def verified(client, tag: str, kind: str = "parts") -> str | None:
     assert r.status_code == 200, r.text
     found = re.search(r"<dt>Verified</dt><dd>(.*?)</dd>", content(r.text), re.S)
     return " ".join(re.sub(r"<[^>]+>", "", found.group(1)).split()) if found else None
+
+
+def title(client, tag: str, kind: str = "parts") -> str:
+    """A thing's title, as its page writes it."""
+    r = client.get(f"/{kind}/{tag}")
+    assert r.status_code == 200, r.text
+    found = re.search(r'<h1 class="title">(.*?)</h1>', r.text, re.S)
+    assert found, "the page has no title"
+    return found.group(1)
 
 
 def board(part, **fields) -> str:
@@ -2367,12 +2387,38 @@ class TestVerifiedFromTheBoardsTests:
         survey(client, TAG=tag, taken="2026-11-01T09:30:00", **BOARD_PASSED)
         assert verified(client, tag).startswith("2026-11-01, with TINYDIAG 0.14.0")
 
-    def test_so_is_the_board_in_a_machine_and_the_machine_is_not(self, client, computer, part):
+    def test_so_is_the_board_in_a_machine_and_the_machine_shows_it(self, client, computer, part):
+        """The mark is the board's, and the machine says which board it is (ADR-0056)."""
         machine, tag = in_a_machine(computer, part)
-        made = survey(client, TAG=machine, **BOARD_PASSED)
+        made = survey(client, TAG=machine, taken="2026-11-01T09:30:00", **BOARD_PASSED)
         assert (made["board"], made["board_result"]) == (tag, "PASS")
+        assert verified(client, tag).startswith("2026-11-01, with TINYDIAG 0.14.0")
+        assert verified(client, machine, "computers").startswith(
+            f"Its motherboard, {tag}: 2026-11-01, with TINYDIAG 0.14.0"
+        )
+
+    def test_a_machine_stops_showing_it_when_its_board_is_taken_out(self, client, computer, part):
+        machine, tag = in_a_machine(computer, part)
+        survey(client, TAG=machine, **BOARD_PASSED)
+        r = client.post(f"/parts/{tag}/detach", data={}, follow_redirects=False)
+        assert r.status_code == 303, r.text
         assert verified(client, tag)
         assert verified(client, machine, "computers") is None
+        assert TICK not in title(client, machine, "computers")
+
+    def test_or_when_its_board_stops_being_verified(self, client, computer, part):
+        machine, _ = in_a_machine(computer, part)
+        survey(client, TAG=machine, taken="2026-11-01T09:30:00", **BOARD_PASSED)
+        survey(client, TAG=machine, taken="2026-11-02T09:30:00", **BOARD_FAILED)
+        assert verified(client, machine, "computers") is None
+        assert TICK not in title(client, machine, "computers")
+
+    def test_the_machines_history_says_nothing_of_it(self, client, computer, part):
+        """The board's history says when it was verified; the check is the board's."""
+        machine, _ = in_a_machine(computer, part)
+        survey(client, TAG=machine, **BOARD_PASSED)
+        said = [e["message"] for e in lines(client, machine, "survey")]
+        assert said and not any("erified" in line for line in said)
 
     @pytest.mark.parametrize("test", ["OPTROM", "COM", "LPT", "KBD", "VRAM", "FDC"])
     def test_a_card_or_a_peripheral_that_failed_does_not_count(self, client, part, test):
@@ -2398,6 +2444,62 @@ class TestVerifiedFromTheBoardsTests:
         tag = board(part)
         survey(client, TAG=tag, **BOARD_PASSED | {f"TEST_{test}": "NA"})
         assert verified(client, tag)
+
+    @pytest.mark.parametrize(
+        "detail",
+        [
+            "battery flat: register D says RAM invalid",
+            "clock halted: register B SET bit on",
+            "oscillator off: register A = 7Fh",
+            "BIOS: CMOS lost power (byte 0Eh = 80h)",
+            "BIOS: CMOS checksum bad (byte 0Eh = 40h)",
+            "CMOS checksum: sum 0A1Ch, stored 0B00h",
+        ],
+        ids=["flat", "halted", "stopped", "power lost", "BIOS checksum", "checksum"],
+    )
+    def test_a_clock_that_failed_on_its_battery_does_not_count(self, client, part, detail):
+        """The battery runs down and is changed: it is not a fault in the board
+        (ADR-0056)."""
+        tag = board(part)
+        made = survey(client, TAG=tag, **CLOCK_BATTERY | {"DETAIL_RTC": detail})
+        assert made["board_result"] == "PASS"
+        assert verified(client, tag)
+
+    @pytest.mark.parametrize(
+        "detail",
+        [
+            "seconds went from 12 to 14 in one update",
+            "1 RTC second = 1310 ms by the 8253",
+            "update-in-progress bit stuck on",
+            "clock stopped: seconds not counting",
+            "update-in-progress bit never set",
+            "no IRQ8 from the RTC (2nd 8259 or cascade)",
+            "IRQ8 at 300 Hz, not 1024",
+            None,
+        ],
+        ids=["count", "length", "stuck", "not counting", "never set", "no IRQ8", "IRQ8 rate", "?"],
+    )
+    def test_a_clock_that_runs_and_fails_still_counts(self, client, part, detail):
+        """And so does a clock failure the register cannot put down to the battery."""
+        tag = board(part)
+        made = survey(client, TAG=tag, **CLOCK_BATTERY | {"DETAIL_RTC": detail})
+        assert made["board_result"] == "FAIL"
+        assert verified(client, tag) is None
+
+    def test_the_battery_aside_the_rest_must_still_pass(self, client, part):
+        tag = board(part)
+        made = survey(client, TAG=tag, **CLOCK_BATTERY | {"TEST_RAM": "FAIL"})
+        page = client.get(f"/surveys/{made['id']}").text
+        found = re.search(r"<dt>Board tests</dt><dd>(.*?)</dd>", page, re.S)
+        assert found and found.group(1).startswith("Failed (RAM), for ")
+
+    def test_the_surveys_page_says_the_battery_was_left_out(self, client, part):
+        tag = board(part)
+        made = survey(client, TAG=tag, **CLOCK_BATTERY)
+        page = client.get(f"/surveys/{made['id']}").text
+        found = re.search(r"<dt>Board tests</dt><dd>(.*?)</dd>", page, re.S)
+        assert found
+        assert found.group(1).startswith("Passed (the clock&#39;s battery does not count), for ")
 
     @pytest.mark.parametrize("test", ["RAM", "RAMSYS"])
     def test_the_memory_always_applies(self, client, part, test):
@@ -2561,43 +2663,71 @@ class TestVerifiedFromTheBoardsTests:
         survey(client, TAG=tag, taken="2026-11-01T09:30:00", **BOARD_PASSED)
         log_out(client)
         assert verified(client, tag) == "2026-11-01, with TINYDIAG 0.14.0"
+        assert TICK in title(client, tag)
+
+    def test_a_verified_board_has_the_blue_check_by_its_title(self, client, part):
+        tag, other = board(part), board(part)
+        survey(client, TAG=tag, **BOARD_PASSED)
+        assert TICK in title(client, tag)
+        assert TICK not in title(client, other)
+
+    def test_so_has_a_computer_with_a_verified_board_fitted(self, client, computer, part):
+        machine, _ = in_a_machine(computer, part)
+        unverified, _ = in_a_machine(computer, part)
+        survey(client, TAG=machine, **BOARD_PASSED)
+        assert TICK in title(client, machine, "computers")
+        assert TICK not in title(client, unverified, "computers")
 
     def test_the_gallery_and_every_item_mark_it(self, client, computer, part):
-        tag = board(part)
-        other = board(part)
-        survey(client, TAG=tag, **BOARD_PASSED)
+        """The board, and the computer it is fitted in, beside their names: on the
+        front page's cards and in its table, and on Every item."""
+        machine, tag = in_a_machine(computer, part)
+        other_machine, other = in_a_machine(computer, part)
+        survey(client, TAG=machine, **BOARD_PASSED)
         tiles = client.get("/?layout=tiles").text
         table = client.get("/?layout=table").text
         items = client.get("/items").text
         for page, shape in [
-            (tiles, r'<a class="card[^"]*" href="/parts/{}">.*?</a>'),
-            (table, r'<tr>(?:(?!</tr>).)*href="/parts/{}"(?:(?!</tr>).)*</tr>'),
-            (items, r'<tr>(?:(?!</tr>).)*href="/parts/{}"(?:(?!</tr>).)*</tr>'),
+            (tiles, r'<a class="card[^"]*" href="/{}/{}">.*?</a>'),
+            (table, r'<tr>(?:(?!</tr>).)*href="/{}/{}"(?:(?!</tr>).)*</tr>'),
+            (items, r'<tr>(?:(?!</tr>).)*href="/{}/{}"(?:(?!</tr>).)*</tr>'),
         ]:
-            mine = re.search(shape.format(tag), page, re.S)
-            theirs = re.search(shape.format(other), page, re.S)
-            assert mine and "Verified" in mine.group(0)
-            assert theirs and "Verified" not in theirs.group(0)
+            for kind, mine, theirs in [
+                ("parts", tag, other),
+                ("computers", machine, other_machine),
+            ]:
+                found = re.search(shape.format(kind, mine), page, re.S)
+                not_found = re.search(shape.format(kind, theirs), page, re.S)
+                assert found and TICK in found.group(0)
+                assert not_found and TICK not in not_found.group(0)
 
     def test_a_machines_list_of_parts_marks_it(self, client, computer, part):
         machine, tag = in_a_machine(computer, part)
         survey(client, TAG=machine, **BOARD_PASSED)
         page = content(client.get(f"/computers/{machine}").text)
         card = re.search(
-            rf'<article class="itemcard"><header><a class="tag" href="/parts/{tag}">.*?</header>',
+            rf'<article class="itemcard"><header><a class="tag" href="/parts/{tag}">.*?</h4>',
             page,
             re.S,
         )
-        assert card and "Verified" in card.group(0)
+        assert card and TICK in card.group(0)
 
-    def test_a_catalogue_models_page_marks_it(self, client, computer):
+    def test_a_catalogue_models_page_marks_it(self, client, computer, part):
+        """A machine whose board is part of its own record, and one with a verified
+        motherboard fitted in it."""
         machine = computer(machine={"model_key": "ibm-5150"})["asset_id"]
         other = computer(machine={"model_key": "ibm-5150"})["asset_id"]
         survey(client, TAG=machine, BIOSDATE="10/27/82", **BOARD_PASSED)
         page = client.get("/machines/ibm-5150").text
         for tag, said in [(machine, True), (other, False)]:
             unit = re.search(rf'<a class="result" href="/computers/{tag}">.*?</a>', page, re.S)
-            assert unit and ("· Verified" in unit.group(0)) is said
+            assert unit and (TICK in unit.group(0)) is said
+        amstrad = computer(machine={"model_key": "amstrad-pc2086"})["asset_id"]
+        board(part, computer_id=amstrad)
+        survey(client, TAG=amstrad, **BOARD_PASSED)
+        page = client.get("/machines/amstrad-pc2086").text
+        unit = re.search(rf'<a class="result" href="/computers/{amstrad}">.*?</a>', page, re.S)
+        assert unit and TICK in unit.group(0)
 
     def test_a_board_surveyed_on_its_own_ends_its_line_saying_so(self, client, part):
         tag = board(part, condition="Working")

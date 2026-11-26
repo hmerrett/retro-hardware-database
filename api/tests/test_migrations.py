@@ -1182,3 +1182,61 @@ def test_0051_can_be_downgraded_and_upgraded_again(scratch_db_url):
     with engine.begin() as conn:
         assert _said(conn, ids) == [("RH-BRD1", "PASS")]
     engine.dispose()
+
+
+# An AT whose clock failed on what its battery keeps, as a Tulip TC16's did; everything
+# else passed.
+CLOCK_BATTERY = BOARD_PASSED | {
+    "CPU": "80286",
+    "EXTKB": "0",
+    "TEST_RTC": "FAIL",
+    "DETAIL_RTC": "oscillator off: register A = 7Fh",
+}
+
+
+def test_0052_takes_a_clock_that_failed_on_its_battery_as_not_applying(scratch_db_url):
+    """A Tulip TC16 whose clock had stopped and an Amstrad PC2086 whose battery was flat
+    are verified from the day it runs (ADR-0056). A clock that ran and failed still
+    fails the board, and so does anything else that failed."""
+    flat = BOARD_PASSED | {
+        "TEST_RTC": "FAIL",
+        "DETAIL_RTC": "battery flat: register D says RAM invalid",
+    }
+    engine, ids = _surveys_taken(
+        scratch_db_url,
+        [
+            ("RH-BRD2", CLOCK_BATTERY, [_board_finding("part", "RH-BRD2")]),
+            ("RH-MACH", flat, [_board_finding("part", "RH-BRD1")]),
+            (
+                "RH-BRD2",
+                CLOCK_BATTERY | {"DETAIL_RTC": "1 RTC second = 1310 ms by the 8253"},
+                [_board_finding("part", "RH-BRD2")],
+            ),
+            ("RH-BRD2", CLOCK_BATTERY | {"TEST_RAM": "FAIL"}, [_board_finding("part", "RH-BRD2")]),
+        ],
+    )
+    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    with engine.begin() as conn:
+        assert _said(conn, ids) == [
+            ("RH-BRD2", "PASS"),  # its clock had stopped
+            ("RH-BRD1", "PASS"),  # its clock's battery was flat
+            ("RH-BRD2", "FAIL"),  # a clock that ran, with a second the wrong length
+            ("RH-BRD2", "FAIL"),  # the battery aside, its memory failed
+        ]
+    engine.dispose()
+
+
+def test_0052_can_be_downgraded_and_upgraded_again(scratch_db_url):
+    """Down, the battery counts again, as 0051 counted it."""
+    engine, ids = _surveys_taken(
+        scratch_db_url, [("RH-BRD2", CLOCK_BATTERY, [_board_finding("part", "RH-BRD2")])]
+    )
+    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    down = _alembic(scratch_db_url, "downgrade", "0051_a_surveys_board_tests")
+    assert down.returncode == 0, f"downgrade from 0052 failed:\n{down.stderr}"
+    with engine.begin() as conn:
+        assert _said(conn, ids) == [("RH-BRD2", "FAIL")]
+    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    with engine.begin() as conn:
+        assert _said(conn, ids) == [("RH-BRD2", "PASS")]
+    engine.dispose()

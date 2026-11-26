@@ -76,6 +76,12 @@ PAIRS = [
     ("focus", "surface-raised", EDGE),
     ("focus", "surface-sunken", EDGE),
     ("focus", "surface-nav", EDGE),
+    # The blue check of a verified board (ADR-0056): a disc that has to be seen on
+    # whatever the name stands on, and the check drawn on it.
+    ("tick", "surface", EDGE),
+    ("tick", "surface-raised", EDGE),
+    ("tick", "surface-sunken", EDGE),
+    ("on-tick", "tick", TEXT),
 ]
 
 
@@ -174,7 +180,7 @@ def test_every_preset_states_every_colour_in_both_modes():
 @pytest.mark.parametrize("theme", THEMES)
 @pytest.mark.parametrize(("fg", "bg", "floor"), PAIRS, ids=[f"{f}-on-{b}" for f, b, _ in PAIRS])
 def test_every_pair_holds_in_every_preset_and_mode(theme, fg, bg, floor):
-    """574 pairs: the 41 the design uses, in fourteen themes. A preset is judged as
+    """630 pairs: the 45 the design uses, in fourteen themes. A preset is judged as
     a whole set of passing pairs, not a palette swapped in by eye."""
     colours = PALETTES["themes"][theme]
     ground = over(colours[bg], colours["surface"]) if len(colours[bg]) == 9 else colours[bg]
