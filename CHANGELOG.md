@@ -91,7 +91,13 @@ gives, below and above 1 MiB, and how the survey program found the second. A mac
 whose memory an older survey wrote short, as its conventional memory alone (tinydiag
 before 0.14.0 could not see above 1 MiB under HIMEM.SYS), has it corrected by the next
 survey that finds memory above 1 MiB, and its history says so. Nothing else recorded
-is changed.
+is changed. A motherboard whose own tests all passed in a survey is marked
+**Verified**: the board's chips and all of its memory, whatever its keyboard, floppy
+drive or ports did, so a bare board tested on the bench can be verified. Its page
+says when and with which survey program, a mark beside it in the gallery, on Every
+item, in its machine's parts and on its catalogue model's page says so, and a later
+survey whose board tests fail takes it away. Surveys already taken count from the
+upgrade.
 
 **Upgrading:** nothing to do unless you want surveys. Give an agent a key in
 `RHDB_SURVEY_AGENTS` in `.env`, run `tools/survey_agent.py` where the machines'

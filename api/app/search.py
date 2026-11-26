@@ -77,6 +77,9 @@ class _CardFields(TypedDict):
     acquired: str
     catsort: int
     sub: str
+    # A motherboard a survey has verified, or a machine whose board is part of its own
+    # record (ADR-0055): a mark on its card and its row.
+    verified: bool
 
 
 class ComputerCard(_CardFields):

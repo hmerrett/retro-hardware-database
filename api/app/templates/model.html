@@ -39,7 +39,7 @@
 {%- if u.image %}<img src="{{ img_url(u.image, THUMB_CARD) }}" alt="" loading="lazy" decoding="async">
 {%- else %}<img class="ph" src="/static/{{ u.placeholder }}" alt="" loading="lazy">{% endif -%}
 </span><span><span class="tag muted">{{ u.tag }}</span><span class="nm">{{ u.name }}</span>
-<span class="sub">{{ u.sub }}{% if u.disposed %} · Disposed{% endif %}</span></span></a>
+<span class="sub">{{ u.sub }}{% if u.verified %} · Verified{% endif %}{% if u.disposed %} · Disposed{% endif %}</span></span></a>
 {%- endfor %}
 </div>
 {% else %}

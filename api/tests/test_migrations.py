@@ -13,6 +13,7 @@ no database, or one whose database is ignored) under an account allowed to creat
 and drop a scratch database. CI provides one; see the MariaDB CI job.
 """
 
+import json
 import os
 import subprocess
 import uuid
@@ -1058,4 +1059,126 @@ def test_0048_can_be_downgraded_and_upgraded_again(scratch_db_url):
             "label_full_type": "look",
             "label_small_destination": "bluetooth",
         }
+    engine.dispose()
+
+
+# --- 0051: what a survey's board tests said, and of which board ----------------------
+
+# The revision 0051 builds on.
+BEFORE_BOARD_TESTS = "0050_what_a_survey_corrected"
+
+# Every one of the board's tests passed, on an XT, as a survey keeps its report's keys.
+BOARD_PASSED = {
+    "TOOL": "TINYDIAG",
+    "VERSION": "0.14.0",
+    "CPU": "8088",
+    "TEST_TICK": "PASS",
+    "TEST_CPU": "PASS",
+    "TEST_FPU": "NA",
+    "TEST_ROM": "PASS",
+    "TEST_PIT": "PASS",
+    "TEST_DMA": "PASS",
+    "TEST_PIC": "PASS",
+    "TEST_NMI": "PASS",
+    "TEST_RTC": "NA",
+    "TEST_RAM": "PASS",
+    "TEST_RAMSYS": "PASS",
+}
+
+
+def _board_finding(answer, part=None):
+    return {"thing": "BOARD", "kind": "board", "answer": answer, "part": part}
+
+
+def _surveys_taken(scratch_db_url, surveys):
+    """A register at 0050 with a machine, RH-MACH, its board RH-BRD1 fitted in it, a
+    board on its own, RH-BRD2, and these surveys, as (machine, keys, findings); their
+    ids, in the same order."""
+    up = _alembic(scratch_db_url, "upgrade", BEFORE_BOARD_TESTS)
+    assert up.returncode == 0, up.stderr
+    engine = create_engine(scratch_db_url, future=True)
+    ids = []
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO register (asset_id, what, inside_id) VALUES "
+                "('RH-MACH', 'computer', NULL), ('RH-BRD1', 'part', 'RH-MACH'), "
+                "('RH-BRD2', 'part', NULL)"
+            )
+        )
+        conn.execute(text("INSERT INTO computers (asset_id) VALUES ('RH-MACH')"))
+        conn.execute(
+            text(
+                "INSERT INTO parts (asset_id, type) VALUES "
+                "('RH-BRD1', 'motherboard'), ('RH-BRD2', 'motherboard')"
+            )
+        )
+        for machine, keys, findings in surveys:
+            made = conn.execute(
+                text(
+                    "INSERT INTO surveys (agent, taken, report, `keys`, machine, findings, "
+                    "filled, differs, missing, roms) VALUES ('bench', NOW(), '', :k, :m, :f, "
+                    "'[]', '[]', '[]', '[]')"
+                ),
+                {"k": json.dumps(keys), "m": machine, "f": json.dumps(findings)},
+            )
+            ids.append(made.lastrowid)
+    return engine, ids
+
+
+def _said(conn, ids):
+    query = text("SELECT id, board, board_result FROM surveys")
+    rows = {sid: (board, result) for sid, board, result in conn.execute(query)}
+    return [rows[sid] for sid in ids]
+
+
+def test_0051_says_what_every_survey_already_taken_said_of_its_board(scratch_db_url):
+    """From what each one kept: its report's keys and the answer it gave for its
+    motherboard. So a board whose newest deciding survey passed is verified from the
+    day it runs."""
+    skipped = BOARD_PASSED | {"TEST_PIC": "SKIP"}
+    no_himem = BOARD_PASSED | {
+        "CPU": "80386",
+        "EXTKB": "3072",
+        "DETAIL_RAM": "512K ok; no XMS: 3072K above 1M untested",
+    }
+    engine, ids = _surveys_taken(
+        scratch_db_url,
+        [
+            ("RH-MACH", BOARD_PASSED, [_board_finding("part", "RH-BRD1")]),
+            ("RH-BRD2", BOARD_PASSED | {"TEST_RAM": "FAIL"}, [_board_finding("part", "RH-BRD2")]),
+            (None, BOARD_PASSED, []),
+            ("RH-MACH", skipped, []),
+            ("RH-MACH", BOARD_PASSED, [_board_finding("machine")]),
+            ("RH-MACH", BOARD_PASSED, [_board_finding(None)]),
+            ("RH-BRD2", no_himem, []),
+        ],
+    )
+    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    with engine.begin() as conn:
+        assert _said(conn, ids) == [
+            ("RH-BRD1", "PASS"),  # the board fitted in the machine it was filed against
+            ("RH-BRD2", "FAIL"),  # a board surveyed on its own, whose RAM test failed
+            (None, "PASS"),  # still waiting for its machine
+            ("RH-BRD1", ""),  # a report that said nothing of a board, and a test skipped
+            ("RH-MACH", "PASS"),  # a machine whose board is part of its own record
+            (None, "PASS"),  # its motherboard still to be answered
+            ("RH-BRD2", ""),  # memory above 1 MiB it did not reach
+        ]
+    engine.dispose()
+
+
+def test_0051_can_be_downgraded_and_upgraded_again(scratch_db_url):
+    engine, ids = _surveys_taken(
+        scratch_db_url, [("RH-MACH", BOARD_PASSED, [_board_finding("part", "RH-BRD1")])]
+    )
+    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    down = _alembic(scratch_db_url, "downgrade", BEFORE_BOARD_TESTS)
+    assert down.returncode == 0, f"downgrade from 0051 failed:\n{down.stderr}"
+    with engine.begin() as conn:
+        columns = {row[0] for row in conn.execute(text("SHOW COLUMNS FROM surveys"))}
+    assert not {"board", "board_result"} & columns
+    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    with engine.begin() as conn:
+        assert _said(conn, ids) == [("RH-BRD1", "PASS")]
     engine.dispose()

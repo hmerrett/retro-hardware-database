@@ -548,6 +548,10 @@ def gui_computer(
             "c": c,
             "parts": [p for p in parts if p is not motherboard],
             "motherboard": motherboard,
+            # A machine whose board is part of its own record is verified itself, and a
+            # board fitted in it says so on its card (ADR-0055).
+            "verified": surveys.verification(db, aid),
+            "verified_parts": surveys.verified(db, [p.asset_id for p in below]),
             "mounted": tree.mounted_on(r, aid, below),
             "form_factor": form_factor,
             # A picture for each of them, read once for the page rather than per card.

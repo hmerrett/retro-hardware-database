@@ -1549,6 +1549,9 @@ class Filing:
     # recorded and what was read (ADR-0054).
     corrected: list[dict[str, str]] = field(default_factory=list)
     made: list[tuple[str, str]] = field(default_factory=list)
+    # "Verified." or "No longer verified.", where the survey changed that of the thing it
+    # is filed against, for the end of its line (ADR-0055).
+    verified: str = ""
 
 
 def _clock(keys: Mapping[str, str]) -> str:
@@ -1578,6 +1581,7 @@ def take(
             report=report.text,
             keys=json.dumps(keys),
             result=keys.get("RESULT", "").strip().upper()[:16],
+            board_result=board_tests(keys).result,
             findings=json.dumps(findings(keys, texts)),
             filled="[]",
             differs="[]",
@@ -1723,6 +1727,8 @@ def _apply(
     board = subject if isinstance(subject, Part) else _board_of(db, tree.load(db), machine)
     _fill(db, s, keys, found, subject, board, texts, done)
     _condition(keys, subject, done)
+    tested = _tested_board(db, found, subject, board, machine)
+    done.verified = _point_board_tests(db, s, tested, keys, own_line=True)
     _keep_roms(db, s, keys, found, roms, subject, board, texts)
     s.missing = json.dumps(_missing(db, t, machine, found))
     s.filled = json.dumps(done.filled)
@@ -2374,6 +2380,177 @@ def _condition(keys: Mapping[str, str], subject: Computer | Part, done: Filing) 
         )
 
 
+# --- Verified, from the board's tests --------------------------------------------------------
+
+# tinydiag's tests of the board and its memory (ADR-0055). The rest are of cards and
+# peripherals: the option ROMs, the ports, the keyboard (and its controller, which
+# tinydiag tests only with a keyboard), the video memory and the floppy.
+BOARD_TESTS = ("TICK", "CPU", "FPU", "ROM", "PIT", "DMA", "PIC", "NMI", "RTC", "RAM", "RAMSYS")
+# There is always memory to test, so neither memory test is one that does not apply.
+_MEMORY_TESTS = ("RAM", "RAMSYS")
+# The HMA, which DOS may have (DOS=HIGH): then it is neither free to test nor memory the
+# test missed.
+_HMA_KB = 64
+# How much of the memory above 1 MiB the RAM test reached through the XMS driver, which
+# tinydiag 0.14.0 says only in its detail: `516K, 15156K XMS, HMA: March-U, bus ok`.
+_REACHED = re.compile(r"\b(\d+)K XMS\b")
+
+
+class BoardTests(NamedTuple):
+    """What a report's board tests said of the board: PASS, FAIL, or "" where they
+    decided nothing; and why, in words (the tests that failed, or what was not
+    tested)."""
+
+    result: str
+    why: str
+
+
+def all_memory_tested(keys: Mapping[str, str]) -> bool:
+    """Whether the RAM test reached all the memory the BIOS counts. A processor before
+    the 286 has none above 1 MiB; on a later one, all of it but the HMA must have been
+    reached through the XMS driver. A report that does not say how much there is above
+    1 MiB has not shown it tested."""
+    if keys.get("CPU", "").strip().upper().startswith(("808", "8018", "V2", "V3")):
+        return True
+    above = _int(keys.get("EXTKB"))
+    if above is None:
+        return False
+    reached = _REACHED.search(keys.get("DETAIL_RAM", ""))
+    return above == 0 or (reached is not None and int(reached.group(1)) + _HMA_KB >= above)
+
+
+def board_tests(keys: Mapping[str, str]) -> BoardTests:
+    """How the board's tests went (MANUAL §23, "Verified, from the board's tests"). A
+    failure is a failure whatever else was run. Otherwise each must have passed or not
+    applied, and all of the memory been reached, or the survey says nothing either
+    way: a test skipped or never run has not been run."""
+    results = {name: keys.get(f"TEST_{name}", "").strip().upper() for name in BOARD_TESTS}
+    failed = [_TEST_WORDS.get(name, name) for name, result in results.items() if result == "FAIL"]
+    if failed:
+        return BoardTests("FAIL", ", ".join(failed))
+    if any(r != "PASS" and (r != "NA" or n in _MEMORY_TESTS) for n, r in results.items()):
+        return BoardTests("", "not every board test was run")
+    if not all_memory_tested(keys):
+        return BoardTests("", "the memory above 1 MiB was not all tested")
+    return BoardTests("PASS", "")
+
+
+def board_words(keys: Mapping[str, str]) -> str:
+    """How the board's tests went, for the survey's page: `Passed`, `Failed (RAM)`, or
+    why they decided nothing."""
+    said = board_tests(keys)
+    if said.result == "PASS":
+        return "Passed"
+    if said.result == "FAIL":
+        return f"Failed ({said.why})"
+    return said.why[:1].upper() + said.why[1:]
+
+
+def _tested_board(
+    db: Session, found: list[Finding], subject: Computer | Part, board: Part | None, machine: str
+) -> str | None:
+    """The motherboard a survey's board tests were of: the one it answered for its
+    motherboard (the board itself, the board fitted in the machine, or the machine where
+    its board is part of its own record), or, where the report said nothing of a board,
+    the board filed against or fitted. None while that answer is still to come, and
+    where there is no board."""
+    f = next((x for x in found if x["kind"] == "board"), None)
+    if f is not None:
+        if f["answer"] == PART and f["part"]:
+            return f["part"].upper()
+        return machine.upper() if f["answer"] == MACHINE else None
+    if board is not None:
+        return board.asset_id.upper()
+    return machine.upper() if keeps_bios(db, subject) else None
+
+
+class Verified(NamedTuple):
+    """A board's Verified: the survey that gave it, when that survey was taken, and the
+    program that ran its tests (`TINYDIAG 0.14.0`)."""
+
+    survey: int
+    taken: datetime
+    program: str
+
+
+def verified(db: Session, tags: Iterable[str] | None = None) -> dict[str, tuple[datetime, int]]:
+    """{board: (when, survey)} for every board, or every one of `tags`, that is verified:
+    the newest survey of it that decided passed it (ADR-0055). Newest by when it was
+    taken, so a survey filed late does not outvote a newer one."""
+    query = db.query(Survey.board, Survey.board_result, Survey.taken, Survey.id).filter(
+        Survey.board.is_not(None), Survey.board_result != ""
+    )
+    if tags is not None:
+        wanted = {t.upper() for t in tags if t}
+        if not wanted:
+            return {}
+        query = query.filter(Survey.board.in_(wanted))
+    newest: dict[str, tuple[str, datetime, int]] = {}
+    for board, result, taken, sid in query.order_by(Survey.taken, Survey.id):
+        newest[(board or "").upper()] = (result, taken, sid)
+    return {tag: (taken, sid) for tag, (result, taken, sid) in newest.items() if result == "PASS"}
+
+
+def program(keys: Mapping[str, str]) -> str:
+    """The survey program and its version, as its report names them."""
+    return " ".join(filter(None, (keys.get("TOOL", "").strip(), keys.get("VERSION", "").strip())))
+
+
+def verification(db: Session, tag: str) -> Verified | None:
+    """A board's Verified, for its page; None where it is not verified."""
+    found = verified(db, [tag]).get(tag.upper())
+    if found is None:
+        return None
+    taken, sid = found
+    s = db.get(Survey, sid)
+    return Verified(sid, taken, program(keys_of(s)) if s is not None else "")
+
+
+def _point_board_tests(
+    db: Session, s: Survey, board: str | None, keys: Mapping[str, str], own_line: bool
+) -> str:
+    """Say which board the survey's board tests were of, and where that changes whether
+    the board is verified, say so in its history, dated with the survey. A survey of the
+    board itself whose own line is still to be written (`own_line`) gets the words for
+    the end of that line instead, back from here."""
+    before = board is not None and board in verified(db, [board])
+    s.board = board
+    db.flush()
+    if board is None or (now := board in verified(db, [board])) == before:
+        return ""
+    if own_line and board == (s.machine or "").upper():
+        return "Verified." if now else "No longer verified."
+    # Only this survey's verdict was added, so a board that stopped being verified did
+    # so because the survey failed it.
+    if now:
+        line = f"Verified in a survey of {s.machine}."
+    else:
+        line = f"No longer verified: a survey of {s.machine} failed ({board_tests(keys).why})."
+    row = add_log(db, board, line, SURVEY_ENTRY)
+    if row is not None:
+        row.created_at = s.taken
+    return ""
+
+
+def board_line(db: Session, s: Survey) -> str:
+    """What the survey said of its board, for the machine's screen: its board tests,
+    and whether the board is verified now."""
+    if not s.board:
+        return ""
+    said = board_tests(keys_of(s))
+    now = s.board in verified(db, [s.board])
+    if said.result == "PASS":
+        head = "Board tests passed"
+    elif said.result == "FAIL":
+        head = f"Board tests failed ({said.why})"
+    else:
+        head = said.why[:1].upper() + said.why[1:]
+    state = "verified" if now else "not verified"
+    if not said.result and now:
+        state = "still verified"
+    return f"{head}: {s.board} is {state}."
+
+
 # --- ROMs ------------------------------------------------------------------------------------
 
 
@@ -2559,6 +2736,8 @@ def _history(db: Session, s: Survey, keys: Mapping[str, str], done: Filing) -> N
     line += "".join(f" {_corrected(c)}" for c in done.corrected)
     if "condition" in done.filled:
         line += " Marked Working."
+    if done.verified:
+        line += f" {done.verified}"
     row = add_log(db, s.machine, line, SURVEY_ENTRY)
     if row is not None:
         row.created_at = s.taken
@@ -2801,6 +2980,8 @@ def receipt(db: Session, made: list[Survey]) -> str:
         if filled:
             lines.append(f"Filled in {_joined(filled)}.")
         lines += corrections(s)
+        if said_of_board := board_line(db, s):
+            lines.append(said_of_board)
         waiting = sum(1 for f in findings_of(s) if f["answer"] is None)
         if s.machine and waiting:
             are = "is" if waiting == 1 else "are"
@@ -2985,6 +3166,9 @@ def answer_on_page(
         _bios_to_board(db, s, subject, board)
     if f["kind"] == "nic":
         s.bench_card = f["part"] if f["bench"] else None
+    if f["kind"] == "board" and subject is not None:
+        tested = _tested_board(db, found, subject, None, machine)
+        _point_board_tests(db, s, tested, keys, own_line=False)
     s.findings = json.dumps(found)
     s.waiting = FOR_ANSWER if any(x["answer"] is None for x in found) else None
     return done
@@ -3054,6 +3238,8 @@ def as_dict(s: Survey) -> dict[str, object]:
         "waiting": s.waiting,
         "reason": s.reason,
         "result": s.result,
+        "board": s.board,
+        "board_result": s.board_result,
         "bench_card": s.bench_card,
         "findings": [
             {

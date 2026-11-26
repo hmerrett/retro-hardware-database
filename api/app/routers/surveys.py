@@ -103,7 +103,7 @@ def _page(
         for name, value in keys.items()
         if name.startswith("TEST_")
     ]
-    tags = {s.machine or "", s.bench_card or ""} | {f["part"] or "" for f in found}
+    tags = {s.machine or "", s.bench_card or "", s.board or ""} | {f["part"] or "" for f in found}
     tags |= set(json.loads(s.missing or "[]"))
     return templates.TemplateResponse(
         request,
@@ -116,6 +116,7 @@ def _page(
             "memory": surveys.memory_worked_out(keys),
             "topbench": surveys.topbench(keys),
             "tests": tests,
+            "board_said": surveys.board_words(keys),
             "filled": json.loads(s.filled or "[]"),
             "corrected": surveys.corrections(s),
             "differs": json.loads(s.differs or "[]"),

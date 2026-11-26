@@ -44,6 +44,10 @@
     <div><dt>The agent's clock</dt><dd>{{ when(s.taken) }}</dd></div>
     {% if memory %}<div><dt>Memory</dt><dd>{{ memory }}</dd></div>{% endif %}
     {% if topbench is not none %}<div><dt>TopBench score</dt><dd>{{ topbench }}</dd></div>{% endif %}
+    {#- The board's own tests, which verify the board they were of whatever the rest
+        did (ADR-0055). Which board that is only once the survey is filed and its
+        motherboard answered. #}
+    {% if tests %}<div><dt>Board tests</dt><dd>{{ board_said }}{% if s.board %}, for {{ thing(s.board) }}{% endif %}</dd></div>{% endif %}
   </dl>
 </div>
 {% endcall %}

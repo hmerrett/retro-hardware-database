@@ -92,6 +92,8 @@ def _catalogue_rows(db: Session, authed: bool = False) -> list[Card]:
     # One query for every storage part's Kind, rather than re-parsing each specs
     # string (or a lookup per row) just to choose an icon.
     kinds = specdb.storage_kinds(db)
+    # And one for every board a survey has verified (ADR-0055).
+    shown = surveys.verified(db)
 
     rows: list[Card] = []
     for c in computers:
@@ -114,6 +116,7 @@ def _catalogue_rows(db: Session, authed: bool = False) -> list[Card]:
                 "acquired": str(c.acquired_date or ""),
                 "catsort": 0,
                 "sub": f"{counts.get(c.asset_id, 0)} part(s)",
+                "verified": c.asset_id.upper() in shown,
             }
         )
     for p in parts:
@@ -142,6 +145,7 @@ def _catalogue_rows(db: Session, authed: bool = False) -> list[Card]:
                 "acquired": str(p.acquired_date or ""),
                 "catsort": entry.type_sort_key(ptype) + 1,
                 "sub": home or "standalone",
+                "verified": p.asset_id.upper() in shown,
             }
         )
 

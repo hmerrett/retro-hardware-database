@@ -27,6 +27,7 @@
     {% for k, v in [('Manufacturer', p.manufacturer), ('Model', p.model), ('Kind', type_label(p.type)), ('Year', p.year), ('Serial', p.serial), ('Condition', p.condition), ('Source', p.source), ('Acquired', p.acquired_date)] %}
       {% if v %}<div><dt>{{ k }}</dt><dd>{{ v | linked }}</dd></div>{% endif %}
     {% endfor %}
+    {{ U.verified_row(verified) }}
     {# A network card's address is what a network knows a machine by, and a visitor has
        no use for one: the owner's alone (ADR-0043). #}
     {% if p.ethernet_address and request.state.sees_private %}<div><dt>Ethernet address</dt><dd><code>{{ p.ethernet_address }}</code></dd></div>{% endif %}
